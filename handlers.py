@@ -101,69 +101,93 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
 
 async def handle_package_selection(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle package selection"""
-    package_id = callback_query.data.replace("package_", "")
-    user_id = callback_query.from_user.id
-    
-    if package_id not in PACKAGES:
-        await callback_query.answer("❌ Invalid package")
-        return
-    
-    package = PACKAGES[package_id]
-    
-    # Show package details
-    details_text = get_text(user_id, "package_details",
-        name=package['name'],
-        price=package['price'],
-        duration=package['duration_days'],
-        frequency=package['repost_frequency_days'],
-        total_posts=package['total_posts']
-    )
-    
-    await callback_query.message.edit_text(
-        details_text,
-        reply_markup=get_package_details_keyboard(package_id, user_id),
-        parse_mode="Markdown"
-    )
-    await callback_query.answer()
+    try:
+        package_id = callback_query.data.replace("package_", "")
+        user_id = callback_query.from_user.id
+        
+        logger.info(f"Package selection: user {user_id}, package {package_id}")
+        
+        if package_id not in PACKAGES:
+            await callback_query.answer("❌ Invalid package")
+            return
+        
+        package = PACKAGES[package_id]
+        
+        # Show package details
+        details_text = get_text(user_id, "package_details",
+            name=package['name'],
+            price=package['price'],
+            duration=package['duration_days'],
+            frequency=package['repost_frequency_days'],
+            total_posts=package['total_posts']
+        )
+        
+        await callback_query.message.edit_text(
+            details_text,
+            reply_markup=get_package_details_keyboard(package_id, user_id),
+            parse_mode="Markdown"
+        )
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in package selection: {e}")
+        await callback_query.answer("❌ An error occurred. Please try again.")
+        # Send fallback message to user
+        try:
+            await callback_query.message.reply("Sorry, something went wrong. Please try selecting a package again.")
+        except:
+            pass
 
 async def handle_package_confirmation(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle package confirmation"""
-    package_id = callback_query.data.replace("confirm_package_", "")
-    user_id = callback_query.from_user.id
-    
-    if package_id not in PACKAGES:
-        await callback_query.answer("❌ Invalid package")
-        return
-    
-    package = PACKAGES[package_id]
-    
-    # Get user's current ad
-    ad = storage.get_user_current_ad(user_id)
-    if not ad:
-        await callback_query.answer(get_text(user_id, "no_ad_found"))
-        return
-    
-    # Update ad with package info
-    ad.package_id = package_id
-    ad.price = package['price']
-    ad.total_posts = package['total_posts']
-    ad.repost_frequency_days = package['repost_frequency_days']
-    ad.status = AdStatus.WAITING_PAYMENT
-    storage.save_ad(ad)
-    
-    # Show payment instructions
-    payment_text = get_text(user_id, "payment_instructions",
-        price=package['price'],
-        wallet_address=TON_WALLET_ADDRESS
-    )
-    
-    await callback_query.message.edit_text(
-        payment_text,
-        reply_markup=get_payment_keyboard(user_id),
-        parse_mode="Markdown"
-    )
-    await AdStates.waiting_for_payment.set()
-    await callback_query.answer()
+    try:
+        package_id = callback_query.data.replace("confirm_package_", "")
+        user_id = callback_query.from_user.id
+        
+        logger.info(f"Package confirmation: user {user_id}, package {package_id}")
+        
+        if package_id not in PACKAGES:
+            await callback_query.answer("❌ Invalid package")
+            return
+        
+        package = PACKAGES[package_id]
+        
+        # Get user's current ad
+        ad = storage.get_user_current_ad(user_id)
+        if not ad:
+            await callback_query.answer(get_text(user_id, "no_ad_found"))
+            return
+        
+        # Update ad with package info
+        ad.package_id = package_id
+        ad.price = package['price']
+        ad.total_posts = package['total_posts']
+        ad.repost_frequency_days = package['repost_frequency_days']
+        ad.status = AdStatus.WAITING_PAYMENT
+        storage.save_ad(ad)
+        
+        # Show payment instructions
+        payment_text = get_text(user_id, "payment_instructions",
+            price=package['price'],
+            wallet_address=TON_WALLET_ADDRESS
+        )
+        
+        await callback_query.message.edit_text(
+            payment_text,
+            reply_markup=get_payment_keyboard(user_id),
+            parse_mode="Markdown"
+        )
+        await AdStates.waiting_for_payment.set()
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in package confirmation: {e}")
+        await callback_query.answer("❌ An error occurred. Please try again.")
+        # Send fallback message to user
+        try:
+            await callback_query.message.reply("Sorry, something went wrong. Please try selecting a package again.")
+        except:
+            pass
 
 async def handle_back_to_packages(callback_query: types.CallbackQuery):
     """Handle back to packages button"""
