@@ -7,6 +7,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
 from config import BOT_TOKEN, ADMIN_IDS, CHANNEL_ID, TON_WALLET_ADDRESS
 from handlers import register_handlers
+from languages import get_text
 from scheduler import ScheduleManager
 
 # Configure logging
@@ -35,7 +36,7 @@ async def on_startup(dp):
     # Notify admins that bot is online
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, "🤖 Ad Bot is now online!")
+            await bot.send_message(admin_id, get_text(admin_id, "bot_online"))
         except Exception as e:
             logger.error(f"Failed to notify admin {admin_id}: {e}")
 

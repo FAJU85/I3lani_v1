@@ -5,6 +5,7 @@ from aiogram import Bot
 from aiogram.types import InputMediaPhoto, InputMediaVideo
 from config import CHANNEL_ID, PACKAGES
 from models import Advertisement, AdStatus, storage
+from languages import get_text
 import logging
 
 logger = logging.getLogger(__name__)
@@ -98,10 +99,10 @@ class ScheduleManager:
                             try:
                                 await self.bot.send_message(
                                     ad.user_id,
-                                    f"✅ **Campaign Completed!**\n\n"
-                                    f"Your {PACKAGES[ad.package_id]['name']} campaign has finished.\n"
-                                    f"📊 **Total posts:** {ad.posts_count}\n"
-                                    f"🎯 **Thank you for using our service!**",
+                                    get_text(ad.user_id, "campaign_completed",
+                                        package_name=PACKAGES[ad.package_id]['name'],
+                                        posts_count=ad.posts_count
+                                    ),
                                     parse_mode="Markdown"
                                 )
                             except Exception as e:

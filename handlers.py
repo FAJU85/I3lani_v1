@@ -5,9 +5,10 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
 from aiogram.types import ContentType
-from config import PACKAGES, WELCOME_MESSAGE, PAYMENT_INSTRUCTIONS, ADMIN_IDS, CHANNEL_ID, TON_WALLET_ADDRESS
+from config import PACKAGES, ADMIN_IDS, CHANNEL_ID, TON_WALLET_ADDRESS
 from models import Advertisement, AdContent, AdStatus, PaymentStatus, storage
 from keyboards import get_package_keyboard, get_payment_keyboard, get_admin_approval_keyboard, get_package_details_keyboard
+from languages import get_text, set_user_language, get_language_keyboard
 from scheduler import ScheduleManager
 import logging
 
@@ -21,13 +22,40 @@ class AdStates(StatesGroup):
 async def start_command(message: types.Message, state: FSMContext):
     """Handle /start command"""
     await state.finish()
-    await message.reply(WELCOME_MESSAGE, parse_mode="Markdown")
+    user_id = message.from_user.id
+    
+    # Show language selection first
+    await message.reply(
+        get_text(user_id, "choose_language"),
+        reply_markup=get_language_keyboard(),
+        parse_mode="Markdown"
+    )
+
+async def handle_language_selection(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle language selection"""
+    language = callback_query.data.replace("lang_", "")
+    user_id = callback_query.from_user.id
+    
+    # Set user language
+    set_user_language(user_id, language)
+    
+    # Show welcome message in selected language
+    await callback_query.message.edit_text(
+        get_text(user_id, "welcome_message"),
+        parse_mode="Markdown"
+    )
+    
+    # Notify language selected
+    await callback_query.answer(get_text(user_id, "language_selected"))
     await AdStates.waiting_for_ad.set()
 
 async def handle_ad_content(message: types.Message, state: FSMContext):
     """Handle ad content submission"""
-    if not await AdStates.waiting_for_ad.check():
+    current_state = await state.get_state()
+    if current_state != AdStates.waiting_for_ad.state:
         return
+    
+    user_id = message.from_user.id
     
     # Create ad content based on message type
     content = AdContent()
@@ -44,7 +72,7 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
         content.caption = message.caption
         content.content_type = "video"
     else:
-        await message.reply("❌ Please send text, photo, or video content only.")
+        await message.reply(get_text(user_id, "invalid_content"))
         return
     
     # Create advertisement
@@ -66,15 +94,15 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
     
     # Show package selection
     await message.reply(
-        "✅ **Ad content received!**\n\n"
-        "📦 **Choose your advertising package:**",
-        reply_markup=get_package_keyboard(),
+        get_text(user_id, "ad_content_received"),
+        reply_markup=get_package_keyboard(user_id),
         parse_mode="Markdown"
     )
 
 async def handle_package_selection(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle package selection"""
     package_id = callback_query.data.replace("package_", "")
+    user_id = callback_query.from_user.id
     
     if package_id not in PACKAGES:
         await callback_query.answer("❌ Invalid package")
@@ -83,20 +111,17 @@ async def handle_package_selection(callback_query: types.CallbackQuery, state: F
     package = PACKAGES[package_id]
     
     # Show package details
-    details_text = f"""
-📦 **{package['name']} Package**
-
-💰 **Price:** {package['price']} TON
-⏱ **Duration:** {package['duration_days']} days
-📅 **Repost every:** {package['repost_frequency_days']} day(s)
-📊 **Total posts:** {package['total_posts']}
-
-Choose this package to proceed with payment.
-"""
+    details_text = get_text(user_id, "package_details",
+        name=package['name'],
+        price=package['price'],
+        duration=package['duration_days'],
+        frequency=package['repost_frequency_days'],
+        total_posts=package['total_posts']
+    )
     
     await callback_query.message.edit_text(
         details_text,
-        reply_markup=get_package_details_keyboard(package_id),
+        reply_markup=get_package_details_keyboard(package_id, user_id),
         parse_mode="Markdown"
     )
     await callback_query.answer()
@@ -104,18 +129,18 @@ Choose this package to proceed with payment.
 async def handle_package_confirmation(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle package confirmation"""
     package_id = callback_query.data.replace("confirm_package_", "")
+    user_id = callback_query.from_user.id
     
     if package_id not in PACKAGES:
         await callback_query.answer("❌ Invalid package")
         return
     
     package = PACKAGES[package_id]
-    user_id = callback_query.from_user.id
     
     # Get user's current ad
     ad = storage.get_user_current_ad(user_id)
     if not ad:
-        await callback_query.answer("❌ No ad found. Please start over.")
+        await callback_query.answer(get_text(user_id, "no_ad_found"))
         return
     
     # Update ad with package info
@@ -127,14 +152,14 @@ async def handle_package_confirmation(callback_query: types.CallbackQuery, state
     storage.save_ad(ad)
     
     # Show payment instructions
-    payment_text = PAYMENT_INSTRUCTIONS.format(
+    payment_text = get_text(user_id, "payment_instructions",
         price=package['price'],
         wallet_address=TON_WALLET_ADDRESS
     )
     
     await callback_query.message.edit_text(
         payment_text,
-        reply_markup=get_payment_keyboard(),
+        reply_markup=get_payment_keyboard(user_id),
         parse_mode="Markdown"
     )
     await AdStates.waiting_for_payment.set()
@@ -142,9 +167,10 @@ async def handle_package_confirmation(callback_query: types.CallbackQuery, state
 
 async def handle_back_to_packages(callback_query: types.CallbackQuery):
     """Handle back to packages button"""
+    user_id = callback_query.from_user.id
     await callback_query.message.edit_text(
-        "📦 **Choose your advertising package:**",
-        reply_markup=get_package_keyboard(),
+        get_text(user_id, "ad_content_received"),
+        reply_markup=get_package_keyboard(user_id),
         parse_mode="Markdown"
     )
     await callback_query.answer()
@@ -155,7 +181,7 @@ async def handle_payment_sent(callback_query: types.CallbackQuery, state: FSMCon
     ad = storage.get_user_current_ad(user_id)
     
     if not ad:
-        await callback_query.answer("❌ No ad found. Please start over.")
+        await callback_query.answer(get_text(user_id, "no_ad_found"))
         return
     
     # Update ad status
@@ -164,13 +190,11 @@ async def handle_payment_sent(callback_query: types.CallbackQuery, state: FSMCon
     
     # Notify user
     await callback_query.message.edit_text(
-        "✅ **Payment notification received!**\n\n"
-        "⏳ Your payment is being verified by our admin team.\n"
-        "You will be notified once it's approved.\n\n"
-        "📊 **Ad Details:**\n"
-        f"📦 Package: {PACKAGES[ad.package_id]['name']}\n"
-        f"💰 Price: {ad.price} TON\n"
-        f"📅 Posts: {ad.total_posts}",
+        get_text(user_id, "payment_received",
+            package_name=PACKAGES[ad.package_id]['name'],
+            price=ad.price,
+            total_posts=ad.total_posts
+        ),
         parse_mode="Markdown"
     )
     
@@ -189,8 +213,7 @@ async def handle_payment_cancel(callback_query: types.CallbackQuery, state: FSMC
         storage.delete_ad(ad.id)
     
     await callback_query.message.edit_text(
-        "❌ **Payment cancelled**\n\n"
-        "Your ad has been cancelled. Send /start to create a new ad.",
+        get_text(user_id, "payment_cancelled"),
         parse_mode="Markdown"
     )
     await state.finish()
@@ -200,28 +223,22 @@ async def notify_admins_for_approval(bot: Bot, ad: Advertisement):
     """Notify admins about pending payment approval"""
     package = PACKAGES[ad.package_id]
     
-    admin_text = f"""
-🔔 **New Payment Pending Approval**
-
-👤 **User:** @{ad.username or 'Unknown'} (ID: {ad.user_id})
-📦 **Package:** {package['name']}
-💰 **Price:** {ad.price} TON
-🕒 **Submitted:** {ad.created_at.strftime('%Y-%m-%d %H:%M:%S')}
-
-**Ad Content:**
-{ad.content.text or ad.content.caption or 'Media content'}
-
-💳 **Wallet:** `{TON_WALLET_ADDRESS}`
-
-Please verify payment on tonviewer.com and approve/reject below.
-"""
-    
     for admin_id in ADMIN_IDS:
         try:
+            admin_text = get_text(admin_id, "admin_notification",
+                username=ad.username or 'Unknown',
+                user_id=ad.user_id,
+                package_name=package['name'],
+                price=ad.price,
+                created_at=ad.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                content=ad.content.text or ad.content.caption or 'Media content',
+                wallet_address=TON_WALLET_ADDRESS
+            )
+            
             await bot.send_message(
                 admin_id,
                 admin_text,
-                reply_markup=get_admin_approval_keyboard(ad.id),
+                reply_markup=get_admin_approval_keyboard(ad.id, admin_id),
                 parse_mode="Markdown"
             )
         except Exception as e:
@@ -329,6 +346,9 @@ def register_handlers(dp: Dispatcher, bot: Bot, schedule_manager: ScheduleManage
     # Command handlers
     dp.register_message_handler(start_command, commands=['start'], state="*")
     dp.register_message_handler(admin_stats_command, commands=['stats'])
+    
+    # Language selection handler
+    dp.register_callback_query_handler(handle_language_selection, Text(startswith="lang_"))
     
     # Content handlers
     dp.register_message_handler(handle_ad_content, content_types=[ContentType.TEXT, ContentType.PHOTO, ContentType.VIDEO], state=AdStates.waiting_for_ad)

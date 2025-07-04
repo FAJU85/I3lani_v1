@@ -1,7 +1,8 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import PACKAGES
+from languages import get_text, get_language_keyboard
 
-def get_package_keyboard() -> InlineKeyboardMarkup:
+def get_package_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Create inline keyboard for package selection"""
     keyboard = InlineKeyboardMarkup(row_width=2)
     
@@ -16,50 +17,50 @@ def get_package_keyboard() -> InlineKeyboardMarkup:
     
     return keyboard
 
-def get_payment_keyboard() -> InlineKeyboardMarkup:
+def get_payment_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Create keyboard for payment confirmation"""
     keyboard = InlineKeyboardMarkup()
     keyboard.add(
         InlineKeyboardButton(
-            text="✅ I've Paid",
+            text=get_text(user_id, "buttons.ive_paid"),
             callback_data="payment_sent"
         )
     )
     keyboard.add(
         InlineKeyboardButton(
-            text="❌ Cancel",
+            text=get_text(user_id, "buttons.cancel"),
             callback_data="payment_cancel"
         )
     )
     return keyboard
 
-def get_admin_approval_keyboard(ad_id: str) -> InlineKeyboardMarkup:
+def get_admin_approval_keyboard(ad_id: str, user_id: int) -> InlineKeyboardMarkup:
     """Create keyboard for admin approval"""
     keyboard = InlineKeyboardMarkup()
     keyboard.add(
         InlineKeyboardButton(
-            text="✅ Approve",
+            text=get_text(user_id, "buttons.approve"),
             callback_data=f"approve_{ad_id}"
         ),
         InlineKeyboardButton(
-            text="❌ Reject",
+            text=get_text(user_id, "buttons.reject"),
             callback_data=f"reject_{ad_id}"
         )
     )
     return keyboard
 
-def get_package_details_keyboard(package_id: str) -> InlineKeyboardMarkup:
+def get_package_details_keyboard(package_id: str, user_id: int) -> InlineKeyboardMarkup:
     """Create keyboard showing package details"""
     keyboard = InlineKeyboardMarkup()
     keyboard.add(
         InlineKeyboardButton(
-            text="💳 Choose This Package",
+            text=get_text(user_id, "buttons.choose_package"),
             callback_data=f"confirm_package_{package_id}"
         )
     )
     keyboard.add(
         InlineKeyboardButton(
-            text="⬅️ Back to Packages",
+            text=get_text(user_id, "buttons.back_to_packages"),
             callback_data="back_to_packages"
         )
     )
