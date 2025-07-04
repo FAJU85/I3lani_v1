@@ -98,6 +98,9 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
         reply_markup=get_package_keyboard(user_id),
         parse_mode="Markdown"
     )
+    
+    # Set state for package selection
+    await state.finish()  # Clear current state
 
 async def handle_package_selection(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle package selection"""
@@ -377,7 +380,7 @@ def register_handlers(dp: Dispatcher, bot: Bot, schedule_manager: ScheduleManage
     # Content handlers
     dp.register_message_handler(handle_ad_content, content_types=[ContentType.TEXT, ContentType.PHOTO, ContentType.VIDEO], state=AdStates.waiting_for_ad)
     
-    # Callback handlers
+    # Callback handlers (no state restrictions - accept from any state)
     dp.register_callback_query_handler(handle_package_selection, Text(startswith="package_"))
     dp.register_callback_query_handler(handle_package_confirmation, Text(startswith="confirm_package_"))
     dp.register_callback_query_handler(handle_back_to_packages, Text(equals="back_to_packages"))
@@ -386,4 +389,10 @@ def register_handlers(dp: Dispatcher, bot: Bot, schedule_manager: ScheduleManage
     dp.register_callback_query_handler(
         lambda callback_query: handle_admin_approval(callback_query, bot, schedule_manager),
         Text(startswith=["approve_", "reject_"])
+    )
+    
+    # Debug handler to catch all callbacks
+    dp.register_callback_query_handler(
+        lambda callback_query: logger.info(f"🔍 UNHANDLED CALLBACK: {callback_query.data} from user {callback_query.from_user.id}"),
+        lambda c: True
     )
