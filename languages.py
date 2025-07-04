@@ -40,11 +40,17 @@ Choose this package to proceed with payment.
 1. Send **{price} TON** to this wallet address:
 `{wallet_address}`
 
-2. After sending payment, click the button below
-3. Wait for admin approval
-4. Your ad will be posted automatically!
+2. **Important:** Include this memo in your transfer:
+`{memo}`
 
-⚠️ **Important:** Make sure to send the exact amount
+3. After sending payment, click "I've Paid" button below
+4. Wait for admin approval (usually within 30 minutes)
+5. Your ad will be posted automatically!
+
+⚠️ **Important:** 
+- Send exact amount: {price} TON
+- Include the memo: {memo}
+- The memo helps us identify your payment
 """,
         'payment_received': """
 ✅ **Payment notification received!**
@@ -68,12 +74,43 @@ Your ad has been approved and will be posted shortly.
 
 Your payment could not be verified. Please contact support if you believe this is an error.
 """,
+        'campaign_started': """
+🚀 **Campaign Started!**
+
+Your {package_name} campaign is now active!
+
+📊 **Campaign Details:**
+- Duration: {duration_days} days
+- Total posts: {total_posts}
+- Repost every: {frequency_days} day(s)
+- End date: {end_date}
+
+Your first ad has been posted to the channel! 🎯
+""",
+        'ad_posted_notification': """
+📢 **Ad Posted Successfully!**
+
+Your advertisement has been posted to the channel.
+
+📊 **Progress:**
+- Post #{post_number} of {total_posts}
+- Next post: {next_post_date}
+
+{remaining_posts_text}
+""",
         'campaign_completed': """
 ✅ **Campaign Completed!**
 
-Your {package_name} campaign has finished.
-📊 **Total posts:** {posts_count}
+Your {package_name} campaign has finished successfully!
+
+📊 **Final Statistics:**
+- Total posts: {posts_count}
+- Campaign duration: {duration_days} days
+- Channel: @{channel_name}
+
 🎯 **Thank you for using our service!**
+
+Want to advertise again? Send /start to create a new campaign.
 """,
         'payment_cancelled': """
 ❌ **Payment cancelled**
@@ -99,13 +136,15 @@ Your ad has been cancelled. Send /start to create a new ad.
 📦 **Package:** {package_name}
 💰 **Price:** {price} TON
 🕒 **Submitted:** {created_at}
+🔖 **Payment Memo:** `{memo}`
 
 **Ad Content:**
 {content}
 
 💳 **Wallet:** `{wallet_address}`
+🔍 **Search memo:** `{memo}` on tonviewer.com
 
-Please verify payment on tonviewer.com and approve/reject below.
+Please verify payment and approve/reject below.
 """,
         'admin_approved': """
 ✅ **Ad Approved** by @{admin_username}

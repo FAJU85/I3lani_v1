@@ -44,6 +44,7 @@ class Advertisement:
     total_posts: int = 0
     repost_frequency_days: int = 1
     next_repost_at: Optional[datetime] = None
+    payment_memo: Optional[str] = None  # Unique memo for payment identification
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert advertisement to dictionary"""

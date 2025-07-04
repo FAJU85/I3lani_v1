@@ -77,6 +77,9 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
     
     # Create advertisement
     ad_id = str(uuid.uuid4())
+    # Generate unique payment memo (first 8 chars of ad ID)
+    payment_memo = ad_id[:8].upper()
+    
     ad = Advertisement(
         id=ad_id,
         user_id=message.from_user.id,
@@ -86,7 +89,8 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
         price=0.0,
         status=AdStatus.DRAFT,
         created_at=datetime.now(),
-        payment_status=PaymentStatus.PENDING
+        payment_status=PaymentStatus.PENDING,
+        payment_memo=payment_memo
     )
     
     # Save to storage
@@ -169,10 +173,11 @@ async def handle_package_confirmation(callback_query: types.CallbackQuery, state
         ad.status = AdStatus.WAITING_PAYMENT
         storage.save_ad(ad)
         
-        # Show payment instructions
+        # Show payment instructions with memo
         payment_text = get_text(user_id, "payment_instructions",
             price=package['price'],
-            wallet_address=TON_WALLET_ADDRESS
+            wallet_address=TON_WALLET_ADDRESS,
+            memo=ad.payment_memo
         )
         
         await callback_query.message.edit_text(
@@ -259,7 +264,8 @@ async def notify_admins_for_approval(bot: Bot, ad: Advertisement):
                 price=ad.price,
                 created_at=ad.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 content=ad.content.text or ad.content.caption or 'Media content',
-                wallet_address=TON_WALLET_ADDRESS
+                wallet_address=TON_WALLET_ADDRESS,
+                memo=ad.payment_memo
             )
             
             await bot.send_message(
