@@ -71,11 +71,21 @@ The application follows a modular Python architecture using the aiogram library 
 
 ## Deployment Strategy
 
-The application is designed for containerized deployment with:
+The application is designed for multiple deployment platforms:
+- **Heroku**: Complete deployment files provided (Procfile, runtime.txt, app.json)
+- **Railway/DigitalOcean**: Compatible with Python deployment
+- **Cloud providers**: AWS, GCP, Azure compatible
 - Environment variable configuration
 - In-memory storage (suitable for lightweight deployments)
 - Asynchronous operations for scalability
 - Error handling and logging for production reliability
+
+**Heroku Deployment Files**:
+- `Procfile` - Defines worker process
+- `runtime.txt` - Python 3.11 specification
+- `heroku_requirements.txt` - All dependencies listed
+- `app.json` - One-click deployment configuration
+- `HEROKU_DEPLOYMENT_GUIDE.md` - Complete deployment instructions
 
 **Note**: The current implementation uses in-memory storage, which may require migration to persistent storage (such as PostgreSQL with Drizzle ORM) for production environments to ensure data persistence across restarts.
 
