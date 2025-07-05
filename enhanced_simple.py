@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 # Bot configuration
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is required")
 ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '').split(',') if x.strip()]
 
 # Initialize bot and dispatcher
@@ -155,9 +157,11 @@ class EnhancedPaymentSystem:
                 return
             
             # Update order status
-            order.payment_status = 'confirmed'
-            order.status = 'active'
-            order.paid_at = datetime.utcnow()
+            db.query(Order).filter(Order.id == order_id).update({
+                'payment_status': 'confirmed',
+                'status': 'active',
+                'paid_at': datetime.utcnow()
+            })
             db.commit()
             
             # Notify user
