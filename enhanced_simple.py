@@ -201,11 +201,11 @@ class EnhancedPaymentSystem:
             # Notify user
             await bot.send_message(
                 order.user_id,
-                f"🎉 **Payment Confirmed!**\n\n"
+                f"🎉 Payment Confirmed!\n\n"
                 f"Your payment has been automatically detected on the TON blockchain!\n\n"
-                f"📦 **Order:** `{order.id}`\n"
-                f"🔖 **Memo:** `{order.payment_memo}`\n\n"
-                f"🚀 **Your campaign is now starting!**\n\n"
+                f"📦 Order: {order.id}\n"
+                f"🔖 Memo: {order.payment_memo}\n\n"
+                f"🚀 Your campaign is now starting!\n\n"
                 f"Your ads will be posted across {len(user_selections.get(order.user_id, {}).get('channels', []))} channels "
                 f"for the next {order.duration_months} months."
             )
@@ -237,9 +237,9 @@ async def start_command(message: types.Message, state: FSMContext):
             return
         
         text = """
-🚀 **Welcome to Enhanced Ad Bot!**
+🚀 Welcome to Enhanced Ad Bot!
 
-✨ **New Features:**
+✨ New Features:
 📺 Multi-channel advertising
 💰 Real-time pricing (TON/USD/SAR/RUB)
 🔄 Auto payment detection
