@@ -227,9 +227,23 @@ async def start_command(message: types.Message, state: FSMContext):
     user_selections[user_id] = {'channels': [], 'selected_channel_names': []}
     await state.finish()
     
-    # Get available channels
+    # Register user in database
     db = SessionLocal()
     try:
+        # Check if user exists, if not create them
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            user = User(
+                id=user_id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                language_code=message.from_user.language_code or 'en'
+            )
+            db.add(user)
+            db.commit()
+        
+        # Get available channels
         channels = db.query(Channel).filter(Channel.is_active == True).all()
         
         if not channels:
