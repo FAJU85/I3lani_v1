@@ -22,3 +22,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python enhanced_simple.py"
+
+[deployment]
+deploymentTarget = "cloudrun"
