@@ -6,7 +6,7 @@
 - **Unique Memo Generation**: `INV_[8random]` format (e.g., `INV_A3B7C9D2`)
 - **Collision Prevention**: Database validation ensures memo uniqueness
 - **Wallet Integration**: Dynamic wallet address + memo for each payment
-- **Auto-Detection**: Real-time TON blockchain monitoring (60-second demo cycle)
+- **Auto-Detection**: Real-time TON blockchain monitoring via TON API (30-second intervals)
 
 ### **✅ Enhanced Payment Workflow**
 1. **User Journey**: Click "Pay with TON" → Bot generates wallet + memo → User pays → Auto-detection → Campaign starts

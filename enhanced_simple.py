@@ -10,6 +10,7 @@ import json
 import random
 import string
 import requests
+import aiohttp
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
@@ -35,7 +36,7 @@ if not BOT_TOKEN:
 ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '').split(',') if x.strip()]
 
 # Initialize bot and dispatcher
-bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.MARKDOWN)
+bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.MARKDOWN_V2)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
@@ -134,13 +135,46 @@ class EnhancedPaymentSystem:
         self.monitoring_tasks[order_id] = task
     
     async def _monitor_payment(self, order_id: str, memo: str, amount: float):
-        """Monitor payment for 30 minutes"""
+        """Monitor payment for 30 minutes using real TON API"""
         try:
-            # Simulate payment detection after 60 seconds
-            await asyncio.sleep(60)
+            ton_api_key = os.getenv('TON_API_KEY')
+            wallet_address = os.getenv('TON_WALLET_ADDRESS')
             
-            # Confirm payment
-            await self.confirm_payment(order_id)
+            if not ton_api_key or not wallet_address:
+                logger.error("TON API key or wallet address not configured")
+                return
+            
+            # Monitor for 30 minutes (1800 seconds) with 30-second intervals
+            for _ in range(60):  # 30 minutes / 30 seconds = 60 checks
+                try:
+                    # Check TON blockchain for payment
+                    headers = {'Authorization': f'Bearer {ton_api_key}'}
+                    url = f'https://tonapi.io/v2/accounts/{wallet_address}/transactions'
+                    
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url, headers=headers) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                
+                                # Check recent transactions for our memo
+                                for tx in data.get('transactions', []):
+                                    if 'in_msg' in tx and tx['in_msg']:
+                                        message = tx['in_msg'].get('message', '')
+                                        value = float(tx['in_msg'].get('value', 0)) / 1e9  # Convert from nanotons
+                                        
+                                        if memo in message and value >= amount * 0.95:  # 5% tolerance
+                                            logger.info(f"Payment detected for order {order_id}")
+                                            await self.confirm_payment(order_id)
+                                            return
+                    
+                except Exception as e:
+                    logger.error(f"Error checking TON API: {e}")
+                
+                # Wait 30 seconds before next check
+                await asyncio.sleep(30)
+            
+            # Payment not detected within 30 minutes
+            logger.info(f"Payment timeout for order {order_id}")
             
         except Exception as e:
             logger.error(f"Error monitoring payment: {e}")
