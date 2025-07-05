@@ -36,7 +36,7 @@ if not BOT_TOKEN:
 ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '').split(',') if x.strip()]
 
 # Initialize bot and dispatcher
-bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.MARKDOWN_V2)
+bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
