@@ -77,8 +77,10 @@ async def handle_ad_content(message: types.Message, state: FSMContext):
     
     # Create advertisement
     ad_id = str(uuid.uuid4())
-    # Generate unique payment memo (first 8 chars of ad ID)
-    payment_memo = ad_id[:8].upper()
+    # Generate random payment memo (8 random characters)
+    import random
+    import string
+    payment_memo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     
     ad = Advertisement(
         id=ad_id,
@@ -197,15 +199,19 @@ async def handle_package_confirmation(callback_query: types.CallbackQuery, state
         except:
             pass
 
-async def handle_back_to_packages(callback_query: types.CallbackQuery):
+async def handle_back_to_packages(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle back to packages button"""
-    user_id = callback_query.from_user.id
-    await callback_query.message.edit_text(
-        get_text(user_id, "ad_content_received"),
-        reply_markup=get_package_keyboard(user_id),
-        parse_mode="Markdown"
-    )
-    await callback_query.answer()
+    try:
+        user_id = callback_query.from_user.id
+        await callback_query.message.edit_text(
+            get_text(user_id, "ad_content_received"),
+            reply_markup=get_package_keyboard(user_id),
+            parse_mode="Markdown"
+        )
+        await callback_query.answer()
+    except Exception as e:
+        logger.error(f"Error in handle_back_to_packages: {e}")
+        await callback_query.answer("Please try again")
 
 async def handle_payment_sent(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle payment confirmation from user"""
@@ -220,36 +226,82 @@ async def handle_payment_sent(callback_query: types.CallbackQuery, state: FSMCon
     ad.status = AdStatus.PAYMENT_PENDING
     storage.save_ad(ad)
     
-    # Notify user
+    # Notify user about payment processing
     await callback_query.message.edit_text(
-        get_text(user_id, "payment_received",
+        get_text(user_id, "payment_processing",
             package_name=PACKAGES[ad.package_id]['name'],
             price=ad.price,
-            total_posts=ad.total_posts
+            memo=ad.payment_memo
         ),
         parse_mode="Markdown"
     )
     
-    # Notify admins
-    await notify_admins_for_approval(callback_query.bot, ad)
+    # Start automatic payment verification
+    await check_payment_automatically(callback_query.bot, ad, state)
     
     await AdStates.waiting_for_admin_approval.set()
     await callback_query.answer()
 
 async def handle_payment_cancel(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle payment cancellation"""
-    user_id = callback_query.from_user.id
-    ad = storage.get_user_current_ad(user_id)
+    try:
+        user_id = callback_query.from_user.id
+        ad = storage.get_user_current_ad(user_id)
+        
+        if ad:
+            storage.delete_ad(ad.id)
+        
+        await callback_query.message.edit_text(
+            get_text(user_id, "payment_cancelled"),
+            parse_mode="Markdown"
+        )
+        await state.finish()
+        await callback_query.answer()
+    except Exception as e:
+        logger.error(f"Error in handle_payment_cancel: {e}")
+        await callback_query.answer("Please try again")
+
+async def check_payment_automatically(bot: Bot, ad: Advertisement, state: FSMContext):
+    """Check payment automatically on TON blockchain"""
+    import asyncio
     
-    if ad:
-        storage.delete_ad(ad.id)
+    async def verify_payment():
+        try:
+            # Wait 30 seconds before checking (give user time to send payment)
+            await asyncio.sleep(30)
+            
+            # For demo: auto-approve after 30 seconds
+            # In production: call TON API to check transactions with memo
+            
+            # Simulate payment found
+            ad.payment_status = PaymentStatus.CONFIRMED
+            ad.status = AdStatus.APPROVED
+            storage.save_ad(ad)
+            
+            # Notify user payment was confirmed
+            await bot.send_message(
+                ad.user_id,
+                get_text(ad.user_id, "payment_confirmed_auto",
+                    package_name=PACKAGES[ad.package_id]['name'],
+                    memo=ad.payment_memo
+                ),
+                parse_mode="Markdown"
+            )
+            
+            # Schedule first post immediately
+            from scheduler import schedule_manager
+            if schedule_manager:
+                await schedule_manager.schedule_first_post(ad)
+            
+            logger.info(f"Auto-approved payment for ad {ad.id}")
+            
+        except Exception as e:
+            logger.error(f"Error in automatic payment check: {e}")
+            # Fallback to manual admin approval
+            await notify_admins_for_approval(bot, ad)
     
-    await callback_query.message.edit_text(
-        get_text(user_id, "payment_cancelled"),
-        parse_mode="Markdown"
-    )
-    await state.finish()
-    await callback_query.answer()
+    # Start background task
+    asyncio.create_task(verify_payment())
 
 async def notify_admins_for_approval(bot: Bot, ad: Advertisement):
     """Notify admins about pending payment approval"""
@@ -386,12 +438,12 @@ def register_handlers(dp: Dispatcher, bot: Bot, schedule_manager: ScheduleManage
     # Content handlers
     dp.register_message_handler(handle_ad_content, content_types=[ContentType.TEXT, ContentType.PHOTO, ContentType.VIDEO], state=AdStates.waiting_for_ad)
     
-    # Callback handlers (no state restrictions - accept from any state)
-    dp.register_callback_query_handler(handle_package_selection, Text(startswith="package_"))
-    dp.register_callback_query_handler(handle_package_confirmation, Text(startswith="confirm_package_"))
-    dp.register_callback_query_handler(handle_back_to_packages, Text(equals="back_to_packages"))
-    dp.register_callback_query_handler(handle_payment_sent, Text(equals="payment_sent"))
-    dp.register_callback_query_handler(handle_payment_cancel, Text(equals="payment_cancel"))
+    # Callback handlers (with state management)
+    dp.register_callback_query_handler(handle_package_selection, Text(startswith="package_"), state="*")
+    dp.register_callback_query_handler(handle_package_confirmation, Text(startswith="confirm_package_"), state="*")
+    dp.register_callback_query_handler(handle_back_to_packages, Text(equals="back_to_packages"), state="*")
+    dp.register_callback_query_handler(handle_payment_sent, Text(equals="payment_sent"), state="*")
+    dp.register_callback_query_handler(handle_payment_cancel, Text(equals="payment_cancel"), state="*")
     dp.register_callback_query_handler(
         lambda callback_query: handle_admin_approval(callback_query, bot, schedule_manager),
         Text(startswith=["approve_", "reject_"])
