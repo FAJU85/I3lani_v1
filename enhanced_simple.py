@@ -58,8 +58,8 @@ class EnhancedPaymentSystem:
         self.monitoring_tasks = {}
     
     def generate_memo(self) -> str:
-        """Generate unique payment memo INV_[8chars]"""
-        return "INV_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        """Generate unique payment memo AB0102 format (6 chars)"""
+        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     
     async def get_ton_rate(self, currency: str) -> float:
         """Get TON exchange rate"""
@@ -1099,6 +1099,108 @@ async def handle_admin_callback(callback_query: types.CallbackQuery, state: FSMC
     await callback_query.answer()
 
 # Register handlers
+async def dashboard_command(message: types.Message):
+    """My Ads Dashboard command"""
+    user_id = message.from_user.id
+    
+    try:
+        db = SessionLocal()
+        try:
+            # Get user's active campaigns
+            active_orders = db.query(Order).filter(
+                Order.user_id == user_id,
+                Order.status.in_(['active', 'paid'])
+            ).order_by(Order.created_at.desc()).limit(5).all()
+            
+            # Get user statistics
+            total_orders = db.query(Order).filter(Order.user_id == user_id).count()
+            total_spent = db.query(func.sum(Order.total_amount_usd)).filter(
+                Order.user_id == user_id,
+                Order.payment_status == 'confirmed'
+            ).scalar() or 0
+            
+            dashboard_text = f"📊 **My Ads Dashboard**\n\n"
+            dashboard_text += f"📈 **Your Statistics:**\n"
+            dashboard_text += f"• Total Campaigns: {total_orders}\n"
+            dashboard_text += f"• Active Campaigns: {len(active_orders)}\n"
+            dashboard_text += f"• Total Spent: ${total_spent:.2f}\n\n"
+            
+            if active_orders:
+                dashboard_text += f"🚀 **Active Campaigns:**\n"
+                for order in active_orders:
+                    channels = db.query(Channel).filter(Channel.id.in_([c.id for c in order.channels])).all()
+                    channel_names = [c.name for c in channels]
+                    dashboard_text += f"• **{order.id[:8]}...** - {', '.join(channel_names)}\n"
+                    dashboard_text += f"  Status: {order.status.title()} | Expires: {order.expires_at.strftime('%m/%d/%Y') if order.expires_at else 'N/A'}\n"
+            else:
+                dashboard_text += f"📢 **No active campaigns**\n"
+                dashboard_text += f"Ready to start your first advertising campaign?"
+                
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("🚀 New Campaign", callback_data="start_advertising"),
+                InlineKeyboardButton("📊 View All", callback_data="view_all_campaigns")
+            )
+            keyboard.add(
+                InlineKeyboardButton("🔗 Share & Earn", callback_data="referral_menu"),
+                InlineKeyboardButton("💰 Check Balance", callback_data="check_balance")
+            )
+            
+            await message.answer(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
+            
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Error in dashboard command: {e}")
+        await message.answer("❌ Error loading dashboard. Please try again.")
+
+async def referral_command(message: types.Message):
+    """Referral system command"""
+    user_id = message.from_user.id
+    
+    try:
+        from referral_system import ReferralSystem
+        referral_system = ReferralSystem()
+        
+        stats = referral_system.get_referral_statistics(user_id)
+        
+        if not stats:
+            await message.answer("❌ Error loading referral data.")
+            return
+        
+        referral_text = f"🔗 **Share & Earn Program**\n\n"
+        referral_text += f"💰 **Your Rewards:**\n"
+        referral_text += f"• Free Days Earned: {stats['free_days_earned']}\n"
+        referral_text += f"• Free Days Remaining: {stats['free_days_remaining']}\n"
+        referral_text += f"• Total Value: ${stats['total_earned']:.2f}\n\n"
+        
+        referral_text += f"📊 **Your Referrals:**\n"
+        referral_text += f"• Total Referrals: {stats['total_referrals']}\n"
+        referral_text += f"• Successful: {stats['successful_referrals']}\n"
+        referral_text += f"• Pending: {stats['pending_referrals']}\n\n"
+        
+        referral_text += f"🎁 **How it works:**\n"
+        referral_text += f"• Share your link with friends\n"
+        referral_text += f"• They get 5% discount on first order\n"
+        referral_text += f"• You earn 3 free posting days per referral\n\n"
+        referral_text += f"📎 **Your Referral Link:**\n"
+        referral_text += f"`{stats['referral_link']}`"
+        
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        keyboard.add(
+            InlineKeyboardButton("📱 Share Link", url=f"https://t.me/share/url?url={stats['referral_link']}&text=Join I3lani Bot for premium Telegram advertising!"),
+            InlineKeyboardButton("📊 Leaderboard", callback_data="referral_leaderboard")
+        )
+        keyboard.add(
+            InlineKeyboardButton("🔄 Refresh Stats", callback_data="referral_refresh")
+        )
+        
+        await message.answer(referral_text, reply_markup=keyboard, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Error in referral command: {e}")
+        await message.answer("❌ Error loading referral system. Please try again.")
+
 def register_handlers():
     dp.register_message_handler(start_command, commands=['start'], state="*")
     dp.register_message_handler(admin_command, commands=['admin'])
@@ -1107,6 +1209,11 @@ def register_handlers():
     dp.register_message_handler(support_command, commands=['support'])
     dp.register_message_handler(history_command, commands=['history'])
     dp.register_message_handler(refresh_command, commands=['refresh'])
+    
+    # New menu button commands
+    dp.register_message_handler(start_command, commands=['create'])
+    dp.register_message_handler(dashboard_command, commands=['dashboard'])
+    dp.register_message_handler(referral_command, commands=['referral'])
     
     # Ad content submission
     dp.register_message_handler(
@@ -1213,13 +1320,18 @@ def register_handlers():
         state="*"
     )
 
+async def setup_menu_button():
+    """Setup persistent menu button"""
+    logger.info("Menu button setup completed - commands available via Telegram menu")
+
 async def on_startup(dp):
     """Initialize on startup"""
     logger.info("Starting Enhanced Bot...")
     create_tables()
     init_default_data()
     register_handlers()
-    logger.info("Enhanced Bot started!")
+    await setup_menu_button()
+    logger.info("Enhanced Bot started with menu button system!")
 
 async def on_shutdown(dp):
     """Cleanup on shutdown"""
