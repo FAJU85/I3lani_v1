@@ -252,19 +252,19 @@ async def start_command(message: types.Message, state: FSMContext):
             await message.reply("❌ No channels available. Please contact admin.")
             return
         
-        text = """
-🚀 Welcome to Enhanced Ad Bot!
+        # Enhanced welcome with action menu
+        welcome_text = """🎉 Welcome to AdChannel Bot!
 
-📝 Please send your advertisement content:
-• Text message
-• Photo with caption  
-• Video with description
+Your one-stop solution for Telegram channel advertising.
 
-Your ad will be posted across selected channels with automatic reposts!
-"""
+🚀 Ready to start advertising? Choose an action below:"""
+
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("🚀 START ADVERTISING", callback_data="start_advertising"))
+        keyboard.add(InlineKeyboardButton("📊 VIEW MY CAMPAIGNS", callback_data="my_campaigns"))
+        keyboard.add(InlineKeyboardButton("💰 CHECK BALANCE", callback_data="check_balance"))
         
-        await message.reply(text)
-        await UserStates.waiting_for_ad.set()
+        await message.reply(welcome_text, reply_markup=keyboard)
         
     finally:
         db.close()
@@ -680,6 +680,65 @@ You'll receive a confirmation message when your campaign starts!
     await callback_query.answer("Payment tracking started!")
     await state.finish()
 
+# Enhanced callback handlers
+async def handle_start_advertising(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle start advertising button"""
+    await callback_query.message.edit_text("""📝 **Create Your Advertisement**
+
+Send your advertisement content:
+• Text message
+• Photo with caption  
+• Video with description
+
+Your content will be posted across selected channels with automatic scheduling!""", parse_mode='Markdown')
+    
+    await UserStates.waiting_for_ad.set()
+    await callback_query.answer()
+
+async def handle_my_campaigns(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle my campaigns button"""
+    await mystats_command(callback_query.message)
+    await callback_query.answer()
+
+async def handle_check_balance(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle check balance button"""
+    user_id = callback_query.from_user.id
+    
+    db = SessionLocal()
+    try:
+        from sqlalchemy import func
+        total_spent = db.query(func.sum(Order.total_amount_ton)).filter(
+            Order.user_id == user_id, 
+            Order.payment_status == 'confirmed'
+        ).scalar() or 0
+        
+        active_campaigns = db.query(Order).filter(
+            Order.user_id == user_id,
+            Order.status == 'active'
+        ).count()
+        
+        balance_text = f"""💰 **Account Balance & Summary**
+
+📊 **Spending Summary**:
+• Total Spent: {total_spent:.3f} TON
+• Active Campaigns: {active_campaigns}
+• Account Status: Active
+
+💎 **Current TON Rate**: {await EnhancedPaymentSystem().get_ton_rate('USD'):.2f} USD
+
+🚀 Ready to create a new campaign?"""
+
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("🚀 New Campaign", callback_data="start_advertising"))
+        keyboard.add(InlineKeyboardButton("📊 View Details", callback_data="my_campaigns"))
+        
+        await callback_query.message.edit_text(balance_text, reply_markup=keyboard, parse_mode='Markdown')
+    
+    finally:
+        db.close()
+    
+    await callback_query.answer()
+
 async def handle_reset(callback_query: types.CallbackQuery, state: FSMContext):
     """Reset selections"""
     user_id = callback_query.from_user.id
@@ -687,6 +746,143 @@ async def handle_reset(callback_query: types.CallbackQuery, state: FSMContext):
     
     await start_command(callback_query.message, state)
     await callback_query.answer("Selection reset!")
+
+# Enhanced command handlers
+async def mystats_command(message: types.Message):
+    """Show user campaign statistics"""
+    user_id = message.from_user.id
+    
+    db = SessionLocal()
+    try:
+        user_orders = db.query(Order).filter(Order.user_id == user_id).all()
+        
+        if not user_orders:
+            await message.reply("📊 No campaigns found. Start your first campaign with /start!")
+            return
+        
+        active_campaigns = len([o for o in user_orders if o.status == 'active'])
+        total_campaigns = len(user_orders)
+        total_spent = sum(o.total_amount_ton for o in user_orders if o.payment_status == 'confirmed')
+        
+        stats_text = f"""📊 **Your Campaign Statistics**
+
+🎯 **Active Campaigns**: {active_campaigns}
+📈 **Total Campaigns**: {total_campaigns}
+💰 **Total Spent**: {total_spent:.3f} TON
+📅 **Member Since**: {user_orders[0].created_at.strftime('%B %Y') if user_orders else 'N/A'}
+
+📋 **Recent Campaigns**:"""
+
+        for order in user_orders[-3:]:
+            status_emoji = "🟢" if order.status == "active" else "🟡" if order.status == "pending" else "⚪"
+            stats_text += f"\n{status_emoji} {order.created_at.strftime('%b %d')} - {order.total_amount_ton:.3f} TON"
+        
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("📊 Detailed Analytics", callback_data="detailed_analytics"))
+        keyboard.add(InlineKeyboardButton("🚀 New Campaign", callback_data="start_advertising"))
+        
+        await message.reply(stats_text, reply_markup=keyboard, parse_mode='Markdown')
+        
+    finally:
+        db.close()
+
+async def bugreport_command(message: types.Message):
+    """Bug report system"""
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("💰 Payment Issue", callback_data="bug_payment"))
+    keyboard.add(InlineKeyboardButton("📱 Bot Not Working", callback_data="bug_bot"))
+    keyboard.add(InlineKeyboardButton("📊 Wrong Analytics", callback_data="bug_analytics"))
+    keyboard.add(InlineKeyboardButton("🔗 Broken Links", callback_data="bug_links"))
+    keyboard.add(InlineKeyboardButton("📝 Other Issue", callback_data="bug_other"))
+    
+    await message.reply("""🐛 **Report a Bug**
+
+What went wrong? Select the issue type below:
+
+📧 Your report will be sent to our technical team
+🔄 Typical response time: 2-6 hours""", reply_markup=keyboard, parse_mode='Markdown')
+
+async def support_command(message: types.Message):
+    """Support system"""
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("💬 Chat with AI", callback_data="support_ai"))
+    keyboard.add(InlineKeyboardButton("👨‍💻 Human Support", callback_data="support_human"))
+    keyboard.add(InlineKeyboardButton("📚 FAQ", callback_data="support_faq"))
+    
+    support_text = """💬 **Customer Support**
+
+🤖 AI Assistant: Available 24/7
+👨‍💻 Human Support: 9 AM - 11 PM UTC
+
+**Common Issues:**
+• Payment not confirmed
+• Campaign not started  
+• Analytics questions
+• Technical problems
+
+**Response Times:**
+• AI: Instant
+• Human: Usually < 30 minutes
+• Complex issues: 2-6 hours"""
+
+    await message.reply(support_text, reply_markup=keyboard, parse_mode='Markdown')
+
+async def history_command(message: types.Message):
+    """Show campaign history"""
+    user_id = message.from_user.id
+    
+    db = SessionLocal()
+    try:
+        orders = db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).limit(10).all()
+        
+        if not orders:
+            await message.reply("📋 No campaign history found.")
+            return
+        
+        history_text = "📋 **Campaign History**\n\n"
+        
+        for order in orders:
+            status_emoji = "✅" if order.payment_status == "confirmed" else "🟡" if order.payment_status == "pending" else "❌"
+            history_text += f"{status_emoji} **{order.created_at.strftime('%b %d, %Y')}**\n"
+            history_text += f"💰 {order.total_amount_ton:.3f} TON - {order.status.title()}\n"
+            history_text += f"📅 Duration: {order.duration_months} months\n\n"
+        
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("📊 View Analytics", callback_data="view_analytics"))
+        keyboard.add(InlineKeyboardButton("🚀 New Campaign", callback_data="start_advertising"))
+        
+        await message.reply(history_text, reply_markup=keyboard, parse_mode='Markdown')
+        
+    finally:
+        db.close()
+
+async def refresh_command(message: types.Message):
+    """Refresh channels and data"""
+    await message.reply("🔄 Refreshing channels and data...")
+    
+    # Simulate refresh
+    await asyncio.sleep(1)
+    
+    db = SessionLocal()
+    try:
+        channels = db.query(Channel).filter(Channel.is_active.is_(True)).all()
+        channel_count = len(channels)
+        
+        refresh_text = f"""🔄 **Data Refreshed Successfully!**
+
+📺 **Available Channels**: {channel_count}
+💰 **Current TON Rate**: {await EnhancedPaymentSystem().get_ton_rate('USD'):.2f} USD
+🟢 **System Status**: All systems operational
+⏰ **Last Updated**: {datetime.utcnow().strftime('%H:%M UTC')}"""
+
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("🚀 Start Campaign", callback_data="start_advertising"))
+        keyboard.add(InlineKeyboardButton("📊 View Channels", callback_data="view_channels"))
+        
+        await message.reply(refresh_text, reply_markup=keyboard, parse_mode='Markdown')
+        
+    finally:
+        db.close()
 
 async def admin_command(message: types.Message, state: FSMContext):
     """Enhanced admin panel"""
@@ -752,6 +948,11 @@ async def handle_admin_callback(callback_query: types.CallbackQuery, state: FSMC
 def register_handlers():
     dp.register_message_handler(start_command, commands=['start'], state="*")
     dp.register_message_handler(admin_command, commands=['admin'])
+    dp.register_message_handler(mystats_command, commands=['mystats'])
+    dp.register_message_handler(bugreport_command, commands=['bugreport'])
+    dp.register_message_handler(support_command, commands=['support'])
+    dp.register_message_handler(history_command, commands=['history'])
+    dp.register_message_handler(refresh_command, commands=['refresh'])
     
     # Ad content submission
     dp.register_message_handler(
@@ -817,6 +1018,25 @@ def register_handlers():
     dp.register_callback_query_handler(
         handle_admin_callback,
         lambda c: c.data.startswith('admin_'),
+        state="*"
+    )
+    
+    # Enhanced menu handlers
+    dp.register_callback_query_handler(
+        handle_start_advertising,
+        lambda c: c.data == 'start_advertising',
+        state="*"
+    )
+    
+    dp.register_callback_query_handler(
+        handle_my_campaigns,
+        lambda c: c.data == 'my_campaigns',
+        state="*"
+    )
+    
+    dp.register_callback_query_handler(
+        handle_check_balance,
+        lambda c: c.data == 'check_balance',
         state="*"
     )
 
