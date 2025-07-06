@@ -149,8 +149,8 @@ def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
 @router.message(Command("start"))
 async def start_command(message: Message, state: FSMContext):
     """Start command handler"""
-    user_id = message.from_user.id
-    username = message.from_user.username
+    user_id = message.from_user.id if message.from_user else 0
+    username = message.from_user.username if message.from_user else None
     
     # Extract referral code if present
     referrer_id = None

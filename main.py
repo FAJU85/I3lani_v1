@@ -25,6 +25,8 @@ async def main():
     """Main application entry point"""
     try:
         # Initialize bot and dispatcher
+        if not BOT_TOKEN:
+            raise ValueError("BOT_TOKEN environment variable is required")
         bot = Bot(token=BOT_TOKEN)
         storage = MemoryStorage()
         dp = Dispatcher(storage=storage)

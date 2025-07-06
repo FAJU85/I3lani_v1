@@ -149,8 +149,8 @@ class Database:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
     
-    async def create_user(self, user_id: int, username: str = None, 
-                         language: str = 'en', referrer_id: int = None) -> bool:
+    async def create_user(self, user_id: int, username: Optional[str] = None, 
+                         language: str = 'en', referrer_id: Optional[int] = None) -> bool:
         """Create new user"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
@@ -179,7 +179,7 @@ class Database:
             return False
     
     async def create_ad(self, user_id: int, content: str, 
-                       media_url: str = None, content_type: str = 'text') -> int:
+                       media_url: Optional[str] = None, content_type: str = 'text') -> int:
         """Create new ad"""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute('''
@@ -187,7 +187,7 @@ class Database:
                 VALUES (?, ?, ?, ?)
             ''', (user_id, content, media_url, content_type))
             await db.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
     
     async def get_channels(self, active_only: bool = True) -> List[Dict]:
         """Get all channels"""
@@ -317,7 +317,7 @@ async def get_user_language(user_id: int) -> str:
     return user['language'] if user else 'en'
 
 
-async def ensure_user_exists(user_id: int, username: str = None) -> bool:
+async def ensure_user_exists(user_id: int, username: Optional[str] = None) -> bool:
     """Ensure user exists in database"""
     user = await db.get_user(user_id)
     if not user:
