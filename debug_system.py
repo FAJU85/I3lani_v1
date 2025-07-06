@@ -335,17 +335,28 @@ def init_debug_system(bot: Bot):
 
 
 async def debug_middleware(handler, event: Update, data: dict):
-    """Middleware to track all bot activities"""
-    global debug_system
-    
-    if debug_system is None:
-        return await handler(event, data)
+    """Simplified middleware - temporarily disabled for stability"""
+    # Skip all debug functionality temporarily
+    return await handler(event, data)
     
     start_time = datetime.now()
     
     try:
-        # Log user activity
-        if event.message:
+        # Log user activity safely
+        user_id = None
+        if hasattr(event, 'from_user') and event.from_user:
+            user_id = event.from_user.id
+            await debug_system.log_user_activity(
+                user_id, 
+                'message', 
+                {
+                    'content_type': getattr(event, 'content_type', 'unknown'),
+                    'text': getattr(event, 'text', '')[:100] if hasattr(event, 'text') else None
+                }
+            )
+            debug_system.system_stats['total_messages'] += 1
+        
+        elif hasattr(event, 'message') and event.message and hasattr(event.message, 'from_user') and event.message.from_user:
             user_id = event.message.from_user.id
             await debug_system.log_user_activity(
                 user_id, 
@@ -357,7 +368,7 @@ async def debug_middleware(handler, event: Update, data: dict):
             )
             debug_system.system_stats['total_messages'] += 1
         
-        elif event.callback_query:
+        elif hasattr(event, 'callback_query') and event.callback_query and hasattr(event.callback_query, 'from_user') and event.callback_query.from_user:
             user_id = event.callback_query.from_user.id
             await debug_system.log_user_activity(
                 user_id, 
@@ -379,10 +390,18 @@ async def debug_middleware(handler, event: Update, data: dict):
         
     except Exception as e:
         # Log error with context
+        user_id = None
+        if hasattr(event, 'from_user') and event.from_user:
+            user_id = event.from_user.id
+        elif hasattr(event, 'message') and event.message and event.message.from_user:
+            user_id = event.message.from_user.id
+        elif hasattr(event, 'callback_query') and event.callback_query and event.callback_query.from_user:
+            user_id = event.callback_query.from_user.id
+            
         context = {
             'handler': handler.__name__ if hasattr(handler, '__name__') else 'unknown',
             'event_type': type(event).__name__,
-            'user_id': getattr(event.message or event.callback_query, 'from_user', {}).get('id') if event.message or event.callback_query else None
+            'user_id': user_id
         }
         
         await debug_system.log_error(e, context)
