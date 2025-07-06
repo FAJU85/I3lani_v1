@@ -24,6 +24,7 @@ from aiogram.utils import executor
 
 # Initialize database
 from database import create_tables, init_default_data, SessionLocal, User, Channel, Order, AdminSettings
+from admin_panel import AdminPanel, AdminStates
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -202,7 +203,7 @@ class EnhancedPaymentSystem:
             
             # Notify user
             await bot.send_message(
-                int(order.user_id),
+                order.user_id,
                 f"🎉 Payment Confirmed!\n\n"
                 f"Your payment has been automatically detected on the TON blockchain!\n\n"
                 f"📦 Order: {order.id}\n"
@@ -366,7 +367,8 @@ Reposts: {packages[package]['reposts']} per month per channel"""
         keyboard = InlineKeyboardMarkup(row_width=1)
         max_channels = min(packages[package]['max_channels'], len(channels))
         for channel in channels[:max_channels]:
-            subscribers = f"{channel.subscribers_count//1000}K" if channel.subscribers_count >= 1000 else str(channel.subscribers_count)
+            subscribers_count = channel.subscribers_count or 0
+            subscribers = f"{subscribers_count//1000}K" if subscribers_count >= 1000 else str(subscribers_count)
             keyboard.add(
                 InlineKeyboardButton(
                     f"☐ {channel.name} ({subscribers})",
