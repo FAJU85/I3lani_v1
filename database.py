@@ -78,7 +78,8 @@ class Order(Base):
     total_amount_ton = Column(Float)
     total_amount_usd = Column(Float)
     payment_status = Column(String(20), default='pending')  # pending, confirmed, expired
-    payment_tx_hash = Column(String(100))  # TON transaction hash
+    payment_method = Column(String(20), default='ton')  # ton, telegram_stars
+    payment_tx_hash = Column(String(100))  # TON transaction hash or Stars charge ID
     
     # Order details
     duration_months = Column(Integer)

@@ -25,6 +25,7 @@ from aiogram.utils import executor
 # Initialize database
 from database import create_tables, init_default_data, SessionLocal, User, Channel, Order, AdminSettings
 from admin_panel import AdminPanel, AdminStates
+from telegram_stars_payment import TelegramStarsPayment, register_stars_handlers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -682,6 +683,157 @@ You'll receive a confirmation message when your campaign starts!
     await callback_query.answer("Payment tracking started!")
     await state.finish()
 
+async def handle_pay_ton(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle TON payment selection"""
+    order_id = callback_query.data.split('_')[-1]
+    
+    db = SessionLocal()
+    try:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await callback_query.answer("Order not found", show_alert=True)
+            return
+        
+        text = f"""
+💎 **TON Payment Instructions**
+
+📦 **Order:** {order.id}
+💰 **Amount:** {order.total_amount_ton:.3f} TON
+🔖 **Memo:** {order.payment_memo}
+
+💳 **Payment Details:**
+1. Send **exactly** {order.total_amount_ton:.3f} TON
+2. To wallet: `{os.getenv('TON_WALLET_ADDRESS')}`
+3. Include memo: `{order.payment_memo}`
+
+🌍 **Other Currencies:**
+💵 ~${order.total_amount_usd:.2f} USD
+
+⚠️ **Important:** Payment will be automatically detected!
+Your campaign will start immediately after confirmation.
+"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton("✅ I've Sent Payment", callback_data=f"payment_sent_{order.id}")],
+            [InlineKeyboardButton("🔙 Back to Payment Methods", callback_data=f"back_to_payment_{order.id}")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_payment")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        
+        # Start payment monitoring
+        await payment_system.start_payment_monitoring(
+            order.id, 
+            order.payment_memo, 
+            order.total_amount_ton
+        )
+        
+    finally:
+        db.close()
+    
+    await callback_query.answer()
+
+async def handle_pay_stars(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle Stars payment selection"""
+    order_id = callback_query.data.split('_')[-1]
+    
+    db = SessionLocal()
+    try:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await callback_query.answer("Order not found", show_alert=True)
+            return
+        
+        # Calculate Stars amount
+        stars_amount = int(order.total_amount_usd * 100)
+        
+        # Create invoice description
+        channels = db.query(Channel).filter(Channel.id.in_([c.id for c in order.channels])).all()
+        channel_names = [c.name for c in channels]
+        
+        description = (
+            f"🎯 Ad Campaign for {order.duration_months} months\n"
+            f"📺 Channels: {', '.join(channel_names[:2])}"
+            f"{'...' if len(channel_names) > 2 else ''}\n"
+            f"📊 Total posts: {order.posts_total}"
+        )
+        
+        # Create unique payload for tracking
+        payload = f"stars_order_{order.id}_{callback_query.from_user.id}"
+        
+        # Send invoice
+        await bot.send_invoice(
+            chat_id=callback_query.from_user.id,
+            title=f"💫 Ad Campaign - {order.duration_months} Month{'s' if order.duration_months > 1 else ''}",
+            description=description,
+            payload=payload,
+            provider_token="",  # Empty for Stars payments
+            currency="XTR",  # Telegram Stars
+            prices=[LabeledPrice(label="Ad Campaign", amount=stars_amount)],
+            photo_url="https://raw.githubusercontent.com/telegram-bot-sdk/telegram-bot-sdk/master/docs/logo.png",
+            photo_width=512,
+            photo_height=512,
+            need_name=False,
+            need_phone_number=False,
+            need_email=False,
+            need_shipping_address=False,
+            send_phone_number_to_provider=False,
+            send_email_to_provider=False,
+            is_flexible=False,
+            max_tip_amount=0,
+            suggested_tip_amounts=[]
+        )
+        
+        await callback_query.answer("⭐ Telegram Stars invoice sent! Complete the payment to start your campaign.")
+        
+    except Exception as e:
+        logger.error(f"Error creating Stars invoice: {e}")
+        await callback_query.answer("Error creating payment. Please try again.", show_alert=True)
+    finally:
+        db.close()
+
+async def handle_back_to_payment(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle back to payment methods"""
+    order_id = callback_query.data.split('_')[-1]
+    
+    db = SessionLocal()
+    try:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await callback_query.answer("Order not found", show_alert=True)
+            return
+        
+        # Show payment method selection again
+        stars_amount = int(order.total_amount_usd * 100)
+        channels = db.query(Channel).filter(Channel.id.in_([c.id for c in order.channels])).all()
+        
+        await callback_query.message.edit_text(
+            f"🎯 **Order Summary**\n\n"
+            f"📦 **Order ID:** {order.id}\n"
+            f"📺 **Channels:** {len(channels)} selected\n"
+            f"⏰ **Duration:** {order.duration_months} month(s)\n"
+            f"💰 **Total:** ${order.total_amount_usd:.2f}\n\n"
+            f"💳 **Choose Payment Method:**\n\n"
+            f"**Option 1: TON Cryptocurrency**\n"
+            f"💎 Amount: {order.total_amount_ton:.3f} TON\n"
+            f"⚡ Blockchain payment\n\n"
+            f"**Option 2: Telegram Stars**\n"
+            f"⭐ Amount: {stars_amount} Stars\n"
+            f"🚀 Built-in Telegram payment\n\n"
+            f"Select your preferred payment method:",
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton("💎 Pay with TON", callback_data=f"pay_ton_{order.id}")],
+                [InlineKeyboardButton("⭐ Pay with Stars", callback_data=f"pay_stars_{order.id}")],
+                [InlineKeyboardButton("🔙 Back to Selection", callback_data="reset_selection")]
+            ])
+        )
+        
+    finally:
+        db.close()
+    
+    await callback_query.answer()
+
 # Enhanced callback handlers
 async def handle_start_advertising(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle start advertising button"""
@@ -1039,6 +1191,25 @@ def register_handlers():
     dp.register_callback_query_handler(
         handle_check_balance,
         lambda c: c.data == 'check_balance',
+        state="*"
+    )
+    
+    # Payment method handlers
+    dp.register_callback_query_handler(
+        handle_pay_ton,
+        lambda c: c.data.startswith('pay_ton_'),
+        state="*"
+    )
+    
+    dp.register_callback_query_handler(
+        handle_pay_stars,
+        lambda c: c.data.startswith('pay_stars_'),
+        state="*"
+    )
+    
+    dp.register_callback_query_handler(
+        handle_back_to_payment,
+        lambda c: c.data.startswith('back_to_payment_'),
         state="*"
     )
 
