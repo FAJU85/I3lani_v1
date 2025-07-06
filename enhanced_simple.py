@@ -246,7 +246,7 @@ async def start_command(message: types.Message, state: FSMContext):
             db.commit()
         
         # Get available channels
-        channels = db.query(Channel).filter(Channel.is_active == True).all()
+        channels = db.query(Channel).filter(Channel.is_active.is_(True)).all()
         
         if not channels:
             await message.reply("❌ No channels available. Please contact admin.")
@@ -351,7 +351,7 @@ async def handle_package_selection(callback_query: types.CallbackQuery, state: F
     # Show channel selection
     db = SessionLocal()
     try:
-        channels = db.query(Channel).filter(Channel.is_active == True).all()
+        channels = db.query(Channel).filter(Channel.is_active.is_(True)).all()
         
         if not channels:
             await callback_query.message.edit_text("❌ No channels available. Please contact admin.")
@@ -387,7 +387,7 @@ def create_channel_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Create channel selection keyboard"""
     db = SessionLocal()
     try:
-        channels = db.query(Channel).filter(Channel.is_active == True).all()
+        channels = db.query(Channel).filter(Channel.is_active.is_(True)).all()
         keyboard = InlineKeyboardMarkup(row_width=1)
         
         selected = user_selections.get(user_id, {}).get('channels', [])
@@ -437,7 +437,7 @@ async def handle_channel_toggle(callback_query: types.CallbackQuery, state: FSMC
     # Update keyboard with current selections
     db = SessionLocal()
     try:
-        all_channels = db.query(Channel).filter(Channel.is_active == True).all()
+        all_channels = db.query(Channel).filter(Channel.is_active.is_(True)).all()
         package_name = user_selections[user_id].get('package_name', 'Selected')
         
         text = f"""📺 Select channels for your {package_name} campaign:
