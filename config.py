@@ -26,10 +26,10 @@ ADMIN_IDS = [int(id.strip()) for id in os.getenv('ADMIN_IDS', '').split(',') if 
 
 # Channel configuration
 CHANNELS = {
-    'tech_news': {
-        'id': 'tech_news',
-        'name': 'Tech News',
-        'telegram_channel_id': '@technews_channel',
+    'i3lani_main': {
+        'id': 'i3lani_main',
+        'name': 'I3lani Channel',
+        'telegram_channel_id': '@i3lani',
         'subscribers': 45000,
         'base_price_usd': 15.0,
         'is_popular': True

@@ -509,46 +509,57 @@ async def my_ads_handler(callback_query: CallbackQuery):
 
 @router.callback_query(F.data == "share_earn")
 async def share_earn_handler(callback_query: CallbackQuery):
-    """Show referral system"""
+    """Show channel sharing system"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Get referral stats
+    # Get available channels
+    channels = await db.get_channels()
+    
+    # Get referral stats for bot referrals
     referral_stats = await db.get_referral_stats(user_id)
     
-    # Generate referral link
-    referral_link = f"https://t.me/I3lani_bot?start=ref_{user_id}"
+    share_text = f"""
+📺 **{get_text(language, 'share_channels')}**
+
+🎯 **Share Our Channels & Earn:**
+• Share I3lani channel with friends
+• Get 10% discount on next campaign
+• Help grow our community
+
+📺 **Available Channels:**
+"""
     
-    referral_text = f"""
-🎁 **{get_text(language, 'share_earn')}**
+    for channel in channels:
+        share_text += f"\n• {channel['name']}: {channel['telegram_channel_id']}"
+    
+    share_text += f"""
 
-💰 **Your Rewards:**
-• Free Days Earned: {referral_stats['total_referrals'] * 3}
-• Free Days Remaining: {referral_stats['free_days']}
-• Total Value: ${referral_stats['total_value']:.2f}
+💰 **Bot Referral Rewards:**
+• Refer friends to I3lani Bot
+• Earn 3 free posting days per referral
+• Friends get 5% discount
 
-📊 **Your Referrals:**
-• Total Referrals: {referral_stats['total_referrals']}
+📊 **Your Referral Stats:**
+• Total Referrals: {referral_stats.get('total_referrals', 0)}
+• Free Days Earned: {referral_stats.get('total_referrals', 0) * 3}
 
-{get_text(language, 'referral_rewards')}
-
-📎 **{get_text(language, 'referral_link')}**
-`{referral_link}`
+📎 **Your Bot Referral Link:**
+`https://t.me/I3lani_bot?start=ref_{user_id}`
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="📱 Share Link", 
-            url=f"https://t.me/share/url?url={referral_link}&text=Join I3lani Bot!"
-        )],
-        [InlineKeyboardButton(
-            text=get_text(language, 'back'), 
-            callback_data="back_to_main"
-        )]
+        [
+            InlineKeyboardButton(text="📺 Share I3lani Channel", url="https://t.me/share/url?url=https://t.me/i3lani&text=Join I3lani Channel!"),
+        ],
+        [
+            InlineKeyboardButton(text="🤖 Share Bot", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Try I3lani advertising bot!")
+        ],
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
     ])
     
     await callback_query.message.edit_text(
-        referral_text,
+        share_text,
         reply_markup=keyboard,
         parse_mode='Markdown'
     )
@@ -780,20 +791,155 @@ async def help_command(message: Message):
 
 @router.message(Command("dashboard"))
 async def dashboard_command(message: Message):
-    """Admin debug dashboard command"""
+    """My Ads Dashboard command"""
     user_id = message.from_user.id
+    language = await get_user_language(user_id)
     
-    if user_id not in ADMIN_IDS:
-        await message.reply("❌ Access denied. Admin only.")
-        return
+    # Get user stats
+    stats = await db.get_user_stats(user_id)
+    referral_stats = await db.get_referral_stats(user_id)
     
-    from debug_dashboard import dashboard
+    dashboard_text = f"""
+📊 **{get_text(language, 'dashboard')}**
+
+📈 **{get_text(language, 'my_stats')}:**
+• {get_text(language, 'total_campaigns')}: {stats.get('total_campaigns', 0)}
+• {get_text(language, 'active_campaigns')}: {stats.get('active_campaigns', 0)}
+• {get_text(language, 'total_spent')}: ${stats.get('total_spent', 0):.2f}
+
+💰 **{get_text(language, 'referral_system')}:**
+• {get_text(language, 'referrals')}: {referral_stats.get('total_referrals', 0)}
+• {get_text(language, 'earnings')}: ${referral_stats.get('total_earnings', 0):.2f}
+
+🔗 **{get_text(language, 'referral_link')}:**
+`https://t.me/I3lani_bot?start=ref_{user_id}`
+"""
     
-    if not dashboard:
-        await message.reply("❌ Debug dashboard not initialized.")
-        return
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=get_text(language, 'start_advertising'), callback_data="start_advertising"),
+            InlineKeyboardButton(text=get_text(language, 'my_campaigns'), callback_data="my_campaigns")
+        ],
+        [
+            InlineKeyboardButton(text=get_text(language, 'pricing'), callback_data="view_pricing"),
+            InlineKeyboardButton(text=get_text(language, 'help'), callback_data="show_help")
+        ]
+    ])
     
-    await dashboard.show_dashboard(message)
+    await message.reply(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
+
+
+@router.callback_query(F.data == "view_pricing")
+async def show_pricing_handler(callback_query: CallbackQuery):
+    """Show pricing information"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    channels = await db.get_channels()
+    
+    pricing_text = f"""
+💰 **{get_text(language, 'pricing')}**
+
+📺 **{get_text(language, 'available_channels')}:**
+"""
+    
+    for channel in channels:
+        pricing_text += f"\n• {channel['name']}: ${channel['price_per_month']}/month"
+    
+    pricing_text += f"""
+
+📦 **{get_text(language, 'packages')}:**
+• 1 month: Standard price
+• 3 months: 10% discount
+• 6 months: 20% discount
+• 12 months: 30% discount
+
+💎 **{get_text(language, 'payment_methods')}:**
+• TON Cryptocurrency
+• Telegram Stars
+"""
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_text(language, 'start_advertising'), callback_data="start_advertising")],
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
+    ])
+    
+    await callback_query.message.edit_text(pricing_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "show_help")
+async def show_help_handler(callback_query: CallbackQuery):
+    """Show help information"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    help_text = f"""
+❓ **{get_text(language, 'help')}**
+
+🚀 **{get_text(language, 'how_to_start')}:**
+1. Send your ad content (text, photo, or video)
+2. Select advertising channels
+3. Choose duration (1-12 months)
+4. Complete payment with TON or Stars
+5. Your ad will be posted automatically
+
+💰 **{get_text(language, 'payment_info')}:**
+• TON: Send to provided wallet with memo
+• Stars: Pay directly through Telegram
+
+📊 **{get_text(language, 'track_campaigns')}:**
+• Use /mystats to view statistics
+• Use /dashboard for full overview
+• Monitor your campaigns in real-time
+
+🆘 **{get_text(language, 'need_help')}:**
+• Use /support for technical issues
+• Contact admins for urgent matters
+
+💰 **{get_text(language, 'referral_system')}:**
+• Share your referral link
+• Earn from each successful referral
+• Track earnings in dashboard
+"""
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_text(language, 'start_advertising'), callback_data="start_advertising")],
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
+    ])
+    
+    await callback_query.message.edit_text(help_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "show_settings")
+async def show_settings_handler(callback_query: CallbackQuery):
+    """Show user settings"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    settings_text = f"""
+⚙️ **{get_text(language, 'settings')}**
+
+🌐 **{get_text(language, 'current_language')}: {language.upper()}**
+
+🔔 **{get_text(language, 'notifications')}:**
+• Payment confirmations: ✅ Enabled
+• Campaign updates: ✅ Enabled
+• System alerts: ✅ Enabled
+"""
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🇺🇸 English", callback_data="set_lang_en"),
+            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="set_lang_ar")
+        ],
+        [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="set_lang_ru")],
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
+    ])
+    
+    await callback_query.message.edit_text(settings_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
 
 
 def setup_handlers(dp):

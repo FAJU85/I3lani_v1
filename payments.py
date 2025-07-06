@@ -88,15 +88,10 @@ class PaymentProcessor:
         return invoice_data
     
     def _get_payment_instructions(self, payment_method: str, amount: float, 
-                                currency: str, memo: str) -> Dict:
+                                currency: str, memo: str) -> str:
         """Get payment instructions for method"""
         if payment_method == 'ton':
-            return {
-                'wallet_address': self.ton_wallet,
-                'amount': amount,
-                'currency': currency,
-                'memo': memo,
-                'instructions': f"""
+            return f"""
 💎 **TON Payment Instructions**
 
 📋 **Payment Details:**
@@ -114,14 +109,9 @@ class PaymentProcessor:
 • Include the exact memo: {memo}
 • Payment expires in 30 minutes
 • Don't send from exchange wallet
-                """.strip()
-            }
+            """.strip()
         elif payment_method == 'stars':
-            return {
-                'amount': int(amount * 100),  # Convert to Stars (100 Stars = 1 USD)
-                'currency': 'XTR',
-                'memo': memo,
-                'instructions': f"""
+            return f"""
 ⭐ **Telegram Stars Payment**
 
 📋 **Payment Details:**
@@ -137,8 +127,9 @@ class PaymentProcessor:
 • Instant confirmation
 • No external wallet needed
 • Secure Telegram payment
-                """.strip()
-            }
+            """.strip()
+        
+        return "❌ Unsupported payment method"
     
     async def _monitor_ton_payment(self, payment_id: int, memo: str, 
                                   expected_amount: float, timeout_minutes: int = 30):

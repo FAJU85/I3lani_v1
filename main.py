@@ -53,6 +53,18 @@ async def main():
         setup_dashboard_handlers(dp)
         logger.info("Handlers setup completed")
         
+        # Setup menu button
+        from aiogram.types import BotCommand, MenuButtonCommands
+        await bot.set_my_commands([
+            BotCommand(command="start", description="🚀 Start the bot"),
+            BotCommand(command="dashboard", description="📊 My Ads Dashboard"),
+            BotCommand(command="mystats", description="📈 My Statistics"),
+            BotCommand(command="referral", description="💰 Referral System"),
+            BotCommand(command="support", description="🆘 Get Support"),
+            BotCommand(command="help", description="❓ Help & Guide")
+        ])
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        
         # Start polling
         logger.info("Starting I3lani Bot...")
         logger.info("Bot Features:")
