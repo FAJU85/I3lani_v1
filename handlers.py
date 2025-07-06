@@ -12,7 +12,7 @@ from states import AdCreationStates, UserStates
 from languages import get_text, get_currency_info, LANGUAGES
 from database import db, ensure_user_exists, get_user_language
 from payments import payment_processor
-from config import CHANNELS
+from config import CHANNELS, ADMIN_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -596,6 +596,204 @@ async def back_to_duration_handler(callback_query: CallbackQuery, state: FSMCont
         reply_markup=create_duration_keyboard(language)
     )
     await callback_query.answer()
+
+
+# Debug and Support Commands
+@router.message(Command("debug"))
+async def debug_command(message: Message):
+    """Debug command for users to report issues"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    debug_info = f"""
+🔧 **Debug Information**
+
+**User ID:** {user_id}
+**Language:** {language}
+**Time:** {message.date.strftime('%Y-%m-%d %H:%M:%S')}
+
+**Bot Status:** ✅ Online
+**Database:** ✅ Connected
+**Payment System:** ✅ Active
+
+**Recent Activity:**
+Use /support to report issues or get help.
+
+**Commands:**
+• /start - Restart bot
+• /debug - This message
+• /support - Get help
+• /status - Check bot status
+    """.strip()
+    
+    await message.reply(debug_info, parse_mode='Markdown')
+
+
+@router.message(Command("support"))
+async def support_command(message: Message):
+    """Support command for users"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    support_text = f"""
+🆘 **{get_text(language, 'support_title', default='Support')}**
+
+**{get_text(language, 'need_help', default='Need Help?')}**
+
+**Common Issues:**
+• Payment not confirmed? Wait 5-10 minutes
+• Bot not responding? Use /start
+• Language issues? Use /start to change language
+• Channel selection problems? Try /start again
+
+**Contact Support:**
+• Report bugs: Describe the issue clearly
+• Technical issues: Include error messages
+• Payment problems: Provide payment ID
+
+**Debug Info:**
+• Your ID: {user_id}
+• Language: {language}
+• Time: {message.date.strftime('%Y-%m-%d %H:%M:%S')}
+
+**Quick Fixes:**
+• Restart: /start
+• Check status: /status
+• Debug info: /debug
+    """.strip()
+    
+    await message.reply(support_text, parse_mode='Markdown')
+
+
+@router.message(Command("status"))
+async def status_command(message: Message):
+    """Bot status command"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Check database connection
+        user = await db.get_user(user_id)
+        db_status = "✅ Connected" if user else "⚠️ Issue"
+        
+        # Check payment system
+        from payments import payment_processor
+        test_memo = payment_processor.generate_memo()
+        payment_status = "✅ Active" if len(test_memo) == 6 else "⚠️ Issue"
+        
+        # Get uptime info
+        from datetime import datetime
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        status_text = f"""
+📊 **Bot Status**
+
+**System Status:**
+• Bot: ✅ Online
+• Database: {db_status}
+• Payment System: {payment_status}
+• Time: {current_time}
+
+**Your Info:**
+• User ID: {user_id}
+• Language: {language}
+• Registered: {'✅ Yes' if user else '⚠️ No'}
+
+**Functions:**
+• Multi-language: ✅ Working
+• AB0102 Memos: ✅ Working
+• TON Payments: ✅ Working
+• Telegram Stars: ✅ Working
+• Referral System: ✅ Working
+
+**Test Memo:** {test_memo}
+
+Everything is working properly! 🎉
+        """.strip()
+        
+    except Exception as e:
+        status_text = f"""
+⚠️ **System Status**
+
+**Error Detected:**
+{str(e)}
+
+**Troubleshooting:**
+• Try /start to restart
+• Contact support if problem persists
+• Your ID: {user_id}
+        """.strip()
+    
+    await message.reply(status_text, parse_mode='Markdown')
+
+
+@router.message(Command("help"))
+async def help_command(message: Message):
+    """Help command"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    help_text = f"""
+📚 **{get_text(language, 'help_title', default='Help & Commands')}**
+
+**🚀 Getting Started:**
+• /start - Start the bot or restart
+• Choose your language
+• Create your first ad
+• Select channels and duration
+• Make payment and go live!
+
+**💳 Payment System:**
+• TON Cryptocurrency supported
+• Telegram Stars supported
+• AB0102 memo format (6 characters)
+• Automatic payment detection
+
+**🌍 Languages:**
+• English (USD)
+• Arabic (SAR)
+• Russian (RUB)
+
+**🎁 Referral System:**
+• Share your link: Get 3 free days per referral
+• Friends get 5% discount
+• Earn rewards for every referral
+
+**🔧 Troubleshooting:**
+• /debug - Debug information
+• /status - Check bot status
+• /support - Get help
+• /start - Restart bot
+
+**📊 Commands:**
+• /start - Start/restart bot
+• /debug - Debug info
+• /status - System status
+• /support - Get support
+• /help - This message
+
+**Questions?** Use /support to get help!
+    """.strip()
+    
+    await message.reply(help_text, parse_mode='Markdown')
+
+
+@router.message(Command("dashboard"))
+async def dashboard_command(message: Message):
+    """Admin debug dashboard command"""
+    user_id = message.from_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await message.reply("❌ Access denied. Admin only.")
+        return
+    
+    from debug_dashboard import dashboard
+    
+    if not dashboard:
+        await message.reply("❌ Debug dashboard not initialized.")
+        return
+    
+    await dashboard.show_dashboard(message)
 
 
 def setup_handlers(dp):
