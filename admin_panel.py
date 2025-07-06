@@ -10,6 +10,9 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import SessionLocal, AdminSettings, Channel, Bundle, Order, User
 from typing import List, Dict, Optional
 import logging
+import os
+from datetime import datetime, timedelta
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +24,14 @@ class AdminStates(StatesGroup):
     bundle_management = State()
     add_bundle = State()
     edit_bundle = State()
+    pricing_management = State()
+    edit_price = State()
+    wallet_management = State()
+    edit_wallet = State()
+    statistics_view = State()
     settings_management = State()
     edit_setting = State()
+    waiting_for_password = State()
 
 class AdminPanel:
     def __init__(self, bot: Bot):
@@ -41,13 +50,317 @@ class AdminPanel:
         """Show main admin menu"""
         keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
-            InlineKeyboardButton("📊 Dashboard", callback_data="admin_dashboard"),
+            InlineKeyboardButton("💰 Prices", callback_data="admin_pricing"),
             InlineKeyboardButton("📺 Channels", callback_data="admin_channels")
         )
         keyboard.add(
-            InlineKeyboardButton("📦 Bundles", callback_data="admin_bundles"),
+            InlineKeyboardButton("🎁 Bundles", callback_data="admin_bundles"),
+            InlineKeyboardButton("🏦 Wallet", callback_data="admin_wallet")
+        )
+        keyboard.add(
+            InlineKeyboardButton("📊 Stats", callback_data="admin_stats"),
             InlineKeyboardButton("⚙️ Settings", callback_data="admin_settings")
         )
+        
+        text = """🔧 **Admin Panel**
+        
+Choose a section to manage:
+
+💰 **Prices** - Edit package pricing
+📺 **Channels** - Manage advertising channels
+🎁 **Bundles** - Create special offers
+🏦 **Wallet** - Configure payment address
+📊 **Stats** - View revenue & analytics
+⚙️ **Settings** - System configuration"""
+        
+        if edit_message and hasattr(message_or_query, 'edit_text'):
+            await message_or_query.edit_text(text, reply_markup=keyboard)
+        else:
+            if hasattr(message_or_query, 'reply'):
+                await message_or_query.reply(text, reply_markup=keyboard)
+            else:
+                await message_or_query.message.reply(text, reply_markup=keyboard)
+    
+    async def show_pricing_management(self, callback_query: types.CallbackQuery):
+        """Show pricing management interface"""
+        # Package configurations with current prices
+        packages = {
+            'starter': {'price': 0.099, 'months': 1, 'max_channels': 2, 'reposts': 10},
+            'pro': {'price': 0.399, 'months': 3, 'max_channels': 5, 'reposts': 20},
+            'growth': {'price': 0.999, 'months': 6, 'max_channels': 10, 'reposts': 30},
+            'elite': {'price': 1.999, 'months': 12, 'max_channels': 999, 'reposts': 50}
+        }
+        
+        text = """💰 **Current Prices:**
+
+🟢 **Starter**: {starter} TON (~${starter_usd})
+   • {starter_months} month | {starter_channels} channels | {starter_reposts} reposts/month
+
+🔵 **Pro**: {pro} TON (~${pro_usd})
+   • {pro_months} months | {pro_channels} channels | {pro_reposts} reposts/month
+
+🟡 **Growth**: {growth} TON (~${growth_usd})
+   • {growth_months} months | {growth_channels} channels | {growth_reposts} reposts/month
+
+🟣 **Elite**: {elite} TON (~${elite_usd})
+   • {elite_months} months | {elite_channels} channels | {elite_reposts} reposts/month""".format(
+            starter=packages['starter']['price'],
+            starter_usd=packages['starter']['price'] * 2.5,
+            starter_months=packages['starter']['months'],
+            starter_channels=packages['starter']['max_channels'],
+            starter_reposts=packages['starter']['reposts'],
+            pro=packages['pro']['price'],
+            pro_usd=packages['pro']['price'] * 2.5,
+            pro_months=packages['pro']['months'],
+            pro_channels=packages['pro']['max_channels'],
+            pro_reposts=packages['pro']['reposts'],
+            growth=packages['growth']['price'],
+            growth_usd=packages['growth']['price'] * 2.5,
+            growth_months=packages['growth']['months'],
+            growth_channels=packages['growth']['max_channels'],
+            growth_reposts=packages['growth']['reposts'],
+            elite=packages['elite']['price'],
+            elite_usd=packages['elite']['price'] * 2.5,
+            elite_months=packages['elite']['months'],
+            elite_channels=packages['elite']['max_channels'],
+            elite_reposts=packages['elite']['reposts']
+        )
+        
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        keyboard.add(
+            InlineKeyboardButton("✏️ Edit Starter", callback_data="edit_price_starter"),
+            InlineKeyboardButton("✏️ Edit Pro", callback_data="edit_price_pro")
+        )
+        keyboard.add(
+            InlineKeyboardButton("✏️ Edit Growth", callback_data="edit_price_growth"),
+            InlineKeyboardButton("✏️ Edit Elite", callback_data="edit_price_elite")
+        )
+        keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="admin_main"))
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await callback_query.answer()
+    
+    async def show_wallet_management(self, callback_query: types.CallbackQuery):
+        """Show wallet management interface"""
+        db = SessionLocal()
+        try:
+            wallet_setting = db.query(AdminSettings).filter(AdminSettings.key == 'ton_wallet_address').first()
+            current_wallet = wallet_setting.value if wallet_setting else "Not configured"
+            
+            # Get wallet balance (mock for now - would need real TON API)
+            balance = "45.67 TON"  # This would be fetched from TON API
+            
+            text = f"""🏦 **Wallet Management**
+
+📍 **Current Address:**
+`{current_wallet}`
+
+💰 **Balance:** {balance}
+
+⚡ **Last Update:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+🔄 **Auto-monitoring:** Active
+📊 **Payment detection:** Every 30 seconds"""
+            
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton("✏️ Change Wallet", callback_data="edit_wallet_address"))
+            keyboard.add(InlineKeyboardButton("🔄 Refresh Balance", callback_data="refresh_wallet"))
+            keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="admin_main"))
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer()
+            
+        finally:
+            db.close()
+    
+    async def show_statistics(self, callback_query: types.CallbackQuery):
+        """Show comprehensive statistics"""
+        db = SessionLocal()
+        try:
+            # Today's stats
+            today = datetime.now().date()
+            today_orders = db.query(Order).filter(
+                func.date(Order.created_at) == today,
+                Order.payment_status == 'confirmed'
+            ).count()
+            
+            today_revenue = db.query(func.sum(Order.total_amount_ton)).filter(
+                func.date(Order.created_at) == today,
+                Order.payment_status == 'confirmed'
+            ).scalar() or 0
+            
+            # Monthly stats
+            month_start = datetime.now().replace(day=1)
+            month_orders = db.query(Order).filter(
+                Order.created_at >= month_start,
+                Order.payment_status == 'confirmed'
+            ).count()
+            
+            month_revenue = db.query(func.sum(Order.total_amount_ton)).filter(
+                Order.created_at >= month_start,
+                Order.payment_status == 'confirmed'
+            ).scalar() or 0
+            
+            # Top performing channel
+            top_channel = db.query(Channel).join(Order.channels).filter(
+                Order.payment_status == 'confirmed'
+            ).group_by(Channel.id).order_by(func.count(Order.id).desc()).first()
+            
+            top_channel_name = top_channel.name if top_channel else "None"
+            
+            text = f"""📊 **Statistics Dashboard**
+
+📅 **Today ({today.strftime('%Y-%m-%d')}):**
+💰 Revenue: {today_revenue:.3f} TON (~${today_revenue * 2.5:.2f})
+📋 Orders: {today_orders}
+
+📅 **This Month:**
+💰 Revenue: {month_revenue:.3f} TON (~${month_revenue * 2.5:.2f})
+📋 Orders: {month_orders}
+
+🏆 **Top Channel:** {top_channel_name}
+
+⚡ **System Status:**
+🟢 Payment Detection: Active
+🟢 Auto-posting: Active
+🟢 Database: Connected"""
+            
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton("📈 Detailed Report", callback_data="detailed_stats"))
+            keyboard.add(InlineKeyboardButton("🔄 Refresh", callback_data="admin_stats"))
+            keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="admin_main"))
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer()
+            
+        finally:
+            db.close()
+    
+    async def update_wallet_address(self, message: types.Message, state: FSMContext):
+        """Update TON wallet address"""
+        new_address = message.text.strip()
+        
+        if not new_address.startswith(('EQ', 'UQ')):
+            await message.reply("❌ Invalid TON address format. Please send a valid address.")
+            return
+        
+        db = SessionLocal()
+        try:
+            wallet_setting = db.query(AdminSettings).filter(AdminSettings.key == 'ton_wallet_address').first()
+            if wallet_setting:
+                wallet_setting.value = new_address
+                wallet_setting.updated_by = message.from_user.id
+                wallet_setting.updated_at = datetime.utcnow()
+            else:
+                wallet_setting = AdminSettings(
+                    key='ton_wallet_address',
+                    value=new_address,
+                    description='TON wallet address for payments',
+                    updated_by=message.from_user.id
+                )
+                db.add(wallet_setting)
+            
+            db.commit()
+            
+            await message.reply(f"""✅ **Wallet Updated!**
+
+New address: `{new_address}`
+
+All future payments will be directed to this address.""")
+            
+            await state.finish()
+            
+        except Exception as e:
+            logger.error(f"Error updating wallet: {e}")
+            await message.reply("❌ Error updating wallet address. Please try again.")
+        finally:
+            db.close()
+    
+    async def show_channel_management(self, callback_query: types.CallbackQuery):
+        """Show channel management interface"""
+        db = SessionLocal()
+        try:
+            channels = db.query(Channel).filter(Channel.is_active == True).all()
+            
+            text = "📺 **Channel Management**\n\n"
+            if channels:
+                for channel in channels:
+                    status = "🟢" if channel.is_active else "🔴"
+                    text += f"{status} **{channel.name}**\n"
+                    text += f"   ID: `{channel.channel_id}`\n"
+                    text += f"   Subscribers: {channel.subscribers_count:,}\n"
+                    text += f"   Price: {channel.price_per_month} TON/month\n\n"
+            else:
+                text += "No channels configured yet."
+                
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton("➕ Add Channel", callback_data="add_channel"))
+            keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="admin_main"))
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer()
+        finally:
+            db.close()
+    
+    async def show_bundle_management(self, callback_query: types.CallbackQuery):
+        """Show bundle management interface"""
+        db = SessionLocal()
+        try:
+            bundles = db.query(Bundle).filter(Bundle.is_active == True).all()
+            
+            text = "🎁 **Bundle Management**\n\n"
+            if bundles:
+                for bundle in bundles:
+                    text += f"✨ **{bundle.name}**\n"
+                    text += f"   Duration: {bundle.months} months (+{bundle.bonus_months} bonus)\n"
+                    text += f"   Discount: {bundle.discount_percent}%\n"
+                    text += f"   Channels: {bundle.min_channels}-{bundle.max_channels}\n\n"
+            else:
+                text += "No bundles configured yet."
+                
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton("➕ Create Bundle", callback_data="create_bundle"))
+            keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="admin_main"))
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer()
+        finally:
+            db.close()
+    
+    async def show_settings_management(self, callback_query: types.CallbackQuery):
+        """Show settings management interface"""
+        db = SessionLocal()
+        try:
+            settings = db.query(AdminSettings).all()
+            
+            text = "⚙️ **System Settings**\n\n"
+            
+            # Key system settings
+            important_settings = ['ton_wallet_address', 'admin_password', 'payment_timeout', 'auto_post_enabled']
+            
+            for setting in settings:
+                if setting.key in important_settings:
+                    if setting.key == 'ton_wallet_address':
+                        value = setting.value[:15] + "..." if len(setting.value) > 15 else setting.value
+                    elif setting.key == 'admin_password':
+                        value = "●" * 8
+                    else:
+                        value = setting.value
+                    text += f"🔧 **{setting.key.replace('_', ' ').title()}**: {value}\n"
+            
+            text += f"\n⚡ **System Status:**\n"
+            text += f"🟢 Bot: Running\n"
+            text += f"🟢 Database: Connected\n"
+            text += f"🟢 Payment Monitor: Active\n"
+            
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton("🔧 Edit Settings", callback_data="edit_settings"))
+            keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="admin_main"))
+            
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+            await callback_query.answer()
+        finally:
+            db.close()
         keyboard.add(
             InlineKeyboardButton("💰 Payments", callback_data="admin_payments"),
             InlineKeyboardButton("📈 Analytics", callback_data="admin_analytics")

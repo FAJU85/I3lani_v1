@@ -688,36 +688,61 @@ async def handle_reset(callback_query: types.CallbackQuery, state: FSMContext):
     await start_command(callback_query.message, state)
     await callback_query.answer("Selection reset!")
 
-async def admin_command(message: types.Message):
-    """Admin panel"""
+async def admin_command(message: types.Message, state: FSMContext):
+    """Enhanced admin panel"""
+    # Check if user is admin
     if message.from_user.id not in ADMIN_IDS:
         await message.reply("❌ Access denied")
         return
     
-    db = SessionLocal()
-    try:
-        total_orders = db.query(Order).count()
-        confirmed_orders = db.query(Order).filter(Order.payment_status == 'confirmed').count()
-        total_revenue = db.query(Order).filter(Order.payment_status == 'confirmed').sum(Order.total_amount_ton) or 0
-        
-        text = f"""
-🔧 **Admin Dashboard**
+    # Initialize admin panel
+    from admin_panel import AdminPanel, AdminStates
+    admin_panel = AdminPanel(bot)
+    
+    # Show enhanced admin menu
+    await admin_panel.show_admin_menu(message)
+    await AdminStates.main_menu.set()
 
-📊 **Statistics:**
-📋 Total Orders: {total_orders}
-✅ Confirmed: {confirmed_orders}
-💰 Revenue: {total_revenue:.3f} TON
-
-🛠 **Quick Actions:**
-/add_channel - Add new channel
-/set_wallet - Update TON wallet
-/rates - Update exchange rates
-"""
-        
-        await message.reply(text)
-        
-    finally:
-        db.close()
+async def handle_admin_callback(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle all admin panel callbacks"""
+    from admin_panel import AdminPanel
+    admin_panel = AdminPanel(bot)
+    
+    # Check admin access
+    if not await admin_panel.is_admin(callback_query.from_user.id):
+        await callback_query.answer("❌ Access denied")
+        return
+    
+    data = callback_query.data
+    
+    if data == "admin_main":
+        await admin_panel.show_admin_menu(callback_query, edit_message=True)
+    elif data == "admin_pricing":
+        await admin_panel.show_pricing_management(callback_query)
+    elif data == "admin_wallet":
+        await admin_panel.show_wallet_management(callback_query)
+    elif data == "admin_stats":
+        await admin_panel.show_statistics(callback_query)
+    elif data == "admin_channels":
+        await admin_panel.show_channel_management(callback_query)
+    elif data == "admin_bundles":
+        await admin_panel.show_bundle_management(callback_query)
+    elif data == "admin_settings":
+        await admin_panel.show_settings_management(callback_query)
+    elif data.startswith("edit_price_"):
+        package = data.replace("edit_price_", "")
+        await callback_query.answer(f"Price editor for {package} - Coming soon!")
+    elif data == "edit_wallet_address":
+        await callback_query.message.reply("Please send the new TON wallet address:")
+        await AdminStates.wallet_management.set()
+    elif data == "refresh_wallet":
+        await admin_panel.show_wallet_management(callback_query)
+    elif data == "detailed_stats":
+        await callback_query.answer("Detailed statistics - Coming soon!")
+    else:
+        await callback_query.answer("Unknown admin command")
+    
+    await callback_query.answer()
 
 # Register handlers
 def register_handlers():
@@ -781,6 +806,13 @@ def register_handlers():
     dp.register_callback_query_handler(
         handle_reset,
         lambda c: c.data in ['reset', 'cancel_payment'],
+        state="*"
+    )
+    
+    # Admin panel handlers
+    dp.register_callback_query_handler(
+        handle_admin_callback,
+        lambda c: c.data.startswith('admin_'),
         state="*"
     )
 
