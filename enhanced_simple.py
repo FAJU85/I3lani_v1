@@ -502,7 +502,7 @@ async def handle_confirm_order(callback_query: types.CallbackQuery, state: FSMCo
 💰 Total: {total_price:.3f} TON (~${total_price * 2.5:.2f})
 
 🏦 Send payment to:
-{order_data['wallet_address']}
+{order_data['wallet']}
 
 🔖 Include memo: {order_data['memo']}
 
@@ -691,8 +691,12 @@ async def handle_reset(callback_query: types.CallbackQuery, state: FSMContext):
 async def admin_command(message: types.Message, state: FSMContext):
     """Enhanced admin panel"""
     # Check if user is admin
-    if message.from_user.id not in ADMIN_IDS:
-        await message.reply("❌ Access denied")
+    user_id = message.from_user.id
+    admin_ids_str = os.getenv('ADMIN_IDS', '')
+    admin_ids = [int(x.strip()) for x in admin_ids_str.split(',') if x.strip()]
+    
+    if user_id not in admin_ids:
+        await message.reply(f"❌ Access denied. User ID: {user_id}")
         return
     
     # Initialize admin panel
