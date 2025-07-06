@@ -26,6 +26,7 @@ from aiogram.utils import executor
 from database import create_tables, init_default_data, SessionLocal, User, Channel, Order, AdminSettings
 from admin_panel import AdminPanel, AdminStates
 from telegram_stars_payment import TelegramStarsPayment, register_stars_handlers
+from sqlalchemy import func
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

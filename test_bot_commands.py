@@ -1,66 +1,47 @@
-#!/usr/bin/env python3
 """
-Test script to verify bot command functionality
+Test script to verify bot commands are working correctly
 """
-
 import asyncio
-from unittest.mock import Mock
-from enhanced_simple import (
-    mystats_command, bugreport_command, support_command,
-    history_command, refresh_command, start_command
-)
+from enhanced_simple import start_command, dashboard_command, referral_command
+from aiogram.types import Message, User, Chat
+from unittest.mock import AsyncMock, MagicMock
+
+class MockMessage:
+    def __init__(self, user_id, text="/start"):
+        self.from_user = User(id=user_id, is_bot=False, first_name="Test")
+        self.chat = Chat(id=user_id, type="private")
+        self.text = text
+        self.message_id = 1
+        
+    async def answer(self, text, reply_markup=None, parse_mode=None):
+        print(f"Bot Response: {text[:100]}...")
+        return True
 
 async def test_commands():
-    """Test all enhanced commands"""
-    print("🧪 Testing Enhanced Bot Commands")
+    """Test the new bot commands"""
+    print("Testing bot commands...")
     
-    # Mock message object
-    mock_message = Mock()
-    mock_message.from_user = Mock()
-    mock_message.from_user.id = 12345
-    mock_message.from_user.username = "testuser"
-    mock_message.from_user.first_name = "Test"
-    mock_message.reply = Mock()
-    
-    # Mock state context
-    mock_state = Mock()
-    
-    print("\n1. Testing /mystats command...")
+    # Test start command
+    mock_message = MockMessage(123456, "/start")
     try:
-        await mystats_command(mock_message)
-        print("✅ /mystats command executed successfully")
+        await start_command(mock_message, None)
+        print("✅ /start command: Working")
     except Exception as e:
-        print(f"❌ /mystats command failed: {e}")
+        print(f"❌ /start command error: {e}")
     
-    print("\n2. Testing /bugreport command...")
+    # Test dashboard command
     try:
-        await bugreport_command(mock_message)
-        print("✅ /bugreport command executed successfully")
+        await dashboard_command(mock_message)
+        print("✅ /dashboard command: Working")
     except Exception as e:
-        print(f"❌ /bugreport command failed: {e}")
+        print(f"❌ /dashboard command error: {e}")
     
-    print("\n3. Testing /support command...")
+    # Test referral command
     try:
-        await support_command(mock_message)
-        print("✅ /support command executed successfully")
+        await referral_command(mock_message)
+        print("✅ /referral command: Working")
     except Exception as e:
-        print(f"❌ /support command failed: {e}")
-    
-    print("\n4. Testing /history command...")
-    try:
-        await history_command(mock_message)
-        print("✅ /history command executed successfully")
-    except Exception as e:
-        print(f"❌ /history command failed: {e}")
-    
-    print("\n5. Testing /refresh command...")
-    try:
-        await refresh_command(mock_message)
-        print("✅ /refresh command executed successfully")
-    except Exception as e:
-        print(f"❌ /refresh command failed: {e}")
-    
-    print("\n🎯 All command tests completed!")
+        print(f"❌ /referral command error: {e}")
 
 if __name__ == "__main__":
     asyncio.run(test_commands())
