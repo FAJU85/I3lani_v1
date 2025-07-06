@@ -99,6 +99,7 @@ The application is designed for multiple deployment platforms:
 - July 05, 2025. Complete system upgrade - Implemented multi-channel selection, auto payment detection, PostgreSQL database, and admin panel
 - July 05, 2025. Real TON API integration - Added authentic blockchain monitoring with TON API key for automatic payment confirmation
 - July 05, 2025. Database foreign key fix - Added automatic user registration to prevent order creation errors
+- July 06, 2025. Complete user flow implementation - Restructured bot to follow specific workflow: ad content first, then package selection, then channel selection, then payment
 
 ## Current Status
 

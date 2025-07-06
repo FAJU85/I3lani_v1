@@ -42,8 +42,10 @@ dp = Dispatcher(bot, storage=storage)
 
 # User states
 class UserStates(StatesGroup):
+    waiting_for_ad = State()
+    selecting_package = State()
     selecting_channels = State()
-    selecting_duration = State()
+    confirming_order = State()
     payment_pending = State()
 
 # In-memory storage for user selections
@@ -253,18 +255,130 @@ async def start_command(message: types.Message, state: FSMContext):
         text = """
 🚀 Welcome to Enhanced Ad Bot!
 
-✨ New Features:
-📺 Multi-channel advertising
-💰 Real-time pricing (TON/USD/SAR/RUB)
-🔄 Auto payment detection
-📊 Professional campaign management
+📝 Please send your advertisement content:
+• Text message
+• Photo with caption  
+• Video with description
 
-Select channels for your advertising campaign:
+Your ad will be posted across selected channels with automatic reposts!
 """
         
-        keyboard = create_channel_keyboard(user_id)
-        await message.reply(text, reply_markup=keyboard)
+        await message.reply(text)
+        await UserStates.waiting_for_ad.set()
+        
+    finally:
+        db.close()
+
+async def handle_ad_content(message: types.Message, state: FSMContext):
+    """Handle ad content submission"""
+    user_id = message.from_user.id
+    
+    # Store ad content
+    if not user_selections.get(user_id):
+        user_selections[user_id] = {}
+    
+    ad_content = {
+        'type': 'text',
+        'text': message.text,
+        'file_id': None
+    }
+    
+    if message.photo:
+        ad_content['type'] = 'photo'
+        ad_content['file_id'] = message.photo[-1].file_id
+        ad_content['text'] = message.caption or ''
+    elif message.video:
+        ad_content['type'] = 'video'
+        ad_content['file_id'] = message.video.file_id
+        ad_content['text'] = message.caption or ''
+    
+    user_selections[user_id]['ad_content'] = ad_content
+    
+    # Show package selection
+    text = """✅ Ad received!
+
+📦 Choose your package:
+
+🟢 Starter: 0.099 TON (~$2.45)
+   • 1 month campaign
+   • Up to 2 channels
+   • 10 reposts per month
+
+🔵 Pro: 0.399 TON (~$9.88)
+   • 3 month campaign  
+   • Up to 5 channels
+   • 20 reposts per month
+
+🟡 Growth: 0.999 TON (~$24.75)
+   • 6 month campaign
+   • Up to 10 channels
+   • 30 reposts per month
+
+🟣 Elite: 1.999 TON (~$49.50)
+   • 12 month campaign
+   • Unlimited channels
+   • 50 reposts per month"""
+    
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("🟢 Starter", callback_data="package_starter"),
+        InlineKeyboardButton("🔵 Pro", callback_data="package_pro")
+    )
+    keyboard.add(
+        InlineKeyboardButton("🟡 Growth", callback_data="package_growth"),
+        InlineKeyboardButton("🟣 Elite", callback_data="package_elite")
+    )
+    
+    await message.reply(text, reply_markup=keyboard)
+    await UserStates.selecting_package.set()
+
+async def handle_package_selection(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle package selection"""
+    user_id = callback_query.from_user.id
+    package = callback_query.data.split('_')[1]
+    
+    # Package configurations
+    packages = {
+        'starter': {'price': 0.099, 'months': 1, 'max_channels': 2, 'reposts': 10},
+        'pro': {'price': 0.399, 'months': 3, 'max_channels': 5, 'reposts': 20},
+        'growth': {'price': 0.999, 'months': 6, 'max_channels': 10, 'reposts': 30},
+        'elite': {'price': 1.999, 'months': 12, 'max_channels': 999, 'reposts': 50}
+    }
+    
+    user_selections[user_id]['package'] = packages[package]
+    user_selections[user_id]['package_name'] = package.title()
+    
+    # Show channel selection
+    db = SessionLocal()
+    try:
+        channels = db.query(Channel).filter(Channel.is_active == True).all()
+        
+        if not channels:
+            await callback_query.message.edit_text("❌ No channels available. Please contact admin.")
+            return
+        
+        text = f"""📺 Select channels for your {package.title()} campaign:
+
+Maximum channels: {packages[package]['max_channels']}
+Duration: {packages[package]['months']} months
+Reposts: {packages[package]['reposts']} per month per channel"""
+        
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        max_channels = min(packages[package]['max_channels'], len(channels))
+        for channel in channels[:max_channels]:
+            subscribers = f"{channel.subscribers_count//1000}K" if channel.subscribers_count >= 1000 else str(channel.subscribers_count)
+            keyboard.add(
+                InlineKeyboardButton(
+                    f"☐ {channel.name} ({subscribers})",
+                    callback_data=f"toggle_{channel.id}"
+                )
+            )
+        
+        keyboard.add(InlineKeyboardButton("✅ Continue to Payment", callback_data="confirm_order"))
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
         await UserStates.selecting_channels.set()
+        await callback_query.answer()
         
     finally:
         db.close()
@@ -299,43 +413,121 @@ def create_channel_keyboard(user_id: int) -> InlineKeyboardMarkup:
     finally:
         db.close()
 
-async def handle_channel_toggle(callback_query: types.CallbackQuery):
+async def handle_channel_toggle(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle channel selection toggle"""
     user_id = callback_query.from_user.id
     channel_id = callback_query.data.split('_')[1]
     
     if user_id not in user_selections:
-        user_selections[user_id] = {'channels': [], 'selected_channel_names': []}
+        user_selections[user_id] = {'channels': []}
     
-    selected_channels = user_selections[user_id]['channels']
+    channels = user_selections[user_id]['channels']
+    package = user_selections[user_id].get('package', {})
+    max_channels = package.get('max_channels', 2)
     
-    # Toggle selection
-    if channel_id in selected_channels:
-        selected_channels.remove(channel_id)
+    if channel_id in channels:
+        channels.remove(channel_id)
     else:
-        selected_channels.append(channel_id)
+        if len(channels) < max_channels:
+            channels.append(channel_id)
+        else:
+            await callback_query.answer(f"Maximum {max_channels} channels allowed for this package!")
+            return
     
-    # Update channel names
+    # Update keyboard with current selections
     db = SessionLocal()
     try:
-        channels = db.query(Channel).filter(Channel.id.in_(selected_channels)).all()
-        user_selections[user_id]['selected_channel_names'] = [c.name for c in channels]
+        all_channels = db.query(Channel).filter(Channel.is_active == True).all()
+        package_name = user_selections[user_id].get('package_name', 'Selected')
+        
+        text = f"""📺 Select channels for your {package_name} campaign:
+
+Maximum channels: {max_channels}
+Duration: {package['months']} months
+Reposts: {package['reposts']} per month per channel
+
+Selected: {len(channels)}/{max_channels} channels"""
+        
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        for channel in all_channels[:max_channels]:
+            is_selected = channel.id in channels
+            emoji = "✅" if is_selected else "☐"
+            subscribers = f"{channel.subscribers_count//1000}K" if channel.subscribers_count >= 1000 else str(channel.subscribers_count)
+            keyboard.add(
+                InlineKeyboardButton(
+                    f"{emoji} {channel.name} ({subscribers})",
+                    callback_data=f"toggle_{channel.id}"
+                )
+            )
+        
+        if channels:
+            keyboard.add(InlineKeyboardButton("✅ Continue to Payment", callback_data="confirm_order"))
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await callback_query.answer()
+        
     finally:
         db.close()
-    
-    # Update keyboard
-    keyboard = create_channel_keyboard(user_id)
-    
-    text = f"""
-📺 **Channel Selection** ({len(selected_channels)} selected)
 
-Select channels for your advertising campaign:
-
-💡 Price: 0.099 TON per channel per month
-"""
+async def handle_confirm_order(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle order confirmation and create payment"""
+    user_id = callback_query.from_user.id
+    user_data = user_selections.get(user_id, {})
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
+    if not user_data.get('channels') or not user_data.get('package'):
+        await callback_query.answer("❌ Please select channels and package first!")
+        return
+    
+    package = user_data['package']
+    channels = user_data['channels']
+    
+    # Calculate total price
+    total_price = package['price'] * len(channels)
+    
+    # Create payment order
+    try:
+        order_data = await payment_system.create_payment_order(
+            user_id=user_id,
+            channels=channels,
+            months=package['months']
+        )
+        
+        text = f"""💳 Payment Instructions:
+
+📦 Package: {user_data.get('package_name', 'Selected')}
+📺 Channels: {len(channels)} selected
+⏰ Duration: {package['months']} months
+🔄 Reposts: {package['reposts']} per month per channel
+
+💰 Total: {total_price:.3f} TON (~${total_price * 2.5:.2f})
+
+🏦 Send payment to:
+{order_data['wallet_address']}
+
+🔖 Include memo: {order_data['memo']}
+
+⏰ Payment expires in 30 minutes
+Auto-detection will confirm your payment!"""
+        
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("✅ I Sent Payment", callback_data=f"sent_{order_data['memo']}"))
+        keyboard.add(InlineKeyboardButton("❌ Cancel", callback_data="cancel_payment"))
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await UserStates.payment_pending.set()
+        await callback_query.answer("Payment instructions sent!")
+        
+        # Start payment monitoring
+        await payment_system.start_payment_monitoring(
+            order_data['order_id'], 
+            order_data['memo'], 
+            total_price
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating order: {e}")
+        await callback_query.answer("❌ Error creating order. Please try again!")
+        return
 
 async def handle_view_pricing(callback_query: types.CallbackQuery):
     """Show pricing for selected channels"""
@@ -532,6 +724,34 @@ def register_handlers():
     dp.register_message_handler(start_command, commands=['start'], state="*")
     dp.register_message_handler(admin_command, commands=['admin'])
     
+    # Ad content submission
+    dp.register_message_handler(
+        handle_ad_content,
+        content_types=['text', 'photo', 'video'],
+        state=UserStates.waiting_for_ad
+    )
+    
+    # Package selection
+    dp.register_callback_query_handler(
+        handle_package_selection,
+        lambda c: c.data.startswith('package_'),
+        state=UserStates.selecting_package
+    )
+    
+    # Channel selection
+    dp.register_callback_query_handler(
+        handle_channel_toggle,
+        lambda c: c.data.startswith('toggle_'),
+        state=UserStates.selecting_channels
+    )
+    
+    # Order confirmation
+    dp.register_callback_query_handler(
+        handle_confirm_order,
+        lambda c: c.data == 'confirm_order',
+        state=UserStates.selecting_channels
+    )
+    
     dp.register_callback_query_handler(
         handle_channel_toggle,
         lambda c: c.data.startswith('toggle_'),
@@ -550,27 +770,17 @@ def register_handlers():
         state=UserStates.selecting_channels
     )
     
-    dp.register_callback_query_handler(
-        handle_duration,
-        lambda c: c.data.startswith('duration_'),
-        state=UserStates.selecting_duration
-    )
-    
+    # Payment sent confirmation
     dp.register_callback_query_handler(
         handle_payment_sent,
-        lambda c: c.data.startswith('payment_sent_'),
+        lambda c: c.data.startswith('sent_'),
         state=UserStates.payment_pending
     )
     
+    # Reset handler
     dp.register_callback_query_handler(
         handle_reset,
-        lambda c: c.data == 'reset',
-        state="*"
-    )
-    
-    dp.register_callback_query_handler(
-        lambda c: start_command(c.message, None),
-        lambda c: c.data in ['back_to_selection', 'cancel_payment'],
+        lambda c: c.data in ['reset', 'cancel_payment'],
         state="*"
     )
 
