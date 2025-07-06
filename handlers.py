@@ -1,456 +1,604 @@
-import uuid
-from datetime import datetime, timedelta
-from aiogram import types, Dispatcher, Bot
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.dispatcher.filters import Text
-from aiogram.types import ContentType
-from config import PACKAGES, ADMIN_IDS, CHANNEL_ID, TON_WALLET_ADDRESS
-from models import Advertisement, AdContent, AdStatus, PaymentStatus, storage
-from keyboards import get_package_keyboard, get_payment_keyboard, get_admin_approval_keyboard, get_package_details_keyboard
-from languages import get_text, set_user_language, get_language_keyboard
-from scheduler import ScheduleManager
+"""
+Message and callback handlers for I3lani Telegram Bot
+"""
+from aiogram import Router, F, Bot
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from typing import List, Dict
 import logging
+
+from states import AdCreationStates, UserStates
+from languages import get_text, get_currency_info, LANGUAGES
+from database import db, ensure_user_exists, get_user_language
+from payments import payment_processor
+from config import CHANNELS
 
 logger = logging.getLogger(__name__)
 
-class AdStates(StatesGroup):
-    waiting_for_ad = State()
-    waiting_for_payment = State()
-    waiting_for_admin_approval = State()
+# Create router
+router = Router()
 
-async def start_command(message: types.Message, state: FSMContext):
-    """Handle /start command"""
-    await state.finish()
+
+def create_language_keyboard() -> InlineKeyboardMarkup:
+    """Create language selection keyboard"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text=f"{lang_data['flag']} {lang_data['name']}", 
+                callback_data=f"lang_{lang_code}"
+            )
+        ]
+        for lang_code, lang_data in LANGUAGES.items()
+    ])
+    return keyboard
+
+
+def create_main_menu_keyboard(language: str) -> InlineKeyboardMarkup:
+    """Create main menu keyboard"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text=get_text(language, 'create_ad'), 
+                callback_data="create_ad"
+            ),
+            InlineKeyboardButton(
+                text=get_text(language, 'my_ads'), 
+                callback_data="my_ads"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=get_text(language, 'pricing'), 
+                callback_data="pricing"
+            ),
+            InlineKeyboardButton(
+                text=get_text(language, 'share_earn'), 
+                callback_data="share_earn"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=get_text(language, 'settings'), 
+                callback_data="settings"
+            ),
+            InlineKeyboardButton(
+                text=get_text(language, 'help'), 
+                callback_data="help"
+            )
+        ]
+    ])
+    return keyboard
+
+
+def create_channel_selection_keyboard(language: str, selected_channels: List[str] = None) -> InlineKeyboardMarkup:
+    """Create channel selection keyboard"""
+    if selected_channels is None:
+        selected_channels = []
+    
+    buttons = []
+    for channel_id, channel_data in CHANNELS.items():
+        is_selected = channel_id in selected_channels
+        popular_mark = " 🔥" if channel_data['is_popular'] else ""
+        selection_mark = "✅ " if is_selected else ""
+        
+        text = f"{selection_mark}{channel_data['name']} ({channel_data['subscribers']//1000}K){popular_mark}"
+        buttons.append([InlineKeyboardButton(
+            text=text, 
+            callback_data=f"toggle_channel_{channel_id}"
+        )])
+    
+    # Add continue button if channels selected
+    if selected_channels:
+        buttons.append([InlineKeyboardButton(
+            text=get_text(language, 'continue'), 
+            callback_data="continue_to_duration"
+        )])
+    
+    # Add back button
+    buttons.append([InlineKeyboardButton(
+        text=get_text(language, 'back'), 
+        callback_data="back_to_main"
+    )])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
+    """Create duration selection keyboard"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'duration_1_month'), 
+            callback_data="duration_1"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'duration_3_months'), 
+            callback_data="duration_3"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'duration_6_months'), 
+            callback_data="duration_6"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'back'), 
+            callback_data="back_to_channels"
+        )]
+    ])
+    return keyboard
+
+
+def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
+    """Create payment method selection keyboard"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'pay_stars'), 
+            callback_data="payment_stars"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'pay_ton'), 
+            callback_data="payment_ton"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'back'), 
+            callback_data="back_to_duration"
+        )]
+    ])
+    return keyboard
+
+
+@router.message(Command("start"))
+async def start_command(message: Message, state: FSMContext):
+    """Start command handler"""
     user_id = message.from_user.id
+    username = message.from_user.username
     
-    # Show language selection first
-    await message.reply(
-        get_text(user_id, "choose_language"),
-        reply_markup=get_language_keyboard(),
-        parse_mode="Markdown"
-    )
-
-async def handle_language_selection(callback_query: types.CallbackQuery, state: FSMContext):
-    """Handle language selection"""
-    language = callback_query.data.replace("lang_", "")
-    user_id = callback_query.from_user.id
+    # Extract referral code if present
+    referrer_id = None
+    if message.text and len(message.text.split()) > 1:
+        referral_code = message.text.split()[1]
+        if referral_code.startswith('ref_'):
+            try:
+                referrer_id = int(referral_code.replace('ref_', ''))
+            except:
+                pass
     
-    # Set user language
-    set_user_language(user_id, language)
+    # Ensure user exists
+    await ensure_user_exists(user_id, username)
     
-    # Show welcome message in selected language
-    await callback_query.message.edit_text(
-        get_text(user_id, "welcome_message"),
-        parse_mode="Markdown"
-    )
-    
-    # Notify language selected
-    await callback_query.answer(get_text(user_id, "language_selected"))
-    await AdStates.waiting_for_ad.set()
-
-async def handle_ad_content(message: types.Message, state: FSMContext):
-    """Handle ad content submission"""
-    current_state = await state.get_state()
-    if current_state != AdStates.waiting_for_ad.state:
-        return
-    
-    user_id = message.from_user.id
-    
-    # Create ad content based on message type
-    content = AdContent()
-    
-    if message.content_type == ContentType.TEXT:
-        content.text = message.text
-        content.content_type = "text"
-    elif message.content_type == ContentType.PHOTO:
-        content.photo_file_id = message.photo[-1].file_id
-        content.caption = message.caption
-        content.content_type = "photo"
-    elif message.content_type == ContentType.VIDEO:
-        content.video_file_id = message.video.file_id
-        content.caption = message.caption
-        content.content_type = "video"
+    # Check if user already has language set
+    user = await db.get_user(user_id)
+    if user and user.get('language'):
+        # User has language, show main menu
+        await show_main_menu(message, user['language'])
     else:
-        await message.reply(get_text(user_id, "invalid_content"))
-        return
+        # New user, show language selection
+        await state.set_state(AdCreationStates.language_selection)
+        await message.answer(
+            "🌍 Welcome to I3lani Bot!\n\nChoose your language:",
+            reply_markup=create_language_keyboard()
+        )
     
-    # Create advertisement
-    ad_id = str(uuid.uuid4())
-    # Generate random payment memo (8 random characters)
-    import random
-    import string
-    payment_memo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    
-    ad = Advertisement(
-        id=ad_id,
-        user_id=message.from_user.id,
-        username=message.from_user.username,
-        content=content,
-        package_id="",
-        price=0.0,
-        status=AdStatus.DRAFT,
-        created_at=datetime.now(),
-        payment_status=PaymentStatus.PENDING,
-        payment_memo=payment_memo
-    )
-    
-    # Save to storage
-    storage.save_ad(ad)
-    
-    # Show package selection
-    await message.reply(
-        get_text(user_id, "ad_content_received"),
-        reply_markup=get_package_keyboard(user_id),
-        parse_mode="Markdown"
-    )
-    
-    # Set state for package selection
-    await state.finish()  # Clear current state
+    # Handle referral
+    if referrer_id and referrer_id != user_id:
+        await db.create_referral(referrer_id, user_id)
 
-async def handle_package_selection(callback_query: types.CallbackQuery, state: FSMContext):
-    """Handle package selection"""
-    try:
-        package_id = callback_query.data.replace("package_", "")
-        user_id = callback_query.from_user.id
-        
-        logger.info(f"Package selection: user {user_id}, package {package_id}")
-        
-        if package_id not in PACKAGES:
-            await callback_query.answer("❌ Invalid package")
-            return
-        
-        package = PACKAGES[package_id]
-        
-        # Show package details
-        details_text = get_text(user_id, "package_details",
-            name=package['name'],
-            price=package['price'],
-            duration=package['duration_days'],
-            frequency=package['repost_frequency_days'],
-            total_posts=package['total_posts']
-        )
-        
-        await callback_query.message.edit_text(
-            details_text,
-            reply_markup=get_package_details_keyboard(package_id, user_id),
-            parse_mode="Markdown"
-        )
-        await callback_query.answer()
-        
-    except Exception as e:
-        logger.error(f"Error in package selection: {e}")
-        await callback_query.answer("❌ An error occurred. Please try again.")
-        # Send fallback message to user
-        try:
-            await callback_query.message.reply("Sorry, something went wrong. Please try selecting a package again.")
-        except:
-            pass
 
-async def handle_package_confirmation(callback_query: types.CallbackQuery, state: FSMContext):
-    """Handle package confirmation"""
-    try:
-        package_id = callback_query.data.replace("confirm_package_", "")
-        user_id = callback_query.from_user.id
-        
-        logger.info(f"Package confirmation: user {user_id}, package {package_id}")
-        
-        if package_id not in PACKAGES:
-            await callback_query.answer("❌ Invalid package")
-            return
-        
-        package = PACKAGES[package_id]
-        
-        # Get user's current ad
-        ad = storage.get_user_current_ad(user_id)
-        if not ad:
-            await callback_query.answer(get_text(user_id, "no_ad_found"))
-            return
-        
-        # Update ad with package info
-        ad.package_id = package_id
-        ad.price = package['price']
-        ad.total_posts = package['total_posts']
-        ad.repost_frequency_days = package['repost_frequency_days']
-        ad.status = AdStatus.WAITING_PAYMENT
-        storage.save_ad(ad)
-        
-        # Show payment instructions with memo
-        payment_text = get_text(user_id, "payment_instructions",
-            price=package['price'],
-            wallet_address=TON_WALLET_ADDRESS,
-            memo=ad.payment_memo
-        )
-        
-        await callback_query.message.edit_text(
-            payment_text,
-            reply_markup=get_payment_keyboard(user_id),
-            parse_mode="Markdown"
-        )
-        await AdStates.waiting_for_payment.set()
-        await callback_query.answer()
-        
-    except Exception as e:
-        logger.error(f"Error in package confirmation: {e}")
-        await callback_query.answer("❌ An error occurred. Please try again.")
-        # Send fallback message to user
-        try:
-            await callback_query.message.reply("Sorry, something went wrong. Please try selecting a package again.")
-        except:
-            pass
+async def show_main_menu(message_or_query, language: str):
+    """Show main menu"""
+    text = f"{get_text(language, 'welcome')}\n\n{get_text(language, 'main_menu')}"
+    keyboard = create_main_menu_keyboard(language)
+    
+    if isinstance(message_or_query, Message):
+        await message_or_query.answer(text, reply_markup=keyboard)
+    else:
+        await message_or_query.message.edit_text(text, reply_markup=keyboard)
 
-async def handle_back_to_packages(callback_query: types.CallbackQuery, state: FSMContext):
-    """Handle back to packages button"""
-    try:
-        user_id = callback_query.from_user.id
-        await callback_query.message.edit_text(
-            get_text(user_id, "ad_content_received"),
-            reply_markup=get_package_keyboard(user_id),
-            parse_mode="Markdown"
-        )
-        await callback_query.answer()
-    except Exception as e:
-        logger.error(f"Error in handle_back_to_packages: {e}")
-        await callback_query.answer("Please try again")
 
-async def handle_payment_sent(callback_query: types.CallbackQuery, state: FSMContext):
-    """Handle payment confirmation from user"""
+@router.callback_query(F.data.startswith("lang_"))
+async def language_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle language selection"""
+    language_code = callback_query.data.replace("lang_", "")
     user_id = callback_query.from_user.id
-    ad = storage.get_user_current_ad(user_id)
     
-    if not ad:
-        await callback_query.answer(get_text(user_id, "no_ad_found"))
-        return
+    # Update user language
+    await db.update_user_language(user_id, language_code)
     
-    # Update ad status
-    ad.status = AdStatus.PAYMENT_PENDING
-    storage.save_ad(ad)
-    
-    # Notify user about payment processing
+    # Show confirmation and main menu
     await callback_query.message.edit_text(
-        get_text(user_id, "payment_processing",
-            package_name=PACKAGES[ad.package_id]['name'],
-            price=ad.price,
-            memo=ad.payment_memo
-        ),
-        parse_mode="Markdown"
+        get_text(language_code, 'language_selected'),
+        reply_markup=None
     )
     
-    # Start automatic payment verification
-    await check_payment_automatically(callback_query.bot, ad, state)
-    
-    await AdStates.waiting_for_admin_approval.set()
+    # Clear state and show main menu
+    await state.clear()
+    await show_main_menu(callback_query, language_code)
     await callback_query.answer()
 
-async def handle_payment_cancel(callback_query: types.CallbackQuery, state: FSMContext):
-    """Handle payment cancellation"""
-    try:
-        user_id = callback_query.from_user.id
-        ad = storage.get_user_current_ad(user_id)
-        
-        if ad:
-            storage.delete_ad(ad.id)
-        
-        await callback_query.message.edit_text(
-            get_text(user_id, "payment_cancelled"),
-            parse_mode="Markdown"
-        )
-        await state.finish()
-        await callback_query.answer()
-    except Exception as e:
-        logger.error(f"Error in handle_payment_cancel: {e}")
-        await callback_query.answer("Please try again")
 
-async def check_payment_automatically(bot: Bot, ad: Advertisement, state: FSMContext):
-    """Check payment automatically on TON blockchain"""
-    import asyncio
+@router.callback_query(F.data == "create_ad")
+async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Start ad creation process"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    async def verify_payment():
-        try:
-            # Wait 30 seconds before checking (give user time to send payment)
-            await asyncio.sleep(30)
-            
-            # For demo: auto-approve after 30 seconds
-            # In production: call TON API to check transactions with memo
-            
-            # Simulate payment found
-            ad.payment_status = PaymentStatus.CONFIRMED
-            ad.status = AdStatus.APPROVED
-            storage.save_ad(ad)
-            
-            # Notify user payment was confirmed
-            await bot.send_message(
-                ad.user_id,
-                get_text(ad.user_id, "payment_confirmed_auto",
-                    package_name=PACKAGES[ad.package_id]['name'],
-                    memo=ad.payment_memo
-                ),
-                parse_mode="Markdown"
-            )
-            
-            # Schedule first post immediately
-            from scheduler import schedule_manager
-            if schedule_manager:
-                await schedule_manager.schedule_first_post(ad)
-            
-            logger.info(f"Auto-approved payment for ad {ad.id}")
-            
-        except Exception as e:
-            logger.error(f"Error in automatic payment check: {e}")
-            # Fallback to manual admin approval
-            await notify_admins_for_approval(bot, ad)
-    
-    # Start background task
-    asyncio.create_task(verify_payment())
-
-async def notify_admins_for_approval(bot: Bot, ad: Advertisement):
-    """Notify admins about pending payment approval"""
-    package = PACKAGES[ad.package_id]
-    
-    for admin_id in ADMIN_IDS:
-        try:
-            admin_text = get_text(admin_id, "admin_notification",
-                username=ad.username or 'Unknown',
-                user_id=ad.user_id,
-                package_name=package['name'],
-                price=ad.price,
-                created_at=ad.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                content=ad.content.text or ad.content.caption or 'Media content',
-                wallet_address=TON_WALLET_ADDRESS,
-                memo=ad.payment_memo
-            )
-            
-            await bot.send_message(
-                admin_id,
-                admin_text,
-                reply_markup=get_admin_approval_keyboard(ad.id, admin_id),
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            logger.error(f"Failed to notify admin {admin_id}: {e}")
-
-async def handle_admin_approval(callback_query: types.CallbackQuery, bot: Bot, schedule_manager: ScheduleManager):
-    """Handle admin approval/rejection"""
-    if callback_query.from_user.id not in ADMIN_IDS:
-        await callback_query.answer("❌ Not authorized")
-        return
-    
-    action, ad_id = callback_query.data.split("_", 1)
-    ad = storage.get_ad(ad_id)
-    
-    if not ad:
-        await callback_query.answer("❌ Ad not found")
-        return
-    
-    if action == "approve":
-        # Approve the ad
-        ad.status = AdStatus.APPROVED
-        ad.payment_status = PaymentStatus.CONFIRMED
-        ad.approved_at = datetime.now()
-        storage.save_ad(ad)
-        
-        # Schedule first post
-        await schedule_manager.schedule_first_post(ad)
-        
-        # Notify user
-        try:
-            await bot.send_message(
-                ad.user_id,
-                "✅ **Payment Approved!**\n\n"
-                "Your ad has been approved and will be posted shortly.\n"
-                f"📊 **Total posts scheduled:** {ad.total_posts}",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            logger.error(f"Failed to notify user {ad.user_id}: {e}")
-        
-        # Update admin message
-        await callback_query.message.edit_text(
-            f"✅ **Ad Approved** by @{callback_query.from_user.username}\n\n"
-            f"Ad ID: {ad.id}\n"
-            f"User: @{ad.username or 'Unknown'}\n"
-            f"Package: {PACKAGES[ad.package_id]['name']}\n"
-            f"Approved at: {ad.approved_at.strftime('%Y-%m-%d %H:%M:%S')}",
-            parse_mode="Markdown"
-        )
-        
-    elif action == "reject":
-        # Reject the ad
-        ad.status = AdStatus.REJECTED
-        ad.payment_status = PaymentStatus.REJECTED
-        storage.save_ad(ad)
-        
-        # Notify user
-        try:
-            await bot.send_message(
-                ad.user_id,
-                "❌ **Payment Rejected**\n\n"
-                "Your payment could not be verified. Please contact support if you believe this is an error.",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            logger.error(f"Failed to notify user {ad.user_id}: {e}")
-        
-        # Update admin message
-        await callback_query.message.edit_text(
-            f"❌ **Ad Rejected** by @{callback_query.from_user.username}\n\n"
-            f"Ad ID: {ad.id}\n"
-            f"User: @{ad.username or 'Unknown'}\n"
-            f"Package: {PACKAGES[ad.package_id]['name']}\n"
-            f"Rejected at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            parse_mode="Markdown"
-        )
-    
+    await state.set_state(AdCreationStates.ad_content)
+    await callback_query.message.edit_text(
+        get_text(language, 'send_ad_content'),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'back'), 
+                callback_data="back_to_main"
+            )]
+        ])
+    )
     await callback_query.answer()
 
-async def admin_stats_command(message: types.Message):
-    """Show admin statistics"""
-    if message.from_user.id not in ADMIN_IDS:
-        await message.reply("❌ Not authorized")
+
+@router.message(AdCreationStates.ad_content)
+async def ad_content_handler(message: Message, state: FSMContext):
+    """Handle ad content submission"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Determine content type and extract content
+    content_type = message.content_type
+    content = ""
+    media_url = None
+    
+    if content_type == "text":
+        content = message.text
+    elif content_type == "photo":
+        content = message.caption or ""
+        media_url = message.photo[-1].file_id
+    elif content_type == "video":
+        content = message.caption or ""
+        media_url = message.video.file_id
+    else:
+        await message.answer(
+            "❌ Unsupported content type. Please send text, photo, or video."
+        )
         return
     
-    all_ads = list(storage.advertisements.values())
+    # Create ad in database
+    ad_id = await db.create_ad(user_id, content, media_url, content_type)
     
-    stats_text = f"""
-📊 **Bot Statistics**
+    # Store ad_id in state
+    await state.update_data(ad_id=ad_id, content=content, media_url=media_url, content_type=content_type)
+    await state.set_state(AdCreationStates.channel_selection)
+    
+    # Show channel selection
+    await message.answer(
+        f"{get_text(language, 'ad_received')}\n\n{get_text(language, 'choose_channels')}",
+        reply_markup=create_channel_selection_keyboard(language)
+    )
 
-📈 **Total Ads:** {len(all_ads)}
-⏳ **Pending Payment:** {len([ad for ad in all_ads if ad.status == AdStatus.PAYMENT_PENDING])}
-✅ **Active:** {len([ad for ad in all_ads if ad.status == AdStatus.ACTIVE])}
-✅ **Completed:** {len([ad for ad in all_ads if ad.status == AdStatus.COMPLETED])}
-❌ **Rejected:** {len([ad for ad in all_ads if ad.status == AdStatus.REJECTED])}
 
-💰 **Revenue:** {sum(ad.price for ad in all_ads if ad.payment_status == PaymentStatus.CONFIRMED):.3f} TON
-"""
+@router.callback_query(F.data.startswith("toggle_channel_"))
+async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel toggle"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    await message.reply(stats_text, parse_mode="Markdown")
+    channel_id = callback_query.data.replace("toggle_channel_", "")
+    
+    # Get current data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Toggle channel
+    if channel_id in selected_channels:
+        selected_channels.remove(channel_id)
+    else:
+        selected_channels.append(channel_id)
+    
+    # Update state
+    await state.update_data(selected_channels=selected_channels)
+    
+    # Update keyboard
+    await callback_query.message.edit_reply_markup(
+        reply_markup=create_channel_selection_keyboard(language, selected_channels)
+    )
+    await callback_query.answer()
 
-def register_handlers(dp: Dispatcher, bot: Bot, schedule_manager: ScheduleManager):
-    """Register all handlers"""
+
+@router.callback_query(F.data == "continue_to_duration")
+async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Continue to duration selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    # Command handlers
-    dp.register_message_handler(start_command, commands=['start'], state="*")
-    dp.register_message_handler(admin_stats_command, commands=['stats'])
+    await state.set_state(AdCreationStates.duration_selection)
+    await callback_query.message.edit_text(
+        get_text(language, 'select_duration'),
+        reply_markup=create_duration_keyboard(language)
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("duration_"))
+async def duration_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle duration selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    # Language selection handler
-    dp.register_callback_query_handler(handle_language_selection, Text(startswith="lang_"))
+    duration = int(callback_query.data.replace("duration_", ""))
     
-    # Content handlers
-    dp.register_message_handler(handle_ad_content, content_types=[ContentType.TEXT, ContentType.PHOTO, ContentType.VIDEO], state=AdStates.waiting_for_ad)
+    # Get current data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
     
-    # Callback handlers (with state management)
-    dp.register_callback_query_handler(handle_package_selection, Text(startswith="package_"), state="*")
-    dp.register_callback_query_handler(handle_package_confirmation, Text(startswith="confirm_package_"), state="*")
-    dp.register_callback_query_handler(handle_back_to_packages, Text(equals="back_to_packages"), state="*")
-    dp.register_callback_query_handler(handle_payment_sent, Text(equals="payment_sent"), state="*")
-    dp.register_callback_query_handler(handle_payment_cancel, Text(equals="payment_cancel"), state="*")
-    dp.register_callback_query_handler(
-        lambda callback_query: handle_admin_approval(callback_query, bot, schedule_manager),
-        Text(startswith=["approve_", "reject_"])
+    # Get channel data and calculate pricing
+    channels = await db.get_channels()
+    selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
+    
+    # Get user currency
+    user = await db.get_user(user_id)
+    currency = user.get('currency', 'USD') if user else 'USD'
+    
+    # Calculate total price
+    total_price = 0
+    for channel in selected_channel_data:
+        price_info = payment_processor.calculate_price(
+            channel['base_price_usd'], duration, currency
+        )
+        total_price += price_info['final_price']
+    
+    # Show pricing and payment methods
+    pricing_text = payment_processor.get_pricing_display(
+        selected_channel_data, duration, currency, language
     )
     
-    # Debug handler to catch all callbacks
-    dp.register_callback_query_handler(
-        lambda callback_query: logger.info(f"🔍 UNHANDLED CALLBACK: {callback_query.data} from user {callback_query.from_user.id}"),
-        lambda c: True
+    # Update state
+    await state.update_data(
+        duration_months=duration,
+        total_price=total_price,
+        currency=currency
     )
+    await state.set_state(AdCreationStates.payment_method)
+    
+    await callback_query.message.edit_text(
+        f"{pricing_text}\n\n{get_text(language, 'choose_payment')}",
+        reply_markup=create_payment_method_keyboard(language)
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("payment_"))
+async def payment_method_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payment method selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    payment_method = callback_query.data.replace("payment_", "")
+    
+    # Get state data
+    data = await state.get_data()
+    ad_id = data['ad_id']
+    selected_channels = data['selected_channels']
+    duration_months = data['duration_months']
+    total_price = data['total_price']
+    currency = data['currency']
+    
+    # Create subscriptions
+    subscription_ids = []
+    for channel_id in selected_channels:
+        subscription_id = await db.create_subscription(
+            user_id=user_id,
+            ad_id=ad_id,
+            channel_id=channel_id,
+            duration_months=duration_months,
+            total_price=total_price / len(selected_channels),  # Split price among channels
+            currency=currency
+        )
+        subscription_ids.append(subscription_id)
+    
+    # Create payment invoice
+    invoice = await payment_processor.create_payment_invoice(
+        user_id=user_id,
+        subscription_id=subscription_ids[0],  # Use first subscription for payment tracking
+        amount=total_price,
+        currency=currency,
+        payment_method=payment_method
+    )
+    
+    # Show payment instructions
+    instructions = invoice['instructions']
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'payment_sent'), 
+            callback_data=f"confirm_payment_{invoice['payment_id']}"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'back'), 
+            callback_data="back_to_duration"
+        )]
+    ])
+    
+    await state.set_state(AdCreationStates.payment_confirmation)
+    await callback_query.message.edit_text(
+        instructions,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("confirm_payment_"))
+async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payment confirmation"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    payment_id = callback_query.data.replace("confirm_payment_", "")
+    
+    confirmation_text = f"""
+✅ {get_text(language, 'payment_sent')}
+
+{get_text(language, 'processing')}
+
+📋 **Payment ID:** {payment_id}
+⏰ **Processing Time:** 5-10 minutes
+📧 **You'll be notified when confirmed**
+
+🎯 **Your ads will go live automatically once payment is verified**
+
+Use /my_ads to track your campaigns.
+    """.strip()
+    
+    await callback_query.message.edit_text(
+        confirmation_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'my_ads'), 
+                callback_data="my_ads"
+            )],
+            [InlineKeyboardButton(
+                text=get_text(language, 'main_menu'), 
+                callback_data="back_to_main"
+            )]
+        ])
+    )
+    
+    await state.clear()
+    await callback_query.answer("✅ Payment confirmation received!")
+
+
+@router.callback_query(F.data == "my_ads")
+async def my_ads_handler(callback_query: CallbackQuery):
+    """Show user's ads dashboard"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get user stats
+    stats = await db.get_user_stats(user_id)
+    
+    # Get currency info
+    user = await db.get_user(user_id)
+    currency = user.get('currency', 'USD') if user else 'USD'
+    currency_info = get_currency_info(language)
+    
+    dashboard_text = f"""
+📊 **{get_text(language, 'dashboard')}**
+
+📈 **Your Statistics:**
+{get_text(language, 'total_ads', count=stats['total_ads'])}
+{get_text(language, 'active_ads', count=stats['active_ads'])}
+{get_text(language, 'total_spent', currency=currency_info['symbol'], amount=stats['total_spent'])}
+
+🚀 **Ready to create more ads?**
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'create_ad'), 
+            callback_data="create_ad"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'back'), 
+            callback_data="back_to_main"
+        )]
+    ])
+    
+    await callback_query.message.edit_text(
+        dashboard_text,
+        reply_markup=keyboard
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "share_earn")
+async def share_earn_handler(callback_query: CallbackQuery):
+    """Show referral system"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get referral stats
+    referral_stats = await db.get_referral_stats(user_id)
+    
+    # Generate referral link
+    referral_link = f"https://t.me/I3lani_bot?start=ref_{user_id}"
+    
+    referral_text = f"""
+🎁 **{get_text(language, 'share_earn')}**
+
+💰 **Your Rewards:**
+• Free Days Earned: {referral_stats['total_referrals'] * 3}
+• Free Days Remaining: {referral_stats['free_days']}
+• Total Value: ${referral_stats['total_value']:.2f}
+
+📊 **Your Referrals:**
+• Total Referrals: {referral_stats['total_referrals']}
+
+{get_text(language, 'referral_rewards')}
+
+📎 **{get_text(language, 'referral_link')}**
+`{referral_link}`
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📱 Share Link", 
+            url=f"https://t.me/share/url?url={referral_link}&text=Join I3lani Bot!"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'back'), 
+            callback_data="back_to_main"
+        )]
+    ])
+    
+    await callback_query.message.edit_text(
+        referral_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+# Back navigation handlers
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to main menu"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.clear()
+    await show_main_menu(callback_query, language)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_channels")
+async def back_to_channels_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to channel selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    await state.set_state(AdCreationStates.channel_selection)
+    await callback_query.message.edit_text(
+        get_text(language, 'choose_channels'),
+        reply_markup=create_channel_selection_keyboard(language, selected_channels)
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_duration")
+async def back_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to duration selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.set_state(AdCreationStates.duration_selection)
+    await callback_query.message.edit_text(
+        get_text(language, 'select_duration'),
+        reply_markup=create_duration_keyboard(language)
+    )
+    await callback_query.answer()
+
+
+def setup_handlers(dp):
+    """Setup all handlers"""
+    dp.include_router(router)
+    logger.info("Handlers setup completed")

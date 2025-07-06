@@ -1,268 +1,325 @@
 """
-Enhanced Database Models for Telegram Ad Bot
-Supports multi-channel advertising, dynamic pricing, and admin management
+SQLite database operations for I3lani Telegram Bot
 """
+import aiosqlite
+import asyncio
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
+import json
+from config import DATABASE_URL
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, Table
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy.dialects.postgresql import JSON
-from datetime import datetime
-import os
-import uuid
 
-Base = declarative_base()
-
-# Association table for order-channel many-to-many relationship
-order_channels = Table(
-    'order_channels', Base.metadata,
-    Column('order_id', String, ForeignKey('orders.id')),
-    Column('channel_id', String, ForeignKey('channels.id'))
-)
-
-class User(Base):
-    __tablename__ = 'users'
-    
-    id = Column(Integer, primary_key=True)
-    username = Column(String(50))
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    language_code = Column(String(10), default='en')
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_admin = Column(Boolean, default=False)
-    
-    # Relationships
-    orders = relationship("Order", back_populates="user")
-
-class Channel(Base):
-    __tablename__ = 'channels'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    channel_id = Column(String(100), unique=True)  # Telegram channel ID
-    name = Column(String(200))
-    description = Column(Text)
-    subscribers_count = Column(Integer, default=0)
-    price_per_month = Column(Float, default=0.099)  # TON price per month
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Admin settings
-    category = Column(String(100))  # Business, Tech, Crypto, etc.
-    
-    # Relationships
-    orders = relationship("Order", secondary=order_channels, back_populates="channels")
-
-class Bundle(Base):
-    __tablename__ = 'bundles'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(200))
-    description = Column(Text)
-    months = Column(Integer)  # Duration in months
-    bonus_months = Column(Integer, default=0)  # Free bonus months
-    discount_percent = Column(Float, default=0.0)  # Discount percentage
-    min_channels = Column(Integer, default=1)
-    max_channels = Column(Integer, default=10)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class Order(Base):
-    __tablename__ = 'orders'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(Integer, ForeignKey('users.id'))
-    
-    # Payment info
-    payment_memo = Column(String(20), unique=True)  # INV_[random]
-    wallet_address = Column(String(100))
-    total_amount_ton = Column(Float)
-    total_amount_usd = Column(Float)
-    payment_status = Column(String(20), default='pending')  # pending, confirmed, expired
-    payment_method = Column(String(20), default='ton')  # ton, telegram_stars
-    payment_tx_hash = Column(String(100))  # TON transaction hash or Stars charge ID
-    
-    # Order details
-    duration_months = Column(Integer)
-    bonus_months = Column(Integer, default=0)
-    bundle_id = Column(String, ForeignKey('bundles.id'), nullable=True)
-    
-    # Ad content
-    ad_content = Column(JSON)  # Flexible content storage
-    content_type = Column(String(20))  # text, photo, video
-    
-    # Scheduling
-    posts_per_month = Column(Integer, default=30)  # Posts per month per channel
-    next_post_date = Column(DateTime)
-    posts_completed = Column(Integer, default=0)
-    posts_total = Column(Integer)
-    
-    # Status
-    status = Column(String(20), default='draft')  # draft, paid, active, completed, cancelled
-    created_at = Column(DateTime, default=datetime.utcnow)
-    paid_at = Column(DateTime)
-    started_at = Column(DateTime)
-    completed_at = Column(DateTime)
-    expires_at = Column(DateTime)
-    
-    # Relationships
-    user = relationship("User", back_populates="orders")
-    channels = relationship("Channel", secondary=order_channels, back_populates="orders")
-    bundle = relationship("Bundle")
-
-class AdminSettings(Base):
-    __tablename__ = 'admin_settings'
-    
-    id = Column(Integer, primary_key=True)
-    key = Column(String(100), unique=True)
-    value = Column(Text)
-    description = Column(Text)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-    updated_by = Column(Integer, ForeignKey('users.id'))
-
-class PaymentTracking(Base):
-    __tablename__ = 'payment_tracking'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    order_id = Column(String, ForeignKey('orders.id'))
-    memo = Column(String(20), unique=True)
-    expected_amount = Column(Float)
-    received_amount = Column(Float, default=0.0)
-    tx_hash = Column(String(100))
-    confirmed_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    order = relationship("Order")
-
-class CurrencyRate(Base):
-    __tablename__ = 'currency_rates'
-    
-    id = Column(Integer, primary_key=True)
-    base_currency = Column(String(10), default='TON')
-    target_currency = Column(String(10))  # USD, SAR, RUB
-    rate = Column(Float)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-
-# Database setup
-DATABASE_URL = os.getenv('DATABASE_URL')
-
-# Fix SSL connection issues
-if DATABASE_URL and 'sslmode' not in DATABASE_URL:
-    if '?' in DATABASE_URL:
-        DATABASE_URL += '&sslmode=require'
-    else:
-        DATABASE_URL += '?sslmode=require'
-
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    pool_size=5,
-    max_overflow=10,
-    echo=False
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def create_tables():
-    """Create all database tables"""
-    Base.metadata.create_all(bind=engine)
-
-def get_db():
-    """Get database session"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def init_default_data():
-    """Initialize default channels and admin settings"""
-    from sqlalchemy.orm import Session
-    db = Session(bind=engine)
-    
-    # Default channels
-    if not db.query(Channel).first():
-        default_channels = [
-            {
-                'channel_id': '@i3lani_channel',
-                'name': 'I3lani Official',
-                'description': 'Main advertising channel',
-                'subscribers_count': 1000,
-                'category': 'Business'
-            },
-            {
-                'channel_id': '@i3lani_crypto',
-                'name': 'I3lani Crypto',
-                'description': 'Cryptocurrency news and ads',
-                'subscribers_count': 500,
-                'category': 'Crypto'
-            }
-        ]
+class Database:
+    def __init__(self, db_path: str = "bot.db"):
+        self.db_path = db_path
         
-        for channel_data in default_channels:
-            channel = Channel(**channel_data)
-            db.add(channel)
+    async def init_db(self):
+        """Initialize database tables"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Users table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INTEGER PRIMARY KEY,
+                    username TEXT,
+                    language TEXT DEFAULT 'en',
+                    currency TEXT DEFAULT 'USD',
+                    referrer_id INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    total_spent REAL DEFAULT 0.0,
+                    free_days INTEGER DEFAULT 0,
+                    FOREIGN KEY (referrer_id) REFERENCES users (user_id)
+                )
+            ''')
+            
+            # Channels table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS channels (
+                    channel_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    telegram_channel_id TEXT NOT NULL,
+                    subscribers INTEGER DEFAULT 0,
+                    base_price_usd REAL DEFAULT 0.0,
+                    is_popular BOOLEAN DEFAULT FALSE,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Ads table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS ads (
+                    ad_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    media_url TEXT,
+                    link_url TEXT,
+                    content_type TEXT DEFAULT 'text',
+                    status TEXT DEFAULT 'draft',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id)
+                )
+            ''')
+            
+            # Subscriptions table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS subscriptions (
+                    subscription_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    ad_id INTEGER NOT NULL,
+                    channel_id TEXT NOT NULL,
+                    duration_months INTEGER NOT NULL,
+                    start_date TIMESTAMP,
+                    end_date TIMESTAMP,
+                    total_price REAL NOT NULL,
+                    currency TEXT DEFAULT 'USD',
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id),
+                    FOREIGN KEY (ad_id) REFERENCES ads (ad_id),
+                    FOREIGN KEY (channel_id) REFERENCES channels (channel_id)
+                )
+            ''')
+            
+            # Payments table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS payments (
+                    payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    subscription_id INTEGER,
+                    amount REAL NOT NULL,
+                    currency TEXT DEFAULT 'USD',
+                    payment_method TEXT NOT NULL,
+                    memo TEXT UNIQUE,
+                    tx_hash TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    confirmed_at TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id),
+                    FOREIGN KEY (subscription_id) REFERENCES subscriptions (subscription_id)
+                )
+            ''')
+            
+            # Referrals table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS referrals (
+                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_id INTEGER NOT NULL,
+                    referee_id INTEGER NOT NULL,
+                    channel_id TEXT,
+                    reward_granted BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (referrer_id) REFERENCES users (user_id),
+                    FOREIGN KEY (referee_id) REFERENCES users (user_id),
+                    FOREIGN KEY (channel_id) REFERENCES channels (channel_id)
+                )
+            ''')
+            
+            await db.commit()
+            
+        # Initialize default channels
+        await self.init_default_channels()
     
-    # Default bundles
-    if not db.query(Bundle).first():
-        default_bundles = [
-            {
-                'name': 'Starter Bundle',
-                'description': 'Perfect for small businesses',
-                'months': 1,
-                'bonus_months': 0,
-                'discount_percent': 0.0
-            },
-            {
-                'name': 'Growth Bundle',
-                'description': 'Popular choice - 3 months + 1 free',
-                'months': 3,
-                'bonus_months': 1,
-                'discount_percent': 10.0
-            },
-            {
-                'name': 'Business Bundle',
-                'description': 'Best value - 6 months + 2 free',
-                'months': 6,
-                'bonus_months': 2,
-                'discount_percent': 20.0
-            },
-            {
-                'name': 'Enterprise Bundle',
-                'description': 'Maximum savings - 12 months + 3 free',
-                'months': 12,
-                'bonus_months': 3,
-                'discount_percent': 25.0
-            }
-        ]
+    async def init_default_channels(self):
+        """Initialize default channels"""
+        from config import CHANNELS
         
-        for bundle_data in default_bundles:
-            bundle = Bundle(**bundle_data)
-            db.add(bundle)
+        async with aiosqlite.connect(self.db_path) as db:
+            for channel_id, channel_data in CHANNELS.items():
+                await db.execute('''
+                    INSERT OR REPLACE INTO channels 
+                    (channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    channel_data['id'],
+                    channel_data['name'],
+                    channel_data['telegram_channel_id'],
+                    channel_data['subscribers'],
+                    channel_data['base_price_usd'],
+                    channel_data['is_popular']
+                ))
+            await db.commit()
     
-    # Default admin settings
-    if not db.query(AdminSettings).first():
-        default_settings = [
-            {
-                'key': 'ton_wallet_address',
-                'value': os.getenv('TON_WALLET_ADDRESS', ''),
-                'description': 'TON wallet address for receiving payments'
-            },
-            {
-                'key': 'payment_timeout_minutes',
-                'value': '30',
-                'description': 'Payment timeout in minutes'
-            },
-            {
-                'key': 'auto_approval_enabled',
-                'value': 'true',
-                'description': 'Enable automatic payment approval'
+    async def get_user(self, user_id: int) -> Optional[Dict]:
+        """Get user by ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                'SELECT * FROM users WHERE user_id = ?', (user_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+    
+    async def create_user(self, user_id: int, username: str = None, 
+                         language: str = 'en', referrer_id: int = None) -> bool:
+        """Create new user"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    INSERT INTO users (user_id, username, language, referrer_id)
+                    VALUES (?, ?, ?, ?)
+                ''', (user_id, username, language, referrer_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating user: {e}")
+            return False
+    
+    async def update_user_language(self, user_id: int, language: str) -> bool:
+        """Update user language"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    'UPDATE users SET language = ? WHERE user_id = ?',
+                    (language, user_id)
+                )
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error updating user language: {e}")
+            return False
+    
+    async def create_ad(self, user_id: int, content: str, 
+                       media_url: str = None, content_type: str = 'text') -> int:
+        """Create new ad"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute('''
+                INSERT INTO ads (user_id, content, media_url, content_type)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, content, media_url, content_type))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def get_channels(self, active_only: bool = True) -> List[Dict]:
+        """Get all channels"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            query = 'SELECT * FROM channels'
+            if active_only:
+                query += ' WHERE is_active = 1'
+            query += ' ORDER BY is_popular DESC, subscribers DESC'
+            
+            async with db.execute(query) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+    
+    async def create_subscription(self, user_id: int, ad_id: int, 
+                                 channel_id: str, duration_months: int,
+                                 total_price: float, currency: str = 'USD') -> int:
+        """Create new subscription"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute('''
+                INSERT INTO subscriptions 
+                (user_id, ad_id, channel_id, duration_months, total_price, currency)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, ad_id, channel_id, duration_months, total_price, currency))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def create_payment(self, user_id: int, subscription_id: int,
+                           amount: float, currency: str, payment_method: str,
+                           memo: str) -> int:
+        """Create new payment"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute('''
+                INSERT INTO payments 
+                (user_id, subscription_id, amount, currency, payment_method, memo)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, subscription_id, amount, currency, payment_method, memo))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def get_user_stats(self, user_id: int) -> Dict:
+        """Get user statistics"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            
+            # Get total ads
+            async with db.execute(
+                'SELECT COUNT(*) as total_ads FROM ads WHERE user_id = ?',
+                (user_id,)
+            ) as cursor:
+                total_ads = (await cursor.fetchone())[0]
+            
+            # Get active subscriptions
+            async with db.execute('''
+                SELECT COUNT(*) as active_ads FROM subscriptions 
+                WHERE user_id = ? AND status = 'active'
+            ''', (user_id,)) as cursor:
+                active_ads = (await cursor.fetchone())[0]
+            
+            # Get total spent
+            async with db.execute(
+                'SELECT total_spent FROM users WHERE user_id = ?',
+                (user_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                total_spent = row[0] if row else 0.0
+            
+            return {
+                'total_ads': total_ads,
+                'active_ads': active_ads,
+                'total_spent': total_spent
             }
-        ]
-        
-        for setting_data in default_settings:
-            setting = AdminSettings(**setting_data)
-            db.add(setting)
     
-    db.commit()
-    db.close()
+    async def get_referral_stats(self, user_id: int) -> Dict:
+        """Get referral statistics"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            
+            # Get referral count
+            async with db.execute(
+                'SELECT COUNT(*) as total_referrals FROM referrals WHERE referrer_id = ?',
+                (user_id,)
+            ) as cursor:
+                total_referrals = (await cursor.fetchone())[0]
+            
+            # Get free days
+            async with db.execute(
+                'SELECT free_days FROM users WHERE user_id = ?',
+                (user_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                free_days = row[0] if row else 0
+            
+            return {
+                'total_referrals': total_referrals,
+                'free_days': free_days,
+                'total_value': total_referrals * 3  # 3 free days per referral
+            }
+    
+    async def create_referral(self, referrer_id: int, referee_id: int) -> bool:
+        """Create referral relationship"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    INSERT INTO referrals (referrer_id, referee_id)
+                    VALUES (?, ?)
+                ''', (referrer_id, referee_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating referral: {e}")
+            return False
+
+
+# Global database instance
+db = Database()
+
+
+async def init_db():
+    """Initialize database"""
+    await db.init_db()
+
+
+async def get_user_language(user_id: int) -> str:
+    """Get user language, default to English"""
+    user = await db.get_user(user_id)
+    return user['language'] if user else 'en'
+
+
+async def ensure_user_exists(user_id: int, username: str = None) -> bool:
+    """Ensure user exists in database"""
+    user = await db.get_user(user_id)
+    if not user:
+        return await db.create_user(user_id, username)
+    return True

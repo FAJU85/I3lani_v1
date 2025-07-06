@@ -1,85 +1,71 @@
+"""
+Configuration settings for I3lani Telegram Bot
+"""
 import os
-from typing import List
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Bot configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable is required")
 
-# Admin user IDs (comma-separated)
-ADMIN_IDS_STR = os.getenv("ADMIN_IDS", "")
-ADMIN_IDS: List[int] = []
-if ADMIN_IDS_STR:
-    try:
-        ADMIN_IDS = [int(id.strip()) for id in ADMIN_IDS_STR.split(",")]
-    except ValueError:
-        raise ValueError("ADMIN_IDS must be comma-separated integers")
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///bot.db')
+
+# Payment configuration
+TON_API_KEY = os.getenv('TON_API_KEY')
+TON_WALLET_ADDRESS = os.getenv('TON_WALLET_ADDRESS')
+
+# Webhook configuration
+WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+
+# Admin configuration
+ADMIN_IDS = [int(id.strip()) for id in os.getenv('ADMIN_IDS', '').split(',') if id.strip()]
 
 # Channel configuration
-CHANNEL_ID = os.getenv("CHANNEL_ID", "")
-if not CHANNEL_ID:
-    raise ValueError("CHANNEL_ID environment variable is required")
-
-# TON wallet address for payments
-TON_WALLET_ADDRESS = os.getenv("TON_WALLET_ADDRESS", "UQBvW8Z5huBkMJYdnfAEM5JqTNkuWX3diqYENkWsIL0XggGG")
-
-# Package configurations
-PACKAGES = {
-    "starter": {
-        "name": "Starter",
-        "price": 0.099,
-        "duration_days": 14,
-        "repost_frequency_days": 7,
-        "total_posts": 2
+CHANNELS = {
+    'tech_news': {
+        'id': 'tech_news',
+        'name': 'Tech News',
+        'telegram_channel_id': '@technews_channel',
+        'subscribers': 45000,
+        'base_price_usd': 15.0,
+        'is_popular': True
     },
-    "pro": {
-        "name": "Pro",
-        "price": 0.399,
-        "duration_days": 30,
-        "repost_frequency_days": 3,
-        "total_posts": 10
+    'gaming_hub': {
+        'id': 'gaming_hub',
+        'name': 'Gaming Hub',
+        'telegram_channel_id': '@gaming_channel',
+        'subscribers': 32000,
+        'base_price_usd': 12.0,
+        'is_popular': False
     },
-    "growth": {
-        "name": "Growth",
-        "price": 0.999,
-        "duration_days": 90,
-        "repost_frequency_days": 1,
-        "total_posts": 90
-    },
-    "elite": {
-        "name": "Elite",
-        "price": 1.999,
-        "duration_days": 180,
-        "repost_frequency_days": 1,
-        "total_posts": 180
+    'business_tips': {
+        'id': 'business_tips',
+        'name': 'Business Tips',
+        'telegram_channel_id': '@business_channel',
+        'subscribers': 28000,
+        'base_price_usd': 10.0,
+        'is_popular': False
     }
 }
 
-# Bot messages
-WELCOME_MESSAGE = """
-🎯 **Welcome to the Ad Bot!**
+# Pricing configuration
+DURATION_DISCOUNTS = {
+    1: {'discount': 0.0, 'bonus_months': 0},
+    3: {'discount': 0.1, 'bonus_months': 0},  # 10% discount
+    6: {'discount': 0.2, 'bonus_months': 1}   # 20% discount + 1 bonus month
+}
 
-Send me your advertisement content and I'll help you promote it on our channel.
+# Currency rates (will be updated dynamically)
+CURRENCY_RATES = {
+    'USD': 1.0,
+    'SAR': 3.75,
+    'RUB': 92.0
+}
 
-📝 **What you can send:**
-• Text messages
-• Photos with captions
-• Videos with captions
-
-💰 **We offer 4 advertising packages with TON payments**
-
-Ready to start? Just send me your ad content!
-"""
-
-PAYMENT_INSTRUCTIONS = """
-💳 **Payment Instructions:**
-
-1. Send **{price} TON** to this wallet address:
-`{wallet_address}`
-
-2. After sending payment, click the button below
-3. Wait for admin approval
-4. Your ad will be posted automatically!
-
-⚠️ **Important:** Make sure to send the exact amount
-"""
+# Referral configuration
+REFERRAL_FRIEND_DISCOUNT = 0.05  # 5% discount for friends
+REFERRAL_REWARD_DAYS = 3  # 3 free posting days per referral
