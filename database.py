@@ -145,11 +145,21 @@ class CurrencyRate(Base):
 
 # Database setup
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Fix SSL connection issues
+if DATABASE_URL and 'sslmode' not in DATABASE_URL:
+    if '?' in DATABASE_URL:
+        DATABASE_URL += '&sslmode=require'
+    else:
+        DATABASE_URL += '?sslmode=require'
+
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    connect_args={"sslmode": "require", "connect_timeout": 10}
+    pool_size=5,
+    max_overflow=10,
+    echo=False
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -1328,8 +1328,14 @@ async def setup_menu_button():
 async def on_startup(dp):
     """Initialize on startup"""
     logger.info("Starting Enhanced Bot...")
-    create_tables()
-    init_default_data()
+    try:
+        create_tables()
+        init_default_data()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        # Continue startup anyway
+    
     register_handlers()
     await setup_menu_button()
     logger.info("Enhanced Bot started with menu button system!")
