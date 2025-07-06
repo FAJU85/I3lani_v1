@@ -39,6 +39,12 @@ class AdminPanel:
     
     async def is_admin(self, user_id: int) -> bool:
         """Check if user is admin"""
+        # Check environment variable first
+        admin_ids = os.getenv('ADMIN_IDS', '').split(',')
+        if str(user_id) in admin_ids:
+            return True
+            
+        # Then check database
         db = SessionLocal()
         try:
             user = db.query(User).filter(User.id == user_id).first()

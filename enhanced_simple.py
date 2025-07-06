@@ -110,7 +110,7 @@ class EnhancedPaymentSystem:
             db.commit()
             
             # Start payment monitoring
-            await self.start_payment_monitoring(order.id, memo, base_price)
+            await self.start_payment_monitoring(str(order.id), memo, base_price)
             
             return {
                 'order_id': order.id,
@@ -202,7 +202,7 @@ class EnhancedPaymentSystem:
             
             # Notify user
             await bot.send_message(
-                order.user_id,
+                int(order.user_id),
                 f"🎉 Payment Confirmed!\n\n"
                 f"Your payment has been automatically detected on the TON blockchain!\n\n"
                 f"📦 Order: {order.id}\n"
