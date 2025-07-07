@@ -217,8 +217,9 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         await callback_query.answer("Error updating language. Please try again.")
 
 
-@router.callback_query(F.data == "pricing")
-async def show_pricing_handler(callback_query: CallbackQuery):
+# Replaced with I3lani pricing system - see i3lani_pricing_system.py
+@router.callback_query(F.data == "pricing_old")  
+async def show_pricing_handler_old(callback_query: CallbackQuery):
     """Show pricing information"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
