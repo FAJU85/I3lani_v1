@@ -263,7 +263,7 @@ async def show_pricing_handler(callback_query: CallbackQuery):
             pricing_text += f"• Max channels: {package['channels_included']}\n"
             pricing_text += f"• Price: **${package['price_usd']}/month**\n\n"
     else:
-        # Fallback to default packages if none in database
+        # Use I3lani standard pricing when no packages in database
         pricing_text += """---
 
 ⭐ **1 Month Plan**
@@ -323,7 +323,7 @@ async def show_pricing_handler(callback_query: CallbackQuery):
         if package_row:
             keyboard_buttons.append(package_row)
     else:
-        # Fallback to default buttons if no packages in database
+        # Use I3lani standard buttons when no packages in database
         keyboard_buttons.extend([
             [
                 InlineKeyboardButton(text="⭐ 1 Month $9", callback_data="select_package_1month"),
@@ -2447,14 +2447,7 @@ async def dashboard_command(message: Message):
 """
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=get_text(language, 'start_advertising'), callback_data="start_advertising"),
-            InlineKeyboardButton(text=get_text(language, 'my_campaigns'), callback_data="my_campaigns")
-        ],
-        [
-            InlineKeyboardButton(text=get_text(language, 'pricing'), callback_data="view_pricing"),
-            InlineKeyboardButton(text=get_text(language, 'help'), callback_data="show_help")
-        ]
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_main")]
     ])
     
     await message.reply(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -2540,68 +2533,69 @@ async def show_pricing_handler(callback_query: CallbackQuery):
     await callback_query.answer()
 
 
-@router.callback_query(F.data == "show_help")
-async def show_help_handler(callback_query: CallbackQuery):
-    """Show help information"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    help_text = f"""
-❓ **{get_text(language, 'help')}**
+# Duplicate handlers removed - using main handlers with callback_data "help" and "settings"
 
-🚀 **{get_text(language, 'how_to_start')}:**
-1. Send your ad content (text, photo, or video)
-2. Select advertising channels
-3. Choose duration (1-12 months)
-4. Complete payment with TON or Stars
-5. Your ad will be posted automatically
 
-💰 **{get_text(language, 'payment_info')}:**
-• TON: Send to provided wallet with memo
-• Stars: Pay directly through Telegram
+@router.callback_query(F.data.startswith("lang_"))
+async def language_change_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle language change"""
+    try:
+        language_code = callback_query.data.replace("lang_", "")
+        user_id = callback_query.from_user.id
+        
+        # Update user language in database
+        await db.set_user_language(user_id, language_code)
+        
+        # Show main menu in new language
+        await show_main_menu(callback_query, language_code)
+        await callback_query.answer(f"Language changed to {language_code.upper()}")
+        
+    except Exception as e:
+        logger.error(f"Language change error: {e}")
+        await callback_query.answer("Language change failed. Please try again.")
 
-📊 **{get_text(language, 'track_campaigns')}:**
-• Use /mystats to view statistics
-• Use /dashboard for full overview
-• Monitor your campaigns in real-time
 
-🆘 **{get_text(language, 'need_help')}:**
-• Use /support for technical issues
-• Contact admins for urgent matters
+# Navigation handlers
+@router.callback_query(F.data.startswith("back_to_"))
+async def navigation_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle navigation back buttons"""
+    try:
+        destination = callback_query.data.replace("back_to_", "")
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        if destination == "main":
+            await show_main_menu(callback_query, language)
+        elif destination == "start":
+            await show_main_menu(callback_query, language)
+        else:
+            await callback_query.answer("Navigation not implemented")
+            
+    except Exception as e:
+        logger.error(f"Navigation error: {e}")
+        await callback_query.answer("Navigation failed. Please try again.")
 
-💰 **{get_text(language, 'referral_system')}:**
-• Share your referral link
-• Earn from each successful referral
-• Track earnings in dashboard
+
+# Error recovery handlers  
+@router.callback_query(F.data == "error_recovery")
+async def error_recovery_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle error recovery"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        recovery_text = f"""
+🛠️ **Error Recovery Options**
+
+Something went wrong. Choose how to continue:
+
+🔄 **Continue** - Try to continue from where you left off
+🆕 **Start Over** - Begin a new ad campaign  
+🏠 **Main Menu** - Return to main menu
+📞 **Support** - Get help from support team
 """
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text(language, 'start_advertising'), callback_data="start_advertising")],
-        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
-    ])
-    
-    await callback_query.message.edit_text(help_text, reply_markup=keyboard, parse_mode='Markdown')
-    await callback_query.answer()
-
-
-@router.callback_query(F.data == "show_settings")
-async def show_settings_handler(callback_query: CallbackQuery):
-    """Show user settings"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    settings_text = f"""
-⚙️ **{get_text(language, 'settings')}**
-
-🌐 **{get_text(language, 'current_language')}: {language.upper()}**
-
-🔔 **{get_text(language, 'notifications')}:**
-• Payment confirmations: ✅ Enabled
-• Campaign updates: ✅ Enabled
-• System alerts: ✅ Enabled
-"""
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
             InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
@@ -2824,7 +2818,7 @@ Choose your preferred option:
         [InlineKeyboardButton(text="🔄 Continue", callback_data="continue_flow")],
         [InlineKeyboardButton(text="🆕 Start Over", callback_data="create_ad")],
         [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
-        [InlineKeyboardButton(text="📞 Support", callback_data="show_help")]
+        [InlineKeyboardButton(text="📞 Support", callback_data="help")]
     ])
     
     await callback_query.message.edit_text(recovery_text, reply_markup=keyboard, parse_mode='Markdown')
