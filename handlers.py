@@ -1180,7 +1180,7 @@ async def toggle_channel_selection(callback_query: CallbackQuery, state: FSMCont
         await state.update_data(selected_channels=selected_channels)
         
         # Refresh the channel selection interface
-        await show_enhanced_channel_selection(callback_query, state)
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
         await callback_query.answer(f"Channel {'selected' if channel_id in selected_channels else 'deselected'}")
         
     except Exception as e:
@@ -1196,7 +1196,7 @@ async def select_all_channels(callback_query: CallbackQuery, state: FSMContext):
         selected_channels = [channel['channel_id'] for channel in channels]
         await state.update_data(selected_channels=selected_channels)
         
-        await show_enhanced_channel_selection(callback_query, state)
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
         await callback_query.answer("All channels selected")
         
     except Exception as e:
@@ -1209,7 +1209,7 @@ async def deselect_all_channels(callback_query: CallbackQuery, state: FSMContext
     """Deselect all channels"""
     try:
         await state.update_data(selected_channels=[])
-        await show_enhanced_channel_selection(callback_query, state)
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
         await callback_query.answer("All channels deselected")
         
     except Exception as e:
