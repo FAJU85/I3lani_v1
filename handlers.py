@@ -1406,16 +1406,16 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
         data = await state.get_data()
         ad_id = data['ad_id']
         selected_channels = data['selected_channels']
-        duration_months = data['duration_months']
-        total_price = data['total_price']
-        currency = data['currency']
+        total_price_usd = data.get('total_price_usd', 0)
+        total_price_stars = data.get('total_price_stars', 0)
+        channel_pricing_details = data.get('channel_pricing_details', [])
         
         # Handle Telegram Stars payment with real API
         if payment_method == "stars":
             from aiogram.types import LabeledPrice
             
-            # Calculate Stars amount (approximately 1 USD = 100 Stars)
-            stars_amount = int(total_price * 100)
+            # Use the pre-calculated Stars amount
+            stars_amount = total_price_stars
             
             # Create payment payload for tracking
             payload = f"ad_{ad_id}_user_{user_id}_time_{int(time.time())}"
@@ -1428,7 +1428,7 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                 await callback_query.bot.send_invoice(
                     chat_id=user_id,
                     title="I3lani Advertisement Campaign",
-                    description=f"Ad campaign for {len(selected_channels)} channels, {duration_months} month(s)",
+                    description=f"Ad campaign for {len(selected_channels)} channels - ${total_price_usd:.2f} USD",
                     payload=payload,
                     provider_token="",  # Empty for Telegram Stars
                     currency="XTR",  # Telegram Stars currency code
@@ -1442,11 +1442,21 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                     is_flexible=False
                 )
                 
+                payment_summary = f"⭐ **Telegram Stars Payment**\n\n"
+                payment_summary += f"💰 **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
+                payment_summary += f"📺 **Channels:** {len(selected_channels)}\n\n"
+                
+                for detail in channel_pricing_details:
+                    payment_summary += f"• {detail['name']}: {detail['price_stars']} Stars\n"
+                
+                payment_summary += f"\n✅ **Invoice sent!** Please complete payment using the invoice above.\n\nYour ad will be published automatically after payment confirmation."
+                
                 await callback_query.message.edit_text(
-                    f"⭐ **Telegram Stars Payment**\n\nInvoice sent! Please complete payment using the invoice above.\n\nAmount: {stars_amount} Stars\n\nYour ad will be published automatically after payment confirmation.",
+                    payment_summary,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_duration")]
-                    ])
+                        [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_channels")]
+                    ]),
+                    parse_mode='Markdown'
                 )
                 
                 await callback_query.answer("Stars invoice sent!")
@@ -1462,13 +1472,20 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
             # Create subscriptions for TON payment
             subscription_ids = []
             for channel_id in selected_channels:
+                # Find channel price
+                channel_price = 5.0  # Default
+                for detail in channel_pricing_details:
+                    if any(ch['channel_id'] == channel_id for ch in data.get('all_channels', [])):
+                        channel_price = detail['price_usd']
+                        break
+                
                 subscription_id = await db.create_subscription(
                     user_id=user_id,
                     ad_id=ad_id,
                     channel_id=channel_id,
-                    duration_months=duration_months,
-                    total_price=total_price / len(selected_channels),
-                    currency=currency
+                    duration_months=1,  # Default 1 month
+                    total_price=channel_price,
+                    currency='USD'
                 )
                 subscription_ids.append(subscription_id)
             
@@ -1476,8 +1493,8 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
             invoice = await payment_processor.create_payment_invoice(
                 user_id=user_id,
                 subscription_id=subscription_ids[0],
-                amount=total_price,
-                currency=currency,
+                amount=total_price_usd,
+                currency='USD',
                 payment_method=payment_method
             )
             
@@ -2187,25 +2204,55 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
             else:
                 package_details = {'price_usd': 0.0, 'name': 'Free Plan'}
         
+        # Calculate actual pricing based on selected channels
+        total_price_usd = 0
+        total_price_stars = 0
+        channel_pricing_details = []
+        
+        # Get channel details and calculate pricing
+        all_channels = await db.get_channels(active_only=True)
+        for channel_id in selected_channels:
+            for channel in all_channels:
+                if channel['channel_id'] == channel_id:
+                    base_price = channel.get('base_price_usd', 5.0)
+                    total_price_usd += base_price
+                    total_price_stars += int(base_price * 34)  # 1 USD ≈ 34 Stars
+                    channel_pricing_details.append({
+                        'name': channel['name'],
+                        'price_usd': base_price,
+                        'price_stars': int(base_price * 34)
+                    })
+                    break
+        
         # Check if payment is needed
-        if package_details.get('price_usd', 0) == 0:
+        if total_price_usd == 0:
             # Free package - proceed to publishing
             await handle_free_package_publishing(callback_query, state)
             return
         
-        # Show payment method selection
+        # Show payment method selection with actual pricing
         await state.update_data(
             selected_channels=selected_channels,
-            package_details=package_details
+            package_details=package_details,
+            total_price_usd=total_price_usd,
+            total_price_stars=total_price_stars,
+            channel_pricing_details=channel_pricing_details
         )
         await state.set_state(AdCreationStates.payment_method)
+        
+        # Create detailed pricing text
+        pricing_breakdown = ""
+        for detail in channel_pricing_details:
+            pricing_breakdown += f"• {detail['name']}: ${detail['price_usd']:.2f}\n"
         
         payment_text = f"""
 💳 **Payment Required**
 
-📦 **Package:** {package_details['name']}
-📺 **Channels:** {len(selected_channels)} selected
-💰 **Price:** ${package_details['price_usd']}/month
+📺 **Selected Channels:** {len(selected_channels)}
+{pricing_breakdown}
+━━━━━━━━━━━━━━━━━
+💰 **Total Price:** ${total_price_usd:.2f} USD
+⭐ **Stars Price:** {total_price_stars:,} Stars
 
 Choose your payment method:
         """.strip()
