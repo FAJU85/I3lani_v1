@@ -53,10 +53,6 @@ def create_main_menu_keyboard(language: str) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                text=get_text(language, 'pricing'), 
-                callback_data="pricing"
-            ),
-            InlineKeyboardButton(
                 text=get_text(language, 'share_earn'), 
                 callback_data="share_earn"
             )
@@ -218,136 +214,12 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         await callback_query.answer("Error updating language. Please try again.")
 
 
-@router.callback_query(F.data == "pricing")
-async def show_pricing_handler(callback_query: CallbackQuery):
-    """Show pricing information"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    # Get packages from database for dynamic pricing
-    packages = await db.get_packages(active_only=True)
-    
-    # Get free ads remaining
-    user = await db.get_user(user_id)
-    free_ads_used = user.get('free_ads_used', 0) if user else 0
-    free_ads_remaining = max(0, 3 - free_ads_used)
-    
-    # Build pricing text dynamically
-    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Month)**\n\n"
-    pricing_text += "All plans are monthly subscriptions and can be managed via the Admin Control Panel.\n\n"
-    
-    # Add free plan manually
-    pricing_text += "---\n\n"
-    pricing_text += "🎁 **Free Plan**\n"
-    pricing_text += "• Duration: 3 days trial\n"
-    pricing_text += "• 1 post per day\n"
-    pricing_text += "• Price: **Free**\n"
-    pricing_text += f"• 🔁 Remaining free ads: {free_ads_remaining}/3\n\n"
-    
-    # Add database packages or fallback to defaults
-    if packages:
-        for package in packages:
-            pricing_text += "---\n\n"
-            
-            emoji = "💰"
-            if "bronze" in package['name'].lower():
-                emoji = "🟫"
-            elif "silver" in package['name'].lower():
-                emoji = "🥈"
-            elif "gold" in package['name'].lower():
-                emoji = "🥇"
-                
-            pricing_text += f"{emoji} **{package['name']}**\n"
-            pricing_text += f"• Duration: {package['duration_days']} days\n"
-            pricing_text += f"• {package['posts_per_day']} posts per day\n"
-            pricing_text += f"• Max channels: {package['channels_included']}\n"
-            pricing_text += f"• Price: **${package['price_usd']}/month**\n\n"
-    else:
-        # Use I3lani standard pricing when no packages in database
-        pricing_text += """---
-
-⭐ **1 Month Plan**
-• Duration: 30 days
-• 1 post per day
-• Price: **$9** / TON / **306⭐**
-
----
-
-⭐⭐ **3 Months Plan**
-• Duration: 90 days  
-• 3 posts per day
-• Price: **$27** / TON / **918⭐**
-
----
-
-🌟 **6 Months Plan**
-• Duration: 180 days
-• 6 posts per day
-• Price: **$49** / TON / **1323⭐**
-
-"""
-    
-    pricing_text += "---\n\n"
-    pricing_text += "✅ Admins can edit all prices and posting rules via control panel.\n\n"
-    pricing_text += "📞 **Need help?** Contact /support"
-    
-    # Build keyboard dynamically based on available packages
-    keyboard_buttons = []
-    
-    # Add free plan button
-    keyboard_buttons.append([InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")])
-    
-    # Add package buttons
-    if packages:
-        package_row = []
-        for package in packages:
-            emoji = "💰"
-            if "bronze" in package['name'].lower():
-                emoji = "🟫"
-            elif "silver" in package['name'].lower():
-                emoji = "🥈"
-            elif "gold" in package['name'].lower():
-                emoji = "🥇"
-                
-            package_row.append(InlineKeyboardButton(
-                text=f"{emoji} {package['name']} ${package['price_usd']}",
-                callback_data=f"select_package_{package['package_id']}"
-            ))
-            
-            # Add two buttons per row
-            if len(package_row) == 2:
-                keyboard_buttons.append(package_row)
-                package_row = []
-        
-        # Add remaining buttons if any
-        if package_row:
-            keyboard_buttons.append(package_row)
-    else:
-        # Use I3lani standard buttons when no packages in database
-        keyboard_buttons.extend([
-            [
-                InlineKeyboardButton(text="⭐ 1 Month $9", callback_data="select_package_1month"),
-                InlineKeyboardButton(text="⭐⭐ 3 Months $27", callback_data="select_package_3months")
-            ],
-            [InlineKeyboardButton(text="🌟 6 Months $49", callback_data="select_package_6months")]
-        ])
-    
-    keyboard_buttons.append([InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
-    await callback_query.message.edit_text(
-        pricing_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    await callback_query.answer()
 
 
 # Package selection handlers
 @router.callback_query(F.data.startswith("select_package_"))
 async def package_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle package selection from pricing page"""
+    """Handle package selection"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
@@ -430,10 +302,10 @@ async def show_category_selection(callback_query: CallbackQuery, state: FSMConte
             callback_data=f"category_{category_id}"
         )])
     
-    back_text = "⬅️ العودة للحزم" if language == 'ar' else "⬅️ Назад к пакетам" if language == 'ru' else "⬅️ Back to Packages"
+    back_text = "⬅️ العودة للقائمة" if language == 'ar' else "⬅️ Назад к меню" if language == 'ru' else "⬅️ Back to Menu"
     keyboard_rows.append([InlineKeyboardButton(
         text=back_text,
-        callback_data="pricing"
+        callback_data="back_to_main"
     )])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
@@ -1171,8 +1043,11 @@ Please select a category for your ad:
         
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     else:
-        # No free ads, show pricing
-        await show_pricing_handler(callback_query)
+        # No free ads, redirect to create ad directly
+        await callback_query.message.edit_text(
+            "⚠️ You have used all your free ads for this month.\n\nPlease create a paid ad to continue advertising.",
+            parse_mode='Markdown'
+        )
     await callback_query.answer()
 
 
@@ -1481,7 +1356,7 @@ async def duration_selection_handler(callback_query: CallbackQuery, state: FSMCo
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
-    # Get channel data and calculate pricing
+    # Get channel data and calculate package pricing
     channels = await db.get_channels()
     selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
     
@@ -1497,7 +1372,7 @@ async def duration_selection_handler(callback_query: CallbackQuery, state: FSMCo
         )
         total_price += price_info['final_price']
     
-    # Show pricing and payment methods
+    # Show package pricing and payment methods
     pricing_text = payment_processor.get_pricing_display(
         selected_channel_data, duration, currency, language
     )
@@ -2221,7 +2096,7 @@ Questions? Use /support to get help!
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="📝 Create Ad", callback_data="create_ad"),
-            InlineKeyboardButton(text="💰 Pricing", callback_data="pricing")
+            # InlineKeyboardButton(text="💰 Pricing", callback_data="pricing") # REMOVED
         ],
         [
             InlineKeyboardButton(text="🎁 Share & Earn", callback_data="share_earn"),
@@ -2475,80 +2350,6 @@ async def dashboard_command(message: Message):
     await message.reply(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
 
 
-@router.callback_query(F.data == "pricing")
-async def show_pricing_handler(callback_query: CallbackQuery):
-    """Show pricing information"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    # Get packages from database for dynamic pricing
-    packages = await db.get_packages(active_only=True)
-    
-    # Get free ads remaining
-    user = await db.get_user(user_id)
-    free_ads_used = user.get('free_ads_used', 0) if user else 0
-    free_ads_remaining = max(0, 3 - free_ads_used)
-    
-    # Build pricing text dynamically
-    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Month)**\n\n"
-    pricing_text += "All plans are monthly subscriptions and can be managed via the Admin Control Panel.\n\n"
-    
-    # Add free plan manually
-    pricing_text += "---\n\n"
-    pricing_text += "🎁 **Free Plan**\n"
-    pricing_text += f"• Duration: 3 days trial\n"
-    pricing_text += f"• 1 post per day\n"
-    pricing_text += f"• Daily posting\n"
-    pricing_text += f"• Price: **FREE**\n"
-    pricing_text += f"• You have **{free_ads_remaining}** free ads remaining\n\n"
-    
-    # Add database packages
-    for package in packages:
-        pricing_text += f"---\n\n"
-        pricing_text += f"💰 **{package['name']}**\n"
-        pricing_text += f"• Duration: {package['duration_days']} days\n"
-        pricing_text += f"• {package['posts_per_day']} posts per day\n"
-        pricing_text += f"• {package['channels_included']} channels included\n"
-        pricing_text += f"• Price: **${package['price_usd']}/month**\n\n"
-    
-    pricing_text += "---\n\n"
-    pricing_text += "✅ Admins can edit all prices and posting rules via control panel.\n\n"
-    pricing_text += "📞 **Need help?** Contact /support"
-    
-    # Build keyboard dynamically based on available packages
-    keyboard_buttons = []
-    
-    # Add free plan button
-    keyboard_buttons.append([InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")])
-    
-    # Add package buttons
-    if packages:
-        package_row = []
-        for package in packages:
-            emoji = "💰"
-            if "bronze" in package['name'].lower():
-                emoji = "🟫"
-            elif "silver" in package['name'].lower():
-                emoji = "🥈"
-            elif "gold" in package['name'].lower():
-                emoji = "🥇"
-                
-            package_row.append(InlineKeyboardButton(
-                text=f"{emoji} {package['name']} ${package['price_usd']}",
-                callback_data=f"select_package_{package['package_id']}"
-            ))
-            
-            # Add two buttons per row
-            if len(package_row) == 2:
-                keyboard_buttons.append(package_row)
-                package_row = []
-        
-        # Add remaining buttons if any
-        if package_row:
-            keyboard_buttons.append(package_row)
-    
-    keyboard_buttons.append([InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")])
-    
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback_query.message.edit_text(pricing_text, reply_markup=keyboard, parse_mode='Markdown')

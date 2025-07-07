@@ -34,7 +34,7 @@ class AdminStates(StatesGroup):
     edit_subscription = State()
     remove_subscription = State()
     
-    # Pricing management
+    # Package management
     pricing_management = State()
     set_pricing = State()
     
@@ -123,7 +123,7 @@ class AdminSystem:
         keyboard = [
             [
                 InlineKeyboardButton(text="📺 Channel Management", callback_data="admin_channels"),
-                InlineKeyboardButton(text="💰 Price Management", callback_data="admin_pricing")
+                InlineKeyboardButton(text="💰 Price Management", callback_data="admin_packages")
             ],
             [
                 InlineKeyboardButton(text="👥 User Management", callback_data="admin_users"),
@@ -155,7 +155,7 @@ class AdminSystem:
 
 **Quick Actions:**
 • Manage channels and subscriptions
-• Control pricing and schedules
+• Control packages and schedules
 • Monitor user activity
 • View detailed statistics
 • Send broadcast messages
@@ -657,7 +657,7 @@ Type your package details:
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")]
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -691,7 +691,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
         ])
     
     keyboard_buttons.append([
-        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")
+        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -727,7 +727,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
         ])
     
     keyboard_buttons.append([
-        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")
+        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -769,14 +769,14 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_price_stats")],
-        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_pricing")]
+        [InlineKeyboardButton(text="⬅️ Back to Packages", callback_data="admin_packages")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     await callback_query.answer()
 
-@router.callback_query(F.data == "admin_pricing")
-async def admin_pricing_callback(callback_query: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "admin_packages")
+async def admin_packages_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle pricing management callback"""
     user_id = callback_query.from_user.id
     
@@ -1101,7 +1101,7 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
     # Return to channel management
     await admin_system.show_channel_management(callback_query)
 
-# Pricing Management Handlers
+# Package Management Handlers
 @router.callback_query(F.data.startswith("admin_price_"))
 async def admin_price_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle pricing update callbacks"""
@@ -1133,7 +1133,7 @@ Please enter the new price in USD (numbers only):
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_pricing")]
+        [InlineKeyboardButton(text="⬅️ Back to Packages", callback_data="admin_packages")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1166,7 +1166,7 @@ The pricing has been updated and will apply to all new orders.
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💰 Back to Pricing Management", callback_data="admin_pricing")],
+            [InlineKeyboardButton(text="💰 Back to Packages Management", callback_data="admin_packages")],
             [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
         ])
         
@@ -1490,7 +1490,7 @@ The package is now available in the pricing menu!
             """.strip()
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_pricing")]
+                [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_packages")]
             ])
             
             await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1541,7 +1541,7 @@ The package has been permanently deleted and is no longer available in the prici
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_pricing")]
+            [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_packages")]
         ])
         
         await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1594,7 +1594,7 @@ Type your updated package details:
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")]
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")]
         ])
         
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1659,7 +1659,7 @@ The changes are now live in the pricing menu!
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_pricing")]
+            [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_packages")]
         ])
         
         await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
