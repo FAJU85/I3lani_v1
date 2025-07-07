@@ -209,16 +209,37 @@ class Database:
     
     async def add_channel_automatically(self, channel_id: str, channel_name: str, 
                                       telegram_channel_id: str, subscribers: int = 0,
+                                      active_subscribers: int = 0, total_posts: int = 0,
+                                      category: str = 'general', description: str = '',
                                       base_price_usd: float = 5.0) -> bool:
-        """Add channel automatically when bot becomes admin"""
+        """Add channel automatically when bot becomes admin with detailed info"""
         async with aiosqlite.connect(self.db_path) as db:
+            # First check if we need to add new columns
+            cursor = await db.execute("PRAGMA table_info(channels)")
+            columns = [row[1] for row in await cursor.fetchall()]
+            
+            # Add missing columns if they don't exist
+            if 'active_subscribers' not in columns:
+                await db.execute('ALTER TABLE channels ADD COLUMN active_subscribers INTEGER DEFAULT 0')
+            if 'total_posts' not in columns:
+                await db.execute('ALTER TABLE channels ADD COLUMN total_posts INTEGER DEFAULT 0')
+            if 'category' not in columns:
+                await db.execute('ALTER TABLE channels ADD COLUMN category TEXT DEFAULT "general"')
+            if 'description' not in columns:
+                await db.execute('ALTER TABLE channels ADD COLUMN description TEXT')
+            if 'last_updated' not in columns:
+                await db.execute('ALTER TABLE channels ADD COLUMN last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+            
+            # Insert or update channel with all details
             await db.execute('''
                 INSERT OR REPLACE INTO channels 
-                (channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (channel_id, name, telegram_channel_id, subscribers, active_subscribers, 
+                 total_posts, category, description, base_price_usd, is_popular, is_active, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ''', (
                 channel_id, channel_name, telegram_channel_id,
-                subscribers, base_price_usd, False, True
+                subscribers, active_subscribers, total_posts, category, description,
+                base_price_usd, False, True
             ))
             await db.commit()
             return True

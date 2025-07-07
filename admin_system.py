@@ -1671,6 +1671,54 @@ The changes are now live in the pricing menu!
     
     await state.clear()
 
+@router.message(Command("admin_channel_details"))
+async def admin_channel_details_handler(message: Message):
+    """View detailed channel information"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        channels = await db.get_channels(active_only=False)
+        
+        if not channels:
+            await message.reply("No channels found in database.")
+            return
+        
+        response = "📊 **Detailed Channel Information**\n\n"
+        
+        for channel in channels:
+            status = "✅ Active" if channel.get('is_active') else "❌ Inactive"
+            category = channel.get('category', 'general').title()
+            active_subs = channel.get('active_subscribers', 0)
+            total_posts = channel.get('total_posts', 0)
+            description = channel.get('description', 'No description')
+            last_updated = channel.get('last_updated', 'Never')
+            
+            response += f"**{channel['name']}**\n"
+            response += f"• **Channel ID:** `{channel['telegram_channel_id']}`\n"
+            response += f"• **Category:** {category}\n"
+            response += f"• **Total Subscribers:** {channel.get('subscribers', 0):,}\n"
+            response += f"• **Active Subscribers:** {active_subs:,}\n"
+            response += f"• **Total Posts:** {total_posts:,}\n"
+            response += f"• **Base Price:** ${channel.get('base_price_usd', 0):.2f}\n"
+            response += f"• **Status:** {status}\n"
+            response += f"• **Last Updated:** {last_updated}\n"
+            
+            if description and len(description) > 50:
+                description = description[:47] + "..."
+            response += f"• **Description:** {description}\n\n"
+            
+            # Prevent message from being too long
+            if len(response) > 3500:
+                response += "... (truncated for length)"
+                break
+        
+        await message.reply(response, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Admin channel details error: {e}")
+        await message.reply("Error retrieving channel details.")
+
 def setup_admin_handlers(dp):
     """Setup admin handlers"""
     dp.include_router(router)
