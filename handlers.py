@@ -1287,48 +1287,7 @@ async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext)
     await show_main_menu(callback_query, language)
 
 
-# Admin command handler
-@router.message(Command("admin"))
-async def admin_command(message: Message, state: FSMContext):
-    """Handle admin command"""
-    user_id = message.from_user.id
-    admin_ids_str = os.getenv('ADMIN_IDS', '')
-    admin_ids = [int(x.strip()) for x in admin_ids_str.split(',') if x.strip()]
-    
-    if user_id not in admin_ids:
-        await message.reply(f"❌ Access denied. User ID: {user_id}")
-        return
-    
-    admin_text = """
-🔧 **Admin Control Panel**
-
-📊 **System Status**: Online
-👥 **Total Users**: Active
-💰 **Revenue**: Processing
-📺 **Channels**: 4 Active
-
-**Available Commands:**
-• Manage pricing and packages
-• Configure channels and settings  
-• View statistics and reports
-• Update payment wallet address
-• Monitor user activity
-
-⚠️ **Admin Features Temporarily Disabled**
-The full admin panel is being rebuilt for better security and functionality.
-
-Use these commands for now:
-• /debug_status - System status
-• /debug_user <id> - User info
-• Database management via SQL tool
-    """
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📊 Basic Stats", callback_data="admin_basic_stats")],
-        [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_start")]
-    ])
-    
-    await message.reply(admin_text, reply_markup=keyboard, parse_mode='Markdown')
+# Old admin handler removed - now handled by admin_system.py
 
 
 # Telegram Stars Payment Handlers
