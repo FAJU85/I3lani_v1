@@ -16,6 +16,7 @@ from payments import payment_processor
 from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
+from pricing_system import get_pricing_system
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -1458,45 +1459,134 @@ async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContex
 
 @router.callback_query(F.data == "continue_to_duration")
 async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Continue to duration selection (legacy handler)"""
-    # Redirect to the new handler
-    await continue_with_channels_handler(callback_query, state)
-    
-    await state.set_state(AdCreationStates.duration_selection)
-    await callback_query.message.edit_text(
-        get_text(language, 'select_duration'),
-        reply_markup=create_duration_keyboard(language)
-    )
-    await callback_query.answer()
-
-
-@router.callback_query(F.data.startswith("duration_"))
-async def duration_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle duration selection"""
+    """Continue to plan selection"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    duration = int(callback_query.data.replace("duration_", ""))
+    await state.set_state(AdCreationStates.duration_selection)
+    
+    # Get pricing system
+    pricing = get_pricing_system()
+    
+    text = f"""
+🎯 **Select Your Advertising Plan**
+
+Choose from our progressive frequency plans:
+
+**Plan Benefits:**
+• More posts per day with longer plans
+• Bigger discounts for longer commitments
+• No per-channel fees - covers all selected channels
+• Progressive posting frequency increases
+
+**Available Plans:**
+    """.strip()
+    
+    # Create keyboard using pricing system
+    keyboard_data = pricing.create_pricing_keyboard(language)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=btn['text'], callback_data=btn['callback_data']) 
+         for btn in row]
+        for row in keyboard_data
+    ])
+    
+    try:
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    except (AttributeError, Exception):
+        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    
+    await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("plan_"))
+async def plan_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle plan selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    plan_id = int(callback_query.data.replace("plan_", ""))
     
     # Get current data
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
-    # Get channel data and calculate package pricing
+    # Get pricing system and plan details
+    pricing = get_pricing_system()
+    plan = pricing.get_plan(plan_id)
+    
+    if not plan:
+        await callback_query.answer("❌ Invalid plan selected")
+        return
+    
+    # Get channel data
     channels = await db.get_channels()
     selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
     
-    # Get user currency
-    user = await db.get_user(user_id)
-    currency = user.get('currency', 'USD') if user else 'USD'
+    # Calculate pricing (flat rate regardless of channel count)
+    total_price = plan['discounted_price']
+    stars_price = pricing.get_stars_price(total_price)
+    savings = pricing.calculate_savings(plan_id)
     
-    # Calculate total price
-    total_price = 0
-    for channel in selected_channel_data:
-        price_info = payment_processor.calculate_price(
-            channel['base_price_usd'], duration, currency
+    # Store plan details in state
+    await state.update_data(
+        plan_id=plan_id,
+        duration_months=plan['duration_months'],
+        posts_per_day=plan['posts_per_day'],
+        total_posts=plan['total_posts'],
+        discount_percent=plan['discount_percent'],
+        total_price=total_price,
+        selected_channels=selected_channels
+    )
+    
+    # Create channel list for display
+    channel_list = "\n".join([f"• {ch['channel_name']}" for ch in selected_channel_data])
+    
+    # Show payment summary
+    payment_text = f"""
+💰 **Payment Summary**
+
+**Selected Plan:** {plan['name']}
+• Duration: {plan['duration_months']} months
+• Posts per day: {plan['posts_per_day']}
+• Total posts: {plan['total_posts']:,}
+• Discount: {plan['discount_percent']}% OFF
+
+**Selected Channels ({len(selected_channels)}):**
+{channel_list}
+
+**Pricing:**
+• Original Price: ${savings['original_price']:.0f}
+• Your Price: ${total_price:.0f}
+• You Save: ${savings['savings_amount']:.0f}
+• Per-channel fee: $0 (No additional fees)
+
+**Payment Options:**
+    """.strip()
+    
+    # Create payment keyboard
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=f"💳 Pay ${total_price:.0f} USD", callback_data="pay_usd"),
+            InlineKeyboardButton(text=f"⭐ Pay {stars_price} Stars", callback_data="pay_stars")
+        ],
+        [InlineKeyboardButton(text="⬅️ Back to Plans", callback_data="back_to_plans")],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_start")]
+    ])
+    
+    try:
+        await callback_query.message.edit_text(
+            payment_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
         )
-        total_price += price_info['final_price']
+    except (AttributeError, Exception):
+        await callback_query.message.answer(
+            payment_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+    
+    await callback_query.answer()
     
     # Show package pricing and payment methods
     pricing_text = payment_processor.get_pricing_display(

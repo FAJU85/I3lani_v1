@@ -15,6 +15,7 @@ import os
 
 from config import ADMIN_IDS, CHANNELS
 from database import db
+from pricing_system import get_pricing_system
 
 logger = logging.getLogger(__name__)
 
@@ -247,47 +248,58 @@ Channels:
         )
 
     async def show_pricing_management(self, callback_query: CallbackQuery):
-        """Show price management interface"""
-        from database import db
+        """Show progressive pricing management interface"""
+        # Get pricing system
+        pricing = get_pricing_system()
+        all_plans = pricing.get_all_plans()
         
-        # Get current packages from database
-        packages = await db.get_packages(active_only=False)
+        text = "**Progressive Pricing Management**\n\n"
+        text += "**Current Progressive Plans:**\n"
         
-        text = "**Price Management**\n\n"
+        for plan in all_plans:
+            savings = pricing.calculate_savings(plan['plan_id'])
+            text += f"• **{plan['name']}** - ${plan['discounted_price']:.0f}\n"
+            text += f"  Posts/day: {plan['posts_per_day']} | Duration: {plan['duration_months']}M\n"
+            text += f"  Discount: {plan['discount_percent']}% | Save: ${savings['savings_amount']:.0f}\n\n"
         
-        if packages:
-            text += "**Current Packages:**\n"
-            for package in packages:
-                status = "SUCCESS: Active" if package.get('active', True) else "ERROR: Inactive"
-                text += f"- {package['name']}: ${package['price_usd']} ({status})\n"
-        else:
-            text += "**No packages found in database.**\n"
+        text += "**Progressive Pricing Features:**\n"
+        text += "• Flat-rate pricing (no per-channel fees)\n"
+        text += "• Progressive frequency (more posts with longer plans)\n"
+        text += "• Automatic discount scaling (10% to 45% off)\n"
+        text += "• Base rate: $1 per post per channel\n\n"
         
-        text += "\n**Package Management Options:**\n"
-        text += "Create, edit, remove, or view statistics for pricing packages.\n"
+        text += "**Management Options:**\n"
         
         keyboard = [
             [
-                InlineKeyboardButton(text="➕ Create Price", callback_data="admin_create_price"),
-                InlineKeyboardButton(text="EDIT: Edit Price", callback_data="admin_edit_price")
+                InlineKeyboardButton(text="📊 View All Plans", callback_data="admin_view_all_plans"),
+                InlineKeyboardButton(text="💰 Pricing Analytics", callback_data="admin_price_analytics")
             ],
             [
-                InlineKeyboardButton(text="🗑️ Remove Price", callback_data="admin_remove_price"),
-                InlineKeyboardButton(text="STATS: Price Stats", callback_data="admin_price_stats")
+                InlineKeyboardButton(text="⚙️ Edit Base Rate", callback_data="admin_edit_base_rate"),
+                InlineKeyboardButton(text="🎯 Plan Statistics", callback_data="admin_plan_stats")
             ],
             [
-                InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_refresh")
+                InlineKeyboardButton(text="🔄 Refresh Plans", callback_data="admin_refresh_plans"),
+                InlineKeyboardButton(text="📝 Plan Details", callback_data="admin_plan_details")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
             ]
         ]
         
-        await callback_query.message.edit_text(
-            text, 
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
-        )
+        try:
+            await callback_query.message.edit_text(
+                text, 
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='Markdown'
+            )
+        except Exception:
+            await callback_query.message.answer(
+                text, 
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='Markdown'
+            )
 
     async def show_publishing_schedules(self, callback_query: CallbackQuery):
         """Show publishing schedules management"""
@@ -786,6 +798,97 @@ async def admin_packages_callback(callback_query: CallbackQuery, state: FSMConte
     
     await state.set_state(AdminStates.pricing_management)
     await admin_system.show_pricing_management(callback_query)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "admin_view_all_plans")
+async def admin_view_all_plans_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Show detailed view of all progressive plans"""
+    if not admin_system.is_admin(callback_query.from_user.id):
+        await callback_query.answer("❌ Unauthorized")
+        return
+    
+    pricing = get_pricing_system()
+    all_plans = pricing.get_all_plans()
+    
+    text = "**📊 All Progressive Plans - Detailed View**\n\n"
+    
+    for plan in all_plans:
+        savings = pricing.calculate_savings(plan['plan_id'])
+        text += f"**Plan {plan['plan_id']}: {plan['name']}**\n"
+        text += f"• Duration: {plan['duration_months']} months\n"
+        text += f"• Posts per day: {plan['posts_per_day']}\n"
+        text += f"• Total posts: {plan['total_posts']:,}\n"
+        text += f"• Original price: ${plan['base_price']:.0f}\n"
+        text += f"• Discounted price: ${plan['discounted_price']:.0f}\n"
+        text += f"• Discount: {plan['discount_percent']}%\n"
+        text += f"• Savings: ${savings['savings_amount']:.0f}\n"
+        text += f"• Stars price: {pricing.get_stars_price(plan['discounted_price'])} ⭐\n\n"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="💰 Price Analytics", callback_data="admin_price_analytics"),
+            InlineKeyboardButton(text="📈 Usage Stats", callback_data="admin_plan_usage")
+        ],
+        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_packages")]
+    ])
+    
+    try:
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    except Exception:
+        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "admin_price_analytics")
+async def admin_price_analytics_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Show pricing analytics and statistics"""
+    if not admin_system.is_admin(callback_query.from_user.id):
+        await callback_query.answer("❌ Unauthorized")
+        return
+    
+    pricing = get_pricing_system()
+    all_plans = pricing.get_all_plans()
+    
+    text = "**💰 Pricing Analytics Dashboard**\n\n"
+    
+    # Calculate analytics
+    total_plans = len(all_plans)
+    avg_discount = sum(plan['discount_percent'] for plan in all_plans) / total_plans
+    max_savings = max(pricing.calculate_savings(plan['plan_id'])['savings_amount'] for plan in all_plans)
+    min_price = min(plan['discounted_price'] for plan in all_plans)
+    max_price = max(plan['discounted_price'] for plan in all_plans)
+    
+    text += f"**Overview:**\n"
+    text += f"• Total plans: {total_plans}\n"
+    text += f"• Average discount: {avg_discount:.1f}%\n"
+    text += f"• Maximum savings: ${max_savings:.0f}\n"
+    text += f"• Price range: ${min_price:.0f} - ${max_price:.0f}\n\n"
+    
+    text += f"**Plan Categories:**\n"
+    text += f"• Short-term (1-3 months): {len([p for p in all_plans if p['duration_months'] <= 3])} plans\n"
+    text += f"• Medium-term (4-8 months): {len([p for p in all_plans if 4 <= p['duration_months'] <= 8])} plans\n"
+    text += f"• Long-term (9+ months): {len([p for p in all_plans if p['duration_months'] >= 9])} plans\n\n"
+    
+    text += f"**Discount Tiers:**\n"
+    text += f"• 10-20% discount: {len([p for p in all_plans if 10 <= p['discount_percent'] <= 20])} plans\n"
+    text += f"• 21-35% discount: {len([p for p in all_plans if 21 <= p['discount_percent'] <= 35])} plans\n"
+    text += f"• 36-45% discount: {len([p for p in all_plans if p['discount_percent'] >= 36])} plans\n"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📊 View All Plans", callback_data="admin_view_all_plans"),
+            InlineKeyboardButton(text="📈 Revenue Projections", callback_data="admin_revenue_projections")
+        ],
+        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_packages")]
+    ])
+    
+    try:
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    except Exception:
+        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_schedules")
