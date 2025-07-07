@@ -148,12 +148,12 @@ async def show_duration_selection(callback_query: CallbackQuery, state: FSMConte
         duration_text = f"""
 📅 **Full-Year Posting Plans (Progressive Frequency)**
 
-📺 **Selected Channels:** {len(selected_channels)}
+📺 **Selected Channels:** {len(selected_channels)} (No per-channel fee)
 
 🎯 **Progressive Frequency System:**
 • Month 1: 1 post/day → Month 12: 12 posts/day
 • Automatic discount scaling (up to 45% off)
-• Base price: $1 per post per channel
+• Base price: $1 per post (covers all channels)
 • Higher frequency = Better engagement
 
 💰 **Discount Benefits:**
@@ -1560,11 +1560,11 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                 if discount_percent > 0:
                     payment_summary += f"💰 **Discount:** {discount_percent}% OFF\n"
                 payment_summary += f"💳 **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
-                payment_summary += f"📺 **Channels:** {len(selected_channels)}\n\n"
+                payment_summary += f"📺 **Channels:** {len(selected_channels)} (No per-channel fee)\n\n"
                 
+                payment_summary += f"💡 **Plan covers all selected channels:**\n"
                 for detail in channel_pricing_details:
-                    savings_text = f" (Save {detail['discount_percent']}%)" if detail['discount_percent'] > 0 else ""
-                    payment_summary += f"• {detail['name']}: {detail['plan_price_stars']:,} Stars ({detail['posts_per_day']} posts/day){savings_text}\n"
+                    payment_summary += f"• {detail['name']}: {detail['posts_per_day']} posts/day\n"
                 
                 payment_summary += f"\n✅ **Invoice sent!** Please complete payment using the invoice above.\n\nYour progressive posting plan will activate automatically after payment confirmation."
                 
@@ -2330,8 +2330,8 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
         base_price = data.get('base_price', 30)
         discount_percent = data.get('discount_percent', 0)
         
-        # Calculate pricing based on progressive plan and selected channels
-        total_price_usd = final_price * len(selected_channels)
+        # Calculate pricing based on progressive plan (0 fee per channel for now)
+        total_price_usd = final_price  # No per-channel fee currently
         total_price_stars = int(total_price_usd * 34)  # 1 USD ≈ 34 Stars
         
         # Get channel details for display
@@ -2371,19 +2371,20 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
         # Create detailed pricing text with progressive plan breakdown
         plan_text = f"{duration_months} month(s)" if duration_months == 1 else f"{duration_months} months"
         
-        pricing_breakdown = ""
-        for detail in channel_pricing_details:
-            savings_text = f" (Save {detail['discount_percent']}%)" if detail['discount_percent'] > 0 else ""
-            pricing_breakdown += f"• {detail['name']}: ${detail['plan_price_usd']:.2f} ({detail['posts_per_day']} posts/day × {detail['total_posts']} posts){savings_text}\n"
+        pricing_breakdown = f"• Plan Price: ${final_price:.2f} ({posts_per_day} posts/day × {total_posts} posts)"
+        if discount_percent > 0:
+            pricing_breakdown += f" (Save {discount_percent}%)"
+        pricing_breakdown += "\n• Channel Coverage: All selected channels included"
         
         payment_text = f"""
 💳 **Payment Required - Progressive Plan**
 
-📺 **Selected Channels:** {len(selected_channels)}
+📺 **Selected Channels:** {len(selected_channels)} (No per-channel fee)
 ⏰ **Plan Duration:** {plan_text}
-📊 **Posting Frequency:** {posts_per_day} posts/day
+📊 **Posting Frequency:** {posts_per_day} posts/day per channel
 📈 **Total Posts:** {total_posts * len(selected_channels):,} posts across all channels
 
+💡 **Plan Details:**
 {pricing_breakdown}
 ━━━━━━━━━━━━━━━━━
 💰 **Total Price:** ${total_price_usd:.2f} USD
