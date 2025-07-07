@@ -8,11 +8,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from database import init_db
+from database import init_db, db
 from handlers import setup_handlers
 # Debug system removed for cleanup
 from admin_system import setup_admin_handlers
 from stars_handler import init_stars_handler, setup_stars_handlers
+from channel_manager import init_channel_manager, handle_my_chat_member
 
 # Configure logging
 logging.basicConfig(
@@ -50,6 +51,14 @@ async def main():
         # Debug handlers removed for cleanup
         setup_admin_handlers(dp)
         setup_stars_handlers(dp)
+        
+        # Initialize channel manager
+        logger.info("Initializing channel manager...")
+        init_channel_manager(bot, db)
+        
+        # Register chat member handler
+        dp.my_chat_member.register(handle_my_chat_member)
+        
         logger.info("Handlers setup completed")
         
         # Setup menu button

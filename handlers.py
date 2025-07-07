@@ -960,11 +960,21 @@ Thank you for using I3lani Bot!
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
     """Show channel selection for enhanced flow"""
-    channels = await db.get_channels()
+    # Get only active channels where bot is admin
+    channels = await db.get_bot_admin_channels()
     
     if not channels:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        no_channels_text = {
+            'en': "❌ **No channels available**\n\nThe bot needs to be added as an administrator to channels before they can be used for advertising.\n\nPlease contact support to add channels.",
+            'ar': "❌ **لا توجد قنوات متاحة**\n\nيجب إضافة البوت كمشرف في القنوات قبل أن يتمكن من استخدامها للإعلانات.\n\nيرجى الاتصال بالدعم لإضافة القنوات.",
+            'ru': "❌ **Нет доступных каналов**\n\nБот должен быть добавлен как администратор в каналы, прежде чем их можно будет использовать для рекламы.\n\nОбратитесь в службу поддержки для добавления каналов."
+        }
+        
         await callback_query.message.edit_text(
-            "❌ No channels available. Please contact support.",
+            no_channels_text.get(language, no_channels_text['en']),
             parse_mode='Markdown'
         )
         return

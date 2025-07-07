@@ -140,55 +140,9 @@ class Database:
         await init_default_packages(self)
     
     async def init_default_channels(self):
-        """Initialize default channels"""
-        # Check if channels already exist
-        existing_channels = await self.get_channels()
-        if existing_channels:
-            return
-            
-        # Add default channels
-        default_channels = [
-            {
-                'channel_id': 'i3lani_main',
-                'name': 'I3lani Main Channel',
-                'telegram_channel_id': '@i3lani',
-                'subscribers': 10000,
-                'base_price_usd': 5.0,
-                'is_popular': True,
-                'is_active': True
-            },
-            {
-                'channel_id': 'i3lani_tech',
-                'name': 'I3lani Tech',
-                'telegram_channel_id': '@i3lani_tech',
-                'subscribers': 5000,
-                'base_price_usd': 3.0,
-                'is_popular': False,
-                'is_active': True
-            },
-            {
-                'channel_id': 'i3lani_business',
-                'name': 'I3lani Business',
-                'telegram_channel_id': '@i3lani_business',
-                'subscribers': 7500,
-                'base_price_usd': 4.0,
-                'is_popular': False,
-                'is_active': True
-            }
-        ]
-        
-        async with aiosqlite.connect(self.db_path) as db:
-            for channel in default_channels:
-                await db.execute('''
-                    INSERT OR IGNORE INTO channels 
-                    (channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    channel['channel_id'], channel['name'], channel['telegram_channel_id'],
-                    channel['subscribers'], channel['base_price_usd'], 
-                    channel['is_popular'], channel['is_active']
-                ))
-            await db.commit()
+        """Initialize default channels - Only called if no channels exist"""
+        # This method now does nothing - channels are added automatically when bot becomes admin
+        pass
     
     async def get_user(self, user_id: int) -> Optional[Dict]:
         """Get user by ID"""
@@ -252,6 +206,53 @@ class Database:
             async with db.execute(query) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
+    
+    async def add_channel_automatically(self, channel_id: str, channel_name: str, 
+                                      telegram_channel_id: str, subscribers: int = 0,
+                                      base_price_usd: float = 5.0) -> bool:
+        """Add channel automatically when bot becomes admin"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                INSERT OR REPLACE INTO channels 
+                (channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                channel_id, channel_name, telegram_channel_id,
+                subscribers, base_price_usd, False, True
+            ))
+            await db.commit()
+            return True
+    
+    async def remove_channel_automatically(self, telegram_channel_id: str) -> bool:
+        """Remove channel when bot is no longer admin"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                UPDATE channels SET is_active = FALSE 
+                WHERE telegram_channel_id = ?
+            ''', (telegram_channel_id,))
+            await db.commit()
+            return True
+    
+    async def get_bot_admin_channels(self) -> List[Dict]:
+        """Get channels where bot is admin (active channels only)"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute('''
+                SELECT channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular
+                FROM channels 
+                WHERE is_active = TRUE
+                ORDER BY is_popular DESC, subscribers DESC
+            ''') as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    {
+                        'channel_id': row[0],
+                        'name': row[1],
+                        'telegram_channel_id': row[2],
+                        'subscribers': row[3],
+                        'base_price_usd': row[4],
+                        'is_popular': row[5]
+                    } for row in rows
+                ]
     
     async def create_subscription(self, user_id: int, ad_id: int, 
                                  channel_id: str, duration_months: int,
