@@ -723,22 +723,20 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     await state.set_state(AdminStates.add_channel)
     
     text = """
-➕ Add New Channel
+Add New Channel
 
 Please provide the channel information in this format:
 
 Channel Name
-**Telegram ID** (e.g., @channel_name)
-**Category** (e.g., Technology, Business, General)
-**Estimated Subscribers** (number)
+Telegram ID (e.g., @channel_name)
+Category (e.g., Technology, Business, General)
+Estimated Subscribers (number)
 
 Example:
-```
 Tech News Channel
 @technews
 Technology
 15000
-```
 
 Send the channel information now:
     """.strip()
@@ -747,7 +745,7 @@ Send the channel information now:
         [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
 
 @router.message(AdminStates.add_channel)

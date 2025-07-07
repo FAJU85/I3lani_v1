@@ -15,6 +15,7 @@ from database import db, ensure_user_exists, get_user_language
 from payments import payment_processor
 from config import CHANNELS, ADMIN_IDS
 import os
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -985,6 +986,113 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         parse_mode='Markdown'
     )
     await callback_query.answer("Choose your package to start creating your ad!")
+
+
+async def check_free_ads_limit(user_id: int) -> int:
+    """Check how many free ads a user has remaining this month"""
+    try:
+        user = await db.get_user(user_id)
+        if not user:
+            return 3
+        
+        # Check if we need to reset monthly counter
+        last_reset = datetime.fromisoformat(user.get('last_free_ad_reset', datetime.now().isoformat()))
+        now = datetime.now()
+        
+        # If it's been more than a month, reset counter
+        if (now - last_reset).days >= 30:
+            await db.reset_free_ads_counter(user_id)
+            return 3
+        
+        used = user.get('free_ads_used', 0)
+        return max(0, 3 - used)
+    except Exception as e:
+        logger.error(f"Error checking free ads limit: {e}")
+        return 3
+
+
+async def get_next_reset_date(user_id: int) -> str:
+    """Get the next reset date for free ads"""
+    try:
+        user = await db.get_user(user_id)
+        if not user:
+            return "Next month"
+        
+        last_reset = datetime.fromisoformat(user.get('last_free_ad_reset', datetime.now().isoformat()))
+        next_reset = last_reset + timedelta(days=30)
+        return next_reset.strftime("%B %d, %Y")
+    except Exception as e:
+        logger.error(f"Error getting next reset date: {e}")
+        return "Next month"
+
+
+@router.callback_query(F.data == "select_package_free")
+async def select_free_package(callback_query: CallbackQuery, state: FSMContext):
+    """Handle free package selection with monthly limit check"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Check if user has exceeded free ads limit
+    free_ads_remaining = await check_free_ads_limit(user_id)
+    
+    if free_ads_remaining <= 0:
+        next_reset = await get_next_reset_date(user_id)
+        await callback_query.message.edit_text(
+            f"""
+❌ **Free Ads Limit Reached**
+
+You have used all 3 free ads for this month.
+
+**Options:**
+• Wait for next month reset
+• Upgrade to Bronze Plan ($10/month) 
+• Upgrade to Silver Plan ($29/3 months)
+• Upgrade to Gold Plan ($47/6 months)
+
+**Next reset:** {next_reset}
+            """.strip(),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze")],
+                [InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")],
+                [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")],
+                [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_start")]
+            ])
+        )
+        await callback_query.answer("Free ads limit reached for this month!")
+        return
+    
+    await state.update_data(package="free")
+    await state.set_state(AdCreationStates.category_selection)
+    
+    await show_category_selection(callback_query, state)
+    await callback_query.answer(f"Free package selected! {free_ads_remaining} free ads remaining this month.")
+
+
+@router.callback_query(F.data == "select_package_bronze")
+async def select_bronze_package(callback_query: CallbackQuery, state: FSMContext):
+    """Handle bronze package selection"""
+    await state.update_data(package="bronze")
+    await state.set_state(AdCreationStates.category_selection)
+    await show_category_selection(callback_query, state)
+    await callback_query.answer("Bronze package selected!")
+
+
+@router.callback_query(F.data == "select_package_silver")
+async def select_silver_package(callback_query: CallbackQuery, state: FSMContext):
+    """Handle silver package selection"""
+    await state.update_data(package="silver")
+    await state.set_state(AdCreationStates.category_selection)
+    await show_category_selection(callback_query, state)
+    await callback_query.answer("Silver package selected!")
+
+
+@router.callback_query(F.data == "select_package_gold")
+async def select_gold_package(callback_query: CallbackQuery, state: FSMContext):
+    """Handle gold package selection"""
+    await state.update_data(package="gold")
+    await state.set_state(AdCreationStates.category_selection)
+    await show_category_selection(callback_query, state)
+    await callback_query.answer("Gold package selected!")
 
 
 @router.message(AdCreationStates.ad_content)

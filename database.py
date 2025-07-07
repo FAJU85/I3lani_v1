@@ -27,6 +27,8 @@ class Database:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     total_spent REAL DEFAULT 0.0,
                     free_days INTEGER DEFAULT 0,
+                    free_ads_used INTEGER DEFAULT 0,
+                    last_free_ad_reset TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (referrer_id) REFERENCES users (user_id)
                 )
             ''')
@@ -311,6 +313,26 @@ class Database:
         except Exception as e:
             print(f"Error creating referral: {e}")
             return False
+
+    async def reset_free_ads_counter(self, user_id: int) -> bool:
+        """Reset the free ads counter for a user"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE users SET free_ads_used = 0, last_free_ad_reset = ? WHERE user_id = ?",
+                (datetime.now().isoformat(), user_id)
+            )
+            await db.commit()
+            return True
+    
+    async def increment_free_ads_used(self, user_id: int) -> bool:
+        """Increment the free ads used counter for a user"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE users SET free_ads_used = free_ads_used + 1 WHERE user_id = ?",
+                (user_id,)
+            )
+            await db.commit()
+            return True
 
 
 # Global database instance
