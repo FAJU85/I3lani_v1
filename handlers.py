@@ -1155,13 +1155,25 @@ Please select a category for your ad:
             [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_start")]
         ])
         
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        # Handle potential InaccessibleMessage error
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        except (AttributeError, Exception):
+            # If message is inaccessible or any error, send a new message
+            await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
     else:
         # No free ads, redirect to create ad directly
-        await callback_query.message.edit_text(
-            "⚠️ You have used all your free ads for this month.\n\nPlease create a paid ad to continue advertising.",
-            parse_mode='Markdown'
-        )
+        try:
+            await callback_query.message.edit_text(
+                "⚠️ You have used all your free ads for this month.\n\nPlease create a paid ad to continue advertising.",
+                parse_mode='Markdown'
+            )
+        except (AttributeError, Exception):
+            # If message is inaccessible or any error, send a new message
+            await callback_query.message.answer(
+                "⚠️ You have used all your free ads for this month.\n\nPlease create a paid ad to continue advertising.",
+                parse_mode='Markdown'
+            )
     await callback_query.answer()
 
 
