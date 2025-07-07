@@ -13,6 +13,7 @@ from handlers import setup_handlers
 from debug_system import init_debug_system, setup_debug_handlers
 from debug_dashboard import init_dashboard, setup_dashboard_handlers
 from admin_system import setup_admin_handlers
+from stars_handler import init_stars_handler, setup_stars_handlers
 
 # Configure logging
 logging.basicConfig(
@@ -47,12 +48,18 @@ async def main():
         dashboard = init_dashboard(bot)
         logger.info("Debug dashboard initialized successfully")
         
+        # Initialize Telegram Stars system
+        logger.info("Initializing Telegram Stars payment system...")
+        stars_handler = init_stars_handler(bot)
+        logger.info("Telegram Stars system initialized successfully")
+        
         # Setup handlers
         logger.info("Setting up handlers...")
         setup_handlers(dp)
         setup_debug_handlers(dp)
         setup_dashboard_handlers(dp)
         setup_admin_handlers(dp)
+        setup_stars_handlers(dp)
         logger.info("Handlers setup completed")
         
         # Setup menu button

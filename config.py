@@ -24,6 +24,9 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 # Admin configuration
 ADMIN_IDS = [int(id.strip()) for id in os.getenv('ADMIN_IDS', '').split(',') if id.strip()]
 
+# Main channel configuration
+CHANNEL_ID = os.getenv('CHANNEL_ID', '@i3lani')
+
 # Channel configuration
 CHANNELS = {
     'i3lani_main': {
