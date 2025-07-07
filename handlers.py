@@ -198,16 +198,21 @@ async def show_main_menu(message_or_query, language: str):
 @router.callback_query(F.data.startswith("lang_"))
 async def language_selection_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle language selection"""
-    language_code = callback_query.data.replace("lang_", "")
-    user_id = callback_query.from_user.id
-    
-    # Update user language
-    await db.update_user_language(user_id, language_code)
-    
-    # Clear state and show main menu
-    await state.clear()
-    await show_main_menu(callback_query, language_code)
-    await callback_query.answer("Language updated successfully!")
+    try:
+        language_code = callback_query.data.replace("lang_", "")
+        user_id = callback_query.from_user.id
+        
+        # Update user language
+        await db.update_user_language(user_id, language_code)
+        
+        # Clear state and show main menu
+        await state.clear()
+        await show_main_menu(callback_query, language_code)
+        await callback_query.answer("Language updated successfully!")
+        
+    except Exception as e:
+        logger.error(f"Language selection error: {e}")
+        await callback_query.answer("Error updating language. Please try again.")
 
 
 @router.callback_query(F.data == "pricing")
@@ -254,11 +259,16 @@ async def show_pricing_handler(callback_query: CallbackQuery):
 @router.callback_query(F.data == "settings")
 async def show_settings_handler(callback_query: CallbackQuery):
     """Show settings menu"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    settings_text = f"""
-⚙️ **{get_text(language, 'settings_title', default='Settings')}**
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Ensure language is valid
+        if language not in LANGUAGES:
+            language = 'en'
+        
+        settings_text = f"""
+⚙️ **Settings**
 
 🌍 **Current Language:** {LANGUAGES[language]['name']} {LANGUAGES[language]['flag']}
 
@@ -269,40 +279,49 @@ Choose your preferred language below.
 • User ID: {user_id}
 • Language: {language.upper()}
 • Status: Active
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
-            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
-        ],
-        [
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text(language, 'back'), 
-                callback_data="back_to_main"
-            )
-        ]
-    ])
-    
-    await callback_query.message.edit_text(
-        settings_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    await callback_query.answer()
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
+                InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
+            ],
+            [
+                InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Back", 
+                    callback_data="back_to_main"
+                )
+            ]
+        ])
+        
+        await callback_query.message.edit_text(
+            settings_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Settings handler error: {e}")
+        await callback_query.answer("Settings temporarily unavailable. Please try again.")
 
 
 @router.callback_query(F.data == "help")
 async def show_help_handler(callback_query: CallbackQuery):
     """Show help information"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    help_text = f"""
-📚 **{get_text(language, 'help_title', default='Help & Commands')}**
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Ensure language is valid
+        if language not in LANGUAGES:
+            language = 'en'
+        
+        help_text = """
+📚 **Help & Commands**
 
 🚀 **Getting Started:**
 1. Click "Create Ad" to start
@@ -327,19 +346,23 @@ async def show_help_handler(callback_query: CallbackQuery):
 • Referral system
 
 ❓ **Need Help?** Use /support to contact us!
-    """.strip()
-    
-    await callback_query.message.edit_text(
-        help_text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text=get_text(language, 'back'), 
-                callback_data="back_to_main"
-            )]
-        ]),
-        parse_mode='Markdown'
-    )
-    await callback_query.answer()
+        """.strip()
+        
+        await callback_query.message.edit_text(
+            help_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="⬅️ Back", 
+                    callback_data="back_to_main"
+                )]
+            ]),
+            parse_mode='Markdown'
+        )
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Help handler error: {e}")
+        await callback_query.answer("Help temporarily unavailable. Please try again.")
 
 
 @router.callback_query(F.data == "create_ad")
@@ -493,121 +516,207 @@ async def duration_selection_handler(callback_query: CallbackQuery, state: FSMCo
 @router.callback_query(F.data.startswith("payment_"))
 async def payment_method_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle payment method selection"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    payment_method = callback_query.data.replace("payment_", "")
-    
-    # Get state data
-    data = await state.get_data()
-    ad_id = data['ad_id']
-    selected_channels = data['selected_channels']
-    duration_months = data['duration_months']
-    total_price = data['total_price']
-    currency = data['currency']
-    
-    # Create subscriptions
-    subscription_ids = []
-    for channel_id in selected_channels:
-        subscription_id = await db.create_subscription(
-            user_id=user_id,
-            ad_id=ad_id,
-            channel_id=channel_id,
-            duration_months=duration_months,
-            total_price=total_price / len(selected_channels),  # Split price among channels
-            currency=currency
-        )
-        subscription_ids.append(subscription_id)
-    
-    # Create payment invoice
-    invoice = await payment_processor.create_payment_invoice(
-        user_id=user_id,
-        subscription_id=subscription_ids[0],  # Use first subscription for payment tracking
-        amount=total_price,
-        currency=currency,
-        payment_method=payment_method
-    )
-    
-    # Show payment instructions
-    instructions = invoice['instructions']
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=get_text(language, 'payment_sent'), 
-            callback_data=f"confirm_payment_{invoice['payment_id']}"
-        )],
-        [InlineKeyboardButton(
-            text=get_text(language, 'back'), 
-            callback_data="back_to_duration"
-        )]
-    ])
-    
-    await state.set_state(AdCreationStates.payment_confirmation)
-    await callback_query.message.edit_text(
-        instructions,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    await callback_query.answer()
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        payment_method = callback_query.data.replace("payment_", "")
+        
+        # Get state data
+        data = await state.get_data()
+        ad_id = data['ad_id']
+        selected_channels = data['selected_channels']
+        duration_months = data['duration_months']
+        total_price = data['total_price']
+        currency = data['currency']
+        
+        # Handle Telegram Stars payment with real API
+        if payment_method == "stars":
+            from aiogram.types import LabeledPrice
+            
+            # Calculate Stars amount (approximately 1 USD = 100 Stars)
+            stars_amount = int(total_price * 100)
+            
+            # Create payment payload for tracking
+            payload = f"ad_{ad_id}_user_{user_id}_time_{int(time.time())}"
+            
+            # Store payment data in state for later processing
+            await state.update_data(payment_payload=payload, stars_amount=stars_amount)
+            
+            # Create and send Telegram Stars invoice
+            try:
+                await callback_query.bot.send_invoice(
+                    chat_id=user_id,
+                    title="I3lani Advertisement Campaign",
+                    description=f"Ad campaign for {len(selected_channels)} channels, {duration_months} month(s)",
+                    payload=payload,
+                    provider_token="",  # Empty for Telegram Stars
+                    currency="XTR",  # Telegram Stars currency code
+                    prices=[LabeledPrice(label="Campaign", amount=stars_amount)],
+                    need_name=False,
+                    need_phone_number=False,
+                    need_email=False,
+                    need_shipping_address=False,
+                    send_phone_number_to_provider=False,
+                    send_email_to_provider=False,
+                    is_flexible=False
+                )
+                
+                await callback_query.message.edit_text(
+                    f"⭐ **Telegram Stars Payment**\n\nInvoice sent! Please complete payment using the invoice above.\n\nAmount: {stars_amount} Stars\n\nYour ad will be published automatically after payment confirmation.",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_duration")]
+                    ])
+                )
+                
+                await callback_query.answer("Stars invoice sent!")
+                return
+                
+            except Exception as e:
+                logger.error(f"Stars invoice creation failed: {e}")
+                await callback_query.answer("Stars payment temporarily unavailable. Please try TON.")
+                return
+        
+        # Handle TON payment
+        elif payment_method == "ton":
+            # Create subscriptions for TON payment
+            subscription_ids = []
+            for channel_id in selected_channels:
+                subscription_id = await db.create_subscription(
+                    user_id=user_id,
+                    ad_id=ad_id,
+                    channel_id=channel_id,
+                    duration_months=duration_months,
+                    total_price=total_price / len(selected_channels),
+                    currency=currency
+                )
+                subscription_ids.append(subscription_id)
+            
+            # Create payment invoice for TON
+            invoice = await payment_processor.create_payment_invoice(
+                user_id=user_id,
+                subscription_id=subscription_ids[0],
+                amount=total_price,
+                currency=currency,
+                payment_method=payment_method
+            )
+            
+            # Show TON payment instructions
+            instructions = invoice['instructions']
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="✅ Payment Sent", 
+                    callback_data=f"confirm_payment_{invoice['payment_id']}"
+                )],
+                [InlineKeyboardButton(
+                    text="⬅️ Back", 
+                    callback_data="back_to_duration"
+                )]
+            ])
+            
+            await state.set_state(AdCreationStates.payment_confirmation)
+            await callback_query.message.edit_text(
+                instructions,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            await callback_query.answer("TON payment instructions sent!")
+        
+    except Exception as e:
+        logger.error(f"Payment method handler error: {e}")
+        await callback_query.answer("Payment system temporarily unavailable. Please try again.")
 
 
 @router.callback_query(F.data.startswith("confirm_payment_"))
 async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle payment confirmation and publish ad to I3lani channel"""
-    from aiogram import Bot
-    
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    payment_id = callback_query.data.replace("confirm_payment_", "")
-    
-    # Get ad content from state
-    data = await state.get_data()
-    ad_content = data.get('ad_content', '')
-    ad_media = data.get('ad_media')
-    
-    # Publish ad to I3lani channel immediately
-    bot = callback_query.bot  # Access bot from callback query
-    i3lani_channel = "@i3lani"
-    published = False
-    
     try:
-        # Format ad with branding
-        formatted_content = f"📢 **Advertisement**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
         
-        # Publish based on content type
-        if ad_media:
-            if ad_media.get('type') == 'photo':
-                await bot.send_photo(
-                    chat_id=i3lani_channel,
-                    photo=ad_media['file_id'],
-                    caption=formatted_content,
-                    parse_mode='Markdown'
-                )
-            elif ad_media.get('type') == 'video':
-                await bot.send_video(
-                    chat_id=i3lani_channel,
-                    video=ad_media['file_id'],
-                    caption=formatted_content,
-                    parse_mode='Markdown'
-                )
-        else:
-            await bot.send_message(
-                chat_id=i3lani_channel,
-                text=formatted_content,
-                parse_mode='Markdown'
-            )
+        payment_id = callback_query.data.replace("confirm_payment_", "")
         
-        published = True
-        logger.info(f"Ad published to {i3lani_channel} for user {user_id}")
+        # Get ad content from state AND database
+        data = await state.get_data()
+        ad_content = data.get('ad_content', '')
+        ad_media = data.get('ad_media')
+        ad_id = data.get('ad_id')
         
-    except Exception as e:
-        logger.error(f"Failed to publish ad to {i3lani_channel}: {e}")
+        # If no content in state, try to get from database
+        if not ad_content and ad_id:
+            try:
+                # Get ad from database
+                async with db.get_connection() as conn:
+                    result = await conn.execute(
+                        'SELECT content, media_url, content_type FROM ads WHERE ad_id = ?',
+                        (ad_id,)
+                    )
+                    ad_record = await result.fetchone()
+                    if ad_record:
+                        ad_content = ad_record[0] or ''
+                        if ad_record[1]:  # media_url
+                            ad_media = {
+                                'file_id': ad_record[1],
+                                'type': ad_record[2]
+                            }
+            except Exception as e:
+                logger.error(f"Error fetching ad from database: {e}")
+        
+        # Ensure we have content
+        if not ad_content:
+            ad_content = "📢 Your advertisement is now live! Contact @I3lani_bot for more details."
+        
+        # Publish ad to I3lani channel immediately
+        bot = callback_query.bot
+        i3lani_channel = "@i3lani"
         published = False
-    
-    # Show confirmation with publishing status
-    if published:
-        confirmation_text = f"""
+        
+        try:
+            # Format ad with proper branding
+            formatted_content = f"📢 **Advertisement**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+            
+            # Publish based on content type
+            if ad_media and ad_media.get('file_id'):
+                if ad_media.get('type') == 'photo':
+                    await bot.send_photo(
+                        chat_id=i3lani_channel,
+                        photo=ad_media['file_id'],
+                        caption=formatted_content,
+                        parse_mode='Markdown'
+                    )
+                elif ad_media.get('type') == 'video':
+                    await bot.send_video(
+                        chat_id=i3lani_channel,
+                        video=ad_media['file_id'],
+                        caption=formatted_content,
+                        parse_mode='Markdown'
+                    )
+                else:
+                    # Fallback to text
+                    await bot.send_message(
+                        chat_id=i3lani_channel,
+                        text=formatted_content,
+                        parse_mode='Markdown'
+                    )
+            else:
+                # Text-only ad
+                await bot.send_message(
+                    chat_id=i3lani_channel,
+                    text=formatted_content,
+                    parse_mode='Markdown'
+                )
+            
+            published = True
+            logger.info(f"Ad published to {i3lani_channel} for user {user_id}: {ad_content[:50]}...")
+            
+        except Exception as e:
+            logger.error(f"Failed to publish ad to {i3lani_channel}: {e}")
+            published = False
+        
+        # Show confirmation with publishing status
+        if published:
+            confirmation_text = f"""
 🎉 **Payment Confirmed & Ad Published!**
 
 ✅ Your ad is now live on the I3lani channel!
@@ -621,24 +730,24 @@ async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMConte
 🔗 **View your ad:** https://t.me/i3lani
 
 Your campaign is running successfully!
-        """.strip()
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text="🔗 View I3lani Channel", 
-                url="https://t.me/i3lani"
-            )],
-            [InlineKeyboardButton(
-                text=get_text(language, 'my_ads'), 
-                callback_data="my_ads"
-            )],
-            [InlineKeyboardButton(
-                text=get_text(language, 'main_menu'), 
-                callback_data="back_to_main"
-            )]
-        ])
-    else:
-        confirmation_text = f"""
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="🔗 View I3lani Channel", 
+                    url="https://t.me/i3lani"
+                )],
+                [InlineKeyboardButton(
+                    text="📊 My Ads", 
+                    callback_data="my_ads"
+                )],
+                [InlineKeyboardButton(
+                    text="🏠 Main Menu", 
+                    callback_data="back_to_main"
+                )]
+            ])
+        else:
+            confirmation_text = f"""
 ✅ **Payment Confirmed**
 
 📋 **Payment ID:** {payment_id}
@@ -646,27 +755,31 @@ Your campaign is running successfully!
 ⏰ **Estimated Time:** Within 24 hours
 
 Your payment has been confirmed. Your ad will be published to the I3lani channel shortly.
-        """.strip()
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="📊 My Ads", 
+                    callback_data="my_ads"
+                )],
+                [InlineKeyboardButton(
+                    text="🏠 Main Menu", 
+                    callback_data="back_to_main"
+                )]
+            ])
         
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text=get_text(language, 'my_ads'), 
-                callback_data="my_ads"
-            )],
-            [InlineKeyboardButton(
-                text=get_text(language, 'main_menu'), 
-                callback_data="back_to_main"
-            )]
-        ])
-    
-    await callback_query.message.edit_text(
-        confirmation_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    
-    await state.clear()
-    await callback_query.answer("✅ Payment confirmed!" + (" Ad published!" if published else ""))
+        await callback_query.message.edit_text(
+            confirmation_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        await state.clear()
+        await callback_query.answer("✅ Payment confirmed!" + (" Ad published!" if published else ""))
+        
+    except Exception as e:
+        logger.error(f"Payment confirmation error: {e}")
+        await callback_query.answer("Payment confirmation failed. Please contact support.")
 
 
 @router.callback_query(F.data == "my_ads")
@@ -1216,6 +1329,120 @@ Use these commands for now:
     ])
     
     await message.reply(admin_text, reply_markup=keyboard, parse_mode='Markdown')
+
+
+# Telegram Stars Payment Handlers
+@router.pre_checkout_query()
+async def handle_pre_checkout_query(pre_checkout_query):
+    """Handle pre-checkout query for Telegram Stars"""
+    try:
+        # Approve all pre-checkout queries for now
+        await pre_checkout_query.answer(ok=True)
+        logger.info(f"Pre-checkout approved for payload: {pre_checkout_query.invoice_payload}")
+    except Exception as e:
+        logger.error(f"Pre-checkout error: {e}")
+        await pre_checkout_query.answer(ok=False, error_message="Payment verification failed.")
+
+
+@router.message(F.successful_payment)
+async def handle_successful_payment(message: Message, state: FSMContext):
+    """Handle successful Telegram Stars payment"""
+    try:
+        user_id = message.from_user.id
+        payment = message.successful_payment
+        
+        logger.info(f"Successful Stars payment: {payment.total_amount} stars from user {user_id}")
+        
+        # Get ad content from state
+        data = await state.get_data()
+        ad_content = data.get('ad_content', 'Your advertisement with I3lani Bot')
+        ad_media = data.get('ad_media')
+        
+        # Publish ad to I3lani channel immediately
+        bot = message.bot
+        i3lani_channel = "@i3lani"
+        published = False
+        
+        try:
+            # Format ad with branding
+            formatted_content = f"📢 **Advertisement**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+            
+            # Publish based on content type
+            if ad_media and ad_media.get('file_id'):
+                if ad_media.get('type') == 'photo':
+                    await bot.send_photo(
+                        chat_id=i3lani_channel,
+                        photo=ad_media['file_id'],
+                        caption=formatted_content,
+                        parse_mode='Markdown'
+                    )
+                elif ad_media.get('type') == 'video':
+                    await bot.send_video(
+                        chat_id=i3lani_channel,
+                        video=ad_media['file_id'],
+                        caption=formatted_content,
+                        parse_mode='Markdown'
+                    )
+                else:
+                    await bot.send_message(
+                        chat_id=i3lani_channel,
+                        text=formatted_content,
+                        parse_mode='Markdown'
+                    )
+            else:
+                await bot.send_message(
+                    chat_id=i3lani_channel,
+                    text=formatted_content,
+                    parse_mode='Markdown'
+                )
+            
+            published = True
+            logger.info(f"Stars payment ad published to {i3lani_channel} for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to publish Stars payment ad: {e}")
+        
+        # Send confirmation to user
+        confirmation_text = f"""
+🎉 **Stars Payment Successful & Ad Published!**
+
+⭐ **Payment Confirmed:** {payment.total_amount} Stars
+✅ **Your ad is now live on the I3lani channel!**
+
+📊 **Campaign Status:**
+• Payment ID: {payment.telegram_payment_charge_id}
+• Published: Just now
+• Channel: https://t.me/i3lani
+• Status: Active
+
+🔗 **View your ad:** https://t.me/i3lani
+
+Thank you for using I3lani Bot!
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="🔗 View I3lani Channel", 
+                url="https://t.me/i3lani"
+            )],
+            [InlineKeyboardButton(
+                text="🏠 Main Menu", 
+                callback_data="back_to_main"
+            )]
+        ])
+        
+        await message.answer(
+            confirmation_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        # Clear state
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Successful payment handler error: {e}")
+        await message.answer("Payment processed successfully! Your ad will be published shortly.")
 
 
 def setup_handlers(dp):
