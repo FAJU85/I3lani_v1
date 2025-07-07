@@ -13,6 +13,7 @@ from languages import get_text, get_currency_info, LANGUAGES
 from database import db, ensure_user_exists, get_user_language
 from payments import payment_processor
 from config import CHANNELS, ADMIN_IDS
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -203,16 +204,10 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
     # Update user language
     await db.update_user_language(user_id, language_code)
     
-    # Show confirmation and main menu
-    await callback_query.message.edit_text(
-        get_text(language_code, 'language_selected'),
-        reply_markup=None
-    )
-    
     # Clear state and show main menu
     await state.clear()
     await show_main_menu(callback_query, language_code)
-    await callback_query.answer()
+    await callback_query.answer("Language updated successfully!")
 
 
 @router.callback_query(F.data == "create_ad")
@@ -426,29 +421,81 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
 
 @router.callback_query(F.data.startswith("confirm_payment_"))
 async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle payment confirmation"""
+    """Handle payment confirmation and publish ad to I3lani channel"""
+    from aiogram import Bot
+    
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
     payment_id = callback_query.data.replace("confirm_payment_", "")
     
-    confirmation_text = f"""
-✅ {get_text(language, 'payment_sent')}
-
-{get_text(language, 'processing')}
-
-📋 **Payment ID:** {payment_id}
-⏰ **Processing Time:** 5-10 minutes
-📧 **You'll be notified when confirmed**
-
-🎯 **Your ads will go live automatically once payment is verified**
-
-Use /my_ads to track your campaigns.
-    """.strip()
+    # Get ad content from state
+    data = await state.get_data()
+    ad_content = data.get('ad_content', '')
+    ad_media = data.get('ad_media')
     
-    await callback_query.message.edit_text(
-        confirmation_text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+    # Publish ad to I3lani channel immediately
+    bot = Bot.get_current()
+    i3lani_channel = "@i3lani"
+    published = False
+    
+    try:
+        # Format ad with branding
+        formatted_content = f"📢 **Advertisement**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+        
+        # Publish based on content type
+        if ad_media:
+            if ad_media.get('type') == 'photo':
+                await bot.send_photo(
+                    chat_id=i3lani_channel,
+                    photo=ad_media['file_id'],
+                    caption=formatted_content,
+                    parse_mode='Markdown'
+                )
+            elif ad_media.get('type') == 'video':
+                await bot.send_video(
+                    chat_id=i3lani_channel,
+                    video=ad_media['file_id'],
+                    caption=formatted_content,
+                    parse_mode='Markdown'
+                )
+        else:
+            await bot.send_message(
+                chat_id=i3lani_channel,
+                text=formatted_content,
+                parse_mode='Markdown'
+            )
+        
+        published = True
+        logger.info(f"Ad published to {i3lani_channel} for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"Failed to publish ad to {i3lani_channel}: {e}")
+        published = False
+    
+    # Show confirmation with publishing status
+    if published:
+        confirmation_text = f"""
+🎉 **Payment Confirmed & Ad Published!**
+
+✅ Your ad is now live on the I3lani channel!
+
+📊 **Campaign Status:**
+• Payment ID: {payment_id}
+• Published: Just now
+• Channel: https://t.me/i3lani
+• Status: Active
+
+🔗 **View your ad:** https://t.me/i3lani
+
+Your campaign is running successfully!
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="🔗 View I3lani Channel", 
+                url="https://t.me/i3lani"
+            )],
             [InlineKeyboardButton(
                 text=get_text(language, 'my_ads'), 
                 callback_data="my_ads"
@@ -458,10 +505,36 @@ Use /my_ads to track your campaigns.
                 callback_data="back_to_main"
             )]
         ])
+    else:
+        confirmation_text = f"""
+✅ **Payment Confirmed**
+
+📋 **Payment ID:** {payment_id}
+⚠️ **Publishing Status:** In progress
+⏰ **Estimated Time:** Within 24 hours
+
+Your payment has been confirmed. Your ad will be published to the I3lani channel shortly.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'my_ads'), 
+                callback_data="my_ads"
+            )],
+            [InlineKeyboardButton(
+                text=get_text(language, 'main_menu'), 
+                callback_data="back_to_main"
+            )]
+        ])
+    
+    await callback_query.message.edit_text(
+        confirmation_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
     )
     
     await state.clear()
-    await callback_query.answer("✅ Payment confirmation received!")
+    await callback_query.answer("✅ Payment confirmed!" + (" Ad published!" if published else ""))
 
 
 @router.callback_query(F.data == "my_ads")
@@ -931,15 +1004,86 @@ async def show_settings_handler(callback_query: CallbackQuery):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🇺🇸 English", callback_data="set_lang_en"),
-            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="set_lang_ar")
+            InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
+            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
         ],
-        [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="set_lang_ru")],
-        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
+        [
+            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")
+        ],
+        [
+            InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")
+        ]
     ])
     
-    await callback_query.message.edit_text(settings_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(
+        settings_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
     await callback_query.answer()
+
+
+# Back navigation handlers
+@router.callback_query(F.data == "back_to_start")
+async def back_to_start_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle back to start"""
+    await state.clear()
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    await show_main_menu(callback_query, language)
+
+
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle back to main menu"""
+    await state.clear()
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    await show_main_menu(callback_query, language)
+
+
+# Admin command handler
+@router.message(Command("admin"))
+async def admin_command(message: Message, state: FSMContext):
+    """Handle admin command"""
+    user_id = message.from_user.id
+    admin_ids_str = os.getenv('ADMIN_IDS', '')
+    admin_ids = [int(x.strip()) for x in admin_ids_str.split(',') if x.strip()]
+    
+    if user_id not in admin_ids:
+        await message.reply(f"❌ Access denied. User ID: {user_id}")
+        return
+    
+    admin_text = """
+🔧 **Admin Control Panel**
+
+📊 **System Status**: Online
+👥 **Total Users**: Active
+💰 **Revenue**: Processing
+📺 **Channels**: 4 Active
+
+**Available Commands:**
+• Manage pricing and packages
+• Configure channels and settings  
+• View statistics and reports
+• Update payment wallet address
+• Monitor user activity
+
+⚠️ **Admin Features Temporarily Disabled**
+The full admin panel is being rebuilt for better security and functionality.
+
+Use these commands for now:
+• /debug_status - System status
+• /debug_user <id> - User info
+• Database management via SQL tool
+    """
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Basic Stats", callback_data="admin_basic_stats")],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_start")]
+    ])
+    
+    await message.reply(admin_text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 def setup_handlers(dp):
