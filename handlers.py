@@ -2596,24 +2596,26 @@ Something went wrong. Choose how to continue:
 """
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
-            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
-        ],
-        [
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")
-        ],
-        [
-            InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")
-        ]
-    ])
-    
-    await callback_query.message.edit_text(
-        settings_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    await callback_query.answer()
+            [
+                InlineKeyboardButton(text="🔄 Continue", callback_data="continue_flow"),
+                InlineKeyboardButton(text="🆕 Start Over", callback_data="start_over")
+            ],
+            [
+                InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main"),
+                InlineKeyboardButton(text="📞 Support", callback_data="support")
+            ]
+        ])
+        
+        await callback_query.message.edit_text(
+            recovery_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        await callback_query.answer("Error recovery options")
+        
+    except Exception as e:
+        logger.error(f"Error in error_recovery_handler: {e}")
+        await callback_query.answer("Error recovery failed. Please try again.")
 
 
 # Back navigation handlers
