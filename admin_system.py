@@ -126,8 +126,8 @@ class AdminSystem:
                 InlineKeyboardButton(text="💰 Price Management", callback_data="admin_pricing")
             ],
             [
-                InlineKeyboardButton(text="⏰ Publishing Schedules", callback_data="admin_schedules"),
-                InlineKeyboardButton(text="👥 User Management", callback_data="admin_users")
+                InlineKeyboardButton(text="👥 User Management", callback_data="admin_users"),
+                InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics")
             ],
             [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
@@ -1501,6 +1501,173 @@ The package is now available in the pricing menu!
         await message.reply("❌ Invalid number format! Please check price, duration, posts per day, and channels values.")
     except Exception as e:
         await message.reply(f"❌ Error creating package: {str(e)}")
+    
+    await state.clear()
+
+@router.callback_query(F.data.startswith("admin_remove_pkg_"))
+async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSMContext):
+    """Handle package removal confirmation"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied!")
+        return
+    
+    package_id = callback_query.data.replace("admin_remove_pkg_", "")
+    
+    try:
+        from database import db
+        packages = await db.get_packages(active_only=False)
+        package = next((p for p in packages if p['package_id'] == package_id), None)
+        
+        if not package:
+            await callback_query.answer("❌ Package not found!")
+            return
+        
+        # Remove package from database
+        async with db.get_connection() as conn:
+            await conn.execute("DELETE FROM packages WHERE package_id = ?", (package_id,))
+            await conn.commit()
+        
+        success_text = f"""
+✅ **Package Removed Successfully!**
+
+**Removed Package:**
+• Name: {package['name']}
+• Price: ${package['price_usd']}
+• ID: {package_id}
+
+The package has been permanently deleted and is no longer available in the pricing menu.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_pricing")]
+        ])
+        
+        await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer(f"✅ Package '{package['name']}' removed!")
+        
+    except Exception as e:
+        await callback_query.answer(f"❌ Error removing package: {str(e)}")
+
+@router.callback_query(F.data.startswith("admin_edit_pkg_"))
+async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle package editing"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied!")
+        return
+    
+    package_id = callback_query.data.replace("admin_edit_pkg_", "")
+    
+    try:
+        from database import db
+        packages = await db.get_packages(active_only=False)
+        package = next((p for p in packages if p['package_id'] == package_id), None)
+        
+        if not package:
+            await callback_query.answer("❌ Package not found!")
+            return
+        
+        await state.update_data(edit_package_id=package_id)
+        await state.set_state(AdminStates.edit_subscription)
+        
+        text = f"""
+✏️ **Edit Package: {package['name']}**
+
+**Current Details:**
+• ID: {package['package_id']}
+• Name: {package['name']}
+• Price: ${package['price_usd']}
+• Duration: {package['duration_days']} days
+• Posts per day: {package['posts_per_day']}
+• Channels: {package['channels_included']}
+
+Please enter the new package details in this format:
+`name|price_usd|duration_days|posts_per_day|channels_included`
+
+**Example:**
+`Premium Plan|99|365|10|5`
+
+Type your updated package details:
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer()
+        
+    except Exception as e:
+        await callback_query.answer(f"❌ Error loading package: {str(e)}")
+
+@router.message(AdminStates.edit_subscription)
+async def handle_edit_package_message(message: Message, state: FSMContext):
+    """Handle edit package form submission"""
+    user_id = message.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await message.reply("❌ Access denied!")
+        return
+    
+    try:
+        data = await state.get_data()
+        package_id = data.get('edit_package_id')
+        
+        if not package_id:
+            await message.reply("❌ Package ID not found!")
+            return
+        
+        # Parse package details: name|price_usd|duration_days|posts_per_day|channels_included
+        parts = message.text.strip().split('|')
+        if len(parts) != 5:
+            await message.reply("❌ Invalid format! Please use: `name|price_usd|duration_days|posts_per_day|channels_included`")
+            return
+        
+        name, price_usd, duration_days, posts_per_day, channels_included = parts
+        
+        # Validate data types
+        price_usd = float(price_usd)
+        duration_days = int(duration_days)
+        posts_per_day = int(posts_per_day)
+        channels_included = int(channels_included)
+        
+        # Update package in database
+        from database import db
+        async with db.get_connection() as conn:
+            await conn.execute("""
+                UPDATE packages 
+                SET name = ?, price_usd = ?, duration_days = ?, posts_per_day = ?, channels_included = ?
+                WHERE package_id = ?
+            """, (name.strip(), price_usd, duration_days, posts_per_day, channels_included, package_id))
+            await conn.commit()
+        
+        success_text = f"""
+✅ **Package Updated Successfully!**
+
+**Updated Package Details:**
+• ID: {package_id}
+• Name: {name}
+• Price: ${price_usd}
+• Duration: {duration_days} days
+• Posts per day: {posts_per_day}
+• Channels included: {channels_included}
+
+The changes are now live in the pricing menu!
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_pricing")]
+        ])
+        
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        
+    except ValueError:
+        await message.reply("❌ Invalid number format! Please check price, duration, posts per day, and channels values.")
+    except Exception as e:
+        await message.reply(f"❌ Error updating package: {str(e)}")
     
     await state.clear()
 

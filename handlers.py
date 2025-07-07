@@ -667,7 +667,7 @@ async def handle_photo_upload(message: Message, state: FSMContext):
 @router.callback_query(F.data == "continue_from_photos")
 async def continue_from_photos(callback_query: CallbackQuery, state: FSMContext):
     """Continue from photo upload step"""
-    await state.set_state(AdCreationStates.contact_info)
+    await state.set_state(AdCreationStates.provide_contact_info)
     
     contact_text = """
 📞 **Provide Contact Information**
