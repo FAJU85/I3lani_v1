@@ -12,6 +12,7 @@ from database import init_db
 from handlers import setup_handlers
 from debug_system import init_debug_system, setup_debug_handlers
 from debug_dashboard import init_dashboard, setup_dashboard_handlers
+from admin_system import setup_admin_handlers
 
 # Configure logging
 logging.basicConfig(
@@ -51,6 +52,7 @@ async def main():
         setup_handlers(dp)
         setup_debug_handlers(dp)
         setup_dashboard_handlers(dp)
+        setup_admin_handlers(dp)
         logger.info("Handlers setup completed")
         
         # Setup menu button
@@ -61,7 +63,8 @@ async def main():
             BotCommand(command="mystats", description="📈 My Statistics"),
             BotCommand(command="referral", description="💰 Referral System"),
             BotCommand(command="support", description="🆘 Get Support"),
-            BotCommand(command="help", description="❓ Help & Guide")
+            BotCommand(command="help", description="❓ Help & Guide"),
+            BotCommand(command="admin", description="🔧 Admin Panel")
         ])
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
         
