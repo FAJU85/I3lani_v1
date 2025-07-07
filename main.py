@@ -10,7 +10,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from database import init_db
 from handlers import setup_handlers
-from i3lani_pricing_system import setup_i3lani_pricing_handlers
 from debug_system import init_debug_system, setup_debug_handlers
 from debug_dashboard import init_dashboard, setup_dashboard_handlers
 from admin_system import setup_admin_handlers
@@ -61,7 +60,6 @@ async def main():
         setup_dashboard_handlers(dp)
         setup_admin_handlers(dp)
         setup_stars_handlers(dp)
-        setup_i3lani_pricing_handlers(dp)
         logger.info("Handlers setup completed")
         
         # Setup menu button
