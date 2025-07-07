@@ -409,24 +409,30 @@ async def package_selection_handler(callback_query: CallbackQuery, state: FSMCon
 
 async def show_category_selection(callback_query: CallbackQuery, state: FSMContext):
     """Show category selection for ad creation"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     from config import AD_CATEGORIES
     
-    category_text = """
-📂 **Select Ad Category**
-
-Choose the category that best fits your advertisement:
-    """.strip()
+    # Multi-language category text
+    if language == 'ar':
+        category_text = "📂 **اختر فئة الإعلان**\n\nاختر الفئة التي تناسب إعلانك:"
+    elif language == 'ru':
+        category_text = "📂 **Выберите категорию объявления**\n\nВыберите категорию, которая лучше всего подходит для вашего объявления:"
+    else:
+        category_text = "📂 **Select Ad Category**\n\nChoose the category that best fits your advertisement:"
     
-    # Create category keyboard
+    # Create category keyboard with translated names
     keyboard_rows = []
     for category_id, category_data in AD_CATEGORIES.items():
+        category_name = category_data['name'].get(language, category_data['name']['en'])
         keyboard_rows.append([InlineKeyboardButton(
-            text=category_data['name'],
+            text=category_name,
             callback_data=f"category_{category_id}"
         )])
     
+    back_text = "⬅️ العودة للحزم" if language == 'ar' else "⬅️ Назад к пакетам" if language == 'ru' else "⬅️ Back to Packages"
     keyboard_rows.append([InlineKeyboardButton(
-        text="⬅️ Back to Packages",
+        text=back_text,
         callback_data="pricing"
     )])
     
@@ -453,16 +459,22 @@ async def category_selection_handler(callback_query: CallbackQuery, state: FSMCo
         category = AD_CATEGORIES[category_id]
         await state.update_data(selected_category=category_id, category_name=category['name'])
         
-        # Show subcategory selection
-        subcategory_text = f"""
-{category['emoji']} **{category['name']}**
-
-Select a subcategory:
-        """.strip()
+        # Show subcategory selection with translation
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        category_name = category['name'].get(language, category['name']['en'])
+        subcategory_text = f"{category['emoji']} **{category_name}**\n\n"
+        if language == 'ar':
+            subcategory_text += "اختر فئة فرعية:"
+        elif language == 'ru':
+            subcategory_text += "Выберите подкатегорию:"
+        else:
+            subcategory_text += "Select a subcategory:"
         
-        # Create subcategory keyboard
+        # Create subcategory keyboard with translation
         keyboard_rows = []
-        for sub_id, sub_name in category['subcategories'].items():
+        for sub_id, sub_data in category['subcategories'].items():
+            sub_name = sub_data.get(language, sub_data['en'])
             keyboard_rows.append([InlineKeyboardButton(
                 text=sub_name,
                 callback_data=f"subcategory_{sub_id}"

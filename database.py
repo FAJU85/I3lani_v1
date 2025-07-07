@@ -133,25 +133,60 @@ class Database:
             
             await db.commit()
             
-        # Database initialized - admin will add channels and packages manually
+        # Initialize default channels
+        await self.init_default_channels()
+        
+        # Initialize default packages
+        await init_default_packages(self)
     
     async def init_default_channels(self):
         """Initialize default channels"""
-        from config import CHANNELS
+        # Check if channels already exist
+        existing_channels = await self.get_channels()
+        if existing_channels:
+            return
+            
+        # Add default channels
+        default_channels = [
+            {
+                'channel_id': 'i3lani_main',
+                'name': 'I3lani Main Channel',
+                'telegram_channel_id': '@i3lani',
+                'subscribers': 10000,
+                'base_price_usd': 5.0,
+                'is_popular': True,
+                'is_active': True
+            },
+            {
+                'channel_id': 'i3lani_tech',
+                'name': 'I3lani Tech',
+                'telegram_channel_id': '@i3lani_tech',
+                'subscribers': 5000,
+                'base_price_usd': 3.0,
+                'is_popular': False,
+                'is_active': True
+            },
+            {
+                'channel_id': 'i3lani_business',
+                'name': 'I3lani Business',
+                'telegram_channel_id': '@i3lani_business',
+                'subscribers': 7500,
+                'base_price_usd': 4.0,
+                'is_popular': False,
+                'is_active': True
+            }
+        ]
         
         async with aiosqlite.connect(self.db_path) as db:
-            for channel_id, channel_data in CHANNELS.items():
+            for channel in default_channels:
                 await db.execute('''
-                    INSERT OR REPLACE INTO channels 
-                    (channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT OR IGNORE INTO channels 
+                    (channel_id, name, telegram_channel_id, subscribers, base_price_usd, is_popular, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    channel_data['id'],
-                    channel_data['name'],
-                    channel_data['telegram_channel_id'],
-                    channel_data['subscribers'],
-                    channel_data['base_price_usd'],
-                    channel_data['is_popular']
+                    channel['channel_id'], channel['name'], channel['telegram_channel_id'],
+                    channel['subscribers'], channel['base_price_usd'], 
+                    channel['is_popular'], channel['is_active']
                 ))
             await db.commit()
     
@@ -430,3 +465,61 @@ async def ensure_user_exists(user_id: int, username: Optional[str] = None) -> bo
     if not user:
         return await db.create_user(user_id, username)
     return True
+
+
+# Add to Database class
+async def init_default_packages(db_instance):
+    """Initialize default packages"""
+    # Check if packages already exist
+    existing_packages = await db_instance.get_packages()
+    if existing_packages:
+        return
+        
+    # Add default packages
+    default_packages = [
+        {
+            'package_id': 'free',
+            'name': 'Free Plan',
+            'price_usd': 0.0,
+            'duration_days': 3,
+            'posts_per_day': 1,
+            'channels_included': 1
+        },
+        {
+            'package_id': 'bronze',
+            'name': '1 Month Plan',
+            'price_usd': 9.0,
+            'duration_days': 30,
+            'posts_per_day': 1,
+            'channels_included': 3
+        },
+        {
+            'package_id': 'silver',
+            'name': '3 Months Plan',
+            'price_usd': 27.0,
+            'duration_days': 90,
+            'posts_per_day': 1,
+            'channels_included': 3
+        },
+        {
+            'package_id': 'gold',
+            'name': '6 Months Plan',
+            'price_usd': 49.0,
+            'duration_days': 180,
+            'posts_per_day': 1,
+            'channels_included': 3
+        }
+    ]
+    
+    async with aiosqlite.connect(db_instance.db_path) as db:
+        for package in default_packages:
+            await db.execute('''
+                INSERT OR IGNORE INTO packages
+                (package_id, name, price_usd, duration_days, posts_per_day, channels_included, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                package['package_id'], package['name'], package['price_usd'],
+                package['duration_days'], package['posts_per_day'], 
+                package['channels_included'], True
+            ))
+        await db.commit()

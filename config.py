@@ -57,69 +57,69 @@ PACKAGES = {
 # Ad categories configuration
 AD_CATEGORIES = {
     'vehicles': {
-        'name': '🚗 Vehicles',
+        'name': {'en': '🚗 Vehicles', 'ar': '🚗 المركبات', 'ru': '🚗 Транспорт'},
         'emoji': '🚗',
         'subcategories': {
-            'cars': '🚙 Cars',
-            'motorcycles': '🏍️ Motorcycles',
-            'trucks': '🚛 Trucks',
-            'boats': '⛵ Boats',
-            'parts': '🔧 Parts & Accessories'
+            'cars': {'en': '🚙 Cars', 'ar': '🚙 سيارات', 'ru': '🚙 Автомобили'},
+            'motorcycles': {'en': '🏍️ Motorcycles', 'ar': '🏍️ دراجات نارية', 'ru': '🏍️ Мотоциклы'},
+            'trucks': {'en': '🚛 Trucks', 'ar': '🚛 شاحنات', 'ru': '🚛 Грузовики'},
+            'boats': {'en': '⛵ Boats', 'ar': '⛵ قوارب', 'ru': '⛵ Лодки'},
+            'parts': {'en': '🔧 Parts & Accessories', 'ar': '🔧 قطع غيار', 'ru': '🔧 Запчасти'}
         }
     },
     'real_estate': {
-        'name': '🏠 Real Estate',
+        'name': {'en': '🏠 Real Estate', 'ar': '🏠 العقارات', 'ru': '🏠 Недвижимость'},
         'emoji': '🏠',
         'subcategories': {
-            'apartments': '🏢 Apartments',
-            'houses': '🏘️ Houses',
-            'commercial': '🏬 Commercial',
-            'land': '🌾 Land',
-            'rentals': '🔑 Rentals'
+            'apartments': {'en': '🏢 Apartments', 'ar': '🏢 شقق', 'ru': '🏢 Квартиры'},
+            'houses': {'en': '🏘️ Houses', 'ar': '🏘️ منازل', 'ru': '🏘️ Дома'},
+            'commercial': {'en': '🏬 Commercial', 'ar': '🏬 تجاري', 'ru': '🏬 Коммерческая'},
+            'land': {'en': '🌾 Land', 'ar': '🌾 أراضي', 'ru': '🌾 Земля'},
+            'rentals': {'en': '🔑 Rentals', 'ar': '🔑 إيجار', 'ru': '🔑 Аренда'}
         }
     },
     'electronics': {
-        'name': '📱 Electronics',
+        'name': {'en': '📱 Electronics', 'ar': '📱 الإلكترونيات', 'ru': '📱 Электроника'},
         'emoji': '📱',
         'subcategories': {
-            'phones': '📱 Mobile Phones',
-            'computers': '💻 Computers',
-            'gaming': '🎮 Gaming',
-            'audio': '🎧 Audio & Video',
-            'accessories': '🔌 Accessories'
+            'phones': {'en': '📱 Mobile Phones', 'ar': '📱 هواتف محمولة', 'ru': '📱 Мобильные телефоны'},
+            'computers': {'en': '💻 Computers', 'ar': '💻 حاسوب', 'ru': '💻 Компьютеры'},
+            'gaming': {'en': '🎮 Gaming', 'ar': '🎮 ألعاب', 'ru': '🎮 Игры'},
+            'audio': {'en': '🎧 Audio & Video', 'ar': '🎧 صوت ومرئي', 'ru': '🎧 Аудио и видео'},
+            'accessories': {'en': '🔌 Accessories', 'ar': '🔌 إكسسوارات', 'ru': '🔌 Аксессуары'}
         }
     },
     'jobs': {
-        'name': '💼 Jobs',
+        'name': {'en': '💼 Jobs', 'ar': '💼 الوظائف', 'ru': '💼 Работа'},
         'emoji': '💼',
         'subcategories': {
-            'fulltime': '⏰ Full-time',
-            'parttime': '🕐 Part-time',
-            'freelance': '💻 Freelance',
-            'internship': '📚 Internships',
-            'remote': '🌐 Remote Work'
+            'fulltime': {'en': '⏰ Full-time', 'ar': '⏰ دوام كامل', 'ru': '⏰ Полный день'},
+            'parttime': {'en': '🕐 Part-time', 'ar': '🕐 دوام جزئي', 'ru': '🕐 Неполный день'},
+            'freelance': {'en': '💻 Freelance', 'ar': '💻 عمل حر', 'ru': '💻 Фриланс'},
+            'internship': {'en': '📚 Internships', 'ar': '📚 تدريب', 'ru': '📚 Стажировка'},
+            'remote': {'en': '🌐 Remote Work', 'ar': '🌐 عمل عن بعد', 'ru': '🌐 Удаленная работа'}
         }
     },
     'services': {
-        'name': '🛠️ Services',
+        'name': {'en': '🛠️ Services', 'ar': '🛠️ الخدمات', 'ru': '🛠️ Услуги'},
         'emoji': '🛠️',
         'subcategories': {
-            'cleaning': '🧹 Cleaning',
-            'repair': '🔧 Repair',
-            'tutoring': '👨‍🏫 Tutoring',
-            'delivery': '🚚 Delivery',
-            'consulting': '💡 Consulting'
+            'cleaning': {'en': '🧹 Cleaning', 'ar': '🧹 تنظيف', 'ru': '🧹 Уборка'},
+            'repair': {'en': '🔧 Repair', 'ar': '🔧 إصلاح', 'ru': '🔧 Ремонт'},
+            'tutoring': {'en': '👨‍🏫 Tutoring', 'ar': '👨‍🏫 دروس خصوصية', 'ru': '👨‍🏫 Репетиторство'},
+            'delivery': {'en': '🚚 Delivery', 'ar': '🚚 توصيل', 'ru': '🚚 Доставка'},
+            'consulting': {'en': '💡 Consulting', 'ar': '💡 استشارات', 'ru': '💡 Консультации'}
         }
     },
     'fashion': {
-        'name': '👗 Fashion',
+        'name': {'en': '👗 Fashion', 'ar': '👗 الأزياء', 'ru': '👗 Мода'},
         'emoji': '👗',
         'subcategories': {
-            'clothing': '👕 Clothing',
-            'shoes': '👟 Shoes',
-            'accessories': '👜 Accessories',
-            'jewelry': '💍 Jewelry',
-            'beauty': '💄 Beauty'
+            'clothing': {'en': '👕 Clothing', 'ar': '👕 ملابس', 'ru': '👕 Одежда'},
+            'shoes': {'en': '👟 Shoes', 'ar': '👟 أحذية', 'ru': '👟 Обувь'},
+            'accessories': {'en': '👜 Accessories', 'ar': '👜 إكسسوارات', 'ru': '👜 Аксессуары'},
+            'jewelry': {'en': '💍 Jewelry', 'ar': '💍 مجوهرات', 'ru': '💍 Украшения'},
+            'beauty': {'en': '💄 Beauty', 'ar': '💄 جمال', 'ru': '💄 Красота'}
         }
     }
 }
