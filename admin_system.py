@@ -703,6 +703,576 @@ async def admin_refresh_callback(callback_query: CallbackQuery, state: FSMContex
     await callback_query.answer("🔄 Data refreshed!")
     await admin_system.show_main_menu(callback_query, edit=True)
 
+# Channel Management Handlers
+@router.callback_query(F.data == "admin_add_channel")
+async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle add channel callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    await state.set_state(AdminStates.add_channel)
+    
+    text = """
+➕ **Add New Channel**
+
+Please provide the channel information in this format:
+
+**Channel Name**
+**Telegram ID** (e.g., @channel_name)
+**Category** (e.g., Technology, Business, General)
+**Estimated Subscribers** (number)
+
+Example:
+```
+Tech News Channel
+@technews
+Technology
+15000
+```
+
+Send the channel information now:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.message(AdminStates.add_channel)
+async def handle_add_channel_message(message: Message, state: FSMContext):
+    """Handle channel addition message"""
+    try:
+        lines = message.text.strip().split('\n')
+        if len(lines) < 4:
+            await message.reply("❌ Invalid format. Please provide all 4 fields: Name, Telegram ID, Category, Subscribers")
+            return
+        
+        channel_name = lines[0].strip()
+        telegram_id = lines[1].strip()
+        category = lines[2].strip()
+        subscribers = int(lines[3].strip())
+        
+        # Generate unique channel ID
+        import time
+        channel_id = f"channel_{int(time.time())}"
+        
+        # Add to admin system channels
+        admin_system.channels[channel_id] = {
+            'name': channel_name,
+            'telegram_id': telegram_id,
+            'url': f'https://t.me/{telegram_id.replace("@", "")}',
+            'category': category,
+            'subscribers': subscribers,
+            'active': True
+        }
+        
+        success_text = f"""
+✅ **Channel Added Successfully!**
+
+**Name:** {channel_name}
+**ID:** {telegram_id}
+**Category:** {category}
+**Subscribers:** {subscribers:,}
+**Status:** Active
+
+The channel has been added to the system and is now available for advertising campaigns.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📺 Back to Channel Management", callback_data="admin_channels")],
+            [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
+        ])
+        
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await state.clear()
+        
+    except ValueError:
+        await message.reply("❌ Invalid subscriber count. Please enter a valid number.")
+    except Exception as e:
+        logger.error(f"Error adding channel: {e}")
+        await message.reply("❌ Error adding channel. Please try again.")
+
+@router.callback_query(F.data == "admin_edit_channel")
+async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle edit channel callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    text = "📝 **Edit Channel**\n\nSelect a channel to edit:"
+    
+    keyboard = []
+    for channel_id, channel in admin_system.channels.items():
+        keyboard.append([InlineKeyboardButton(
+            text=f"{channel['name']} ({channel['telegram_id']})",
+            callback_data=f"edit_channel_{channel_id}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")])
+    
+    await callback_query.message.edit_text(
+        text, 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("edit_channel_"))
+async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel edit selection"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    channel_id = callback_query.data.replace("edit_channel_", "")
+    channel = admin_system.channels.get(channel_id)
+    
+    if not channel:
+        await callback_query.answer("❌ Channel not found.")
+        return
+    
+    text = f"""
+📝 **Edit Channel: {channel['name']}**
+
+**Current Information:**
+• Name: {channel['name']}
+• Telegram ID: {channel['telegram_id']}
+• Category: {channel['category']}
+• Subscribers: {channel['subscribers']:,}
+• Status: {'✅ Active' if channel['active'] else '❌ Inactive'}
+
+What would you like to edit?
+    """.strip()
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(text="📝 Edit Name", callback_data=f"edit_name_{channel_id}"),
+            InlineKeyboardButton(text="🔗 Edit Telegram ID", callback_data=f"edit_telegram_{channel_id}")
+        ],
+        [
+            InlineKeyboardButton(text="📂 Edit Category", callback_data=f"edit_category_{channel_id}"),
+            InlineKeyboardButton(text="👥 Edit Subscribers", callback_data=f"edit_subscribers_{channel_id}")
+        ],
+        [
+            InlineKeyboardButton(
+                text="❌ Deactivate" if channel['active'] else "✅ Activate",
+                callback_data=f"toggle_channel_{channel_id}"
+            )
+        ],
+        [InlineKeyboardButton(text="⬅️ Back to Edit", callback_data="admin_edit_channel")]
+    ]
+    
+    await callback_query.message.edit_text(
+        text, 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("toggle_channel_"))
+async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel activation toggle"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    channel_id = callback_query.data.replace("toggle_channel_", "")
+    channel = admin_system.channels.get(channel_id)
+    
+    if not channel:
+        await callback_query.answer("❌ Channel not found.")
+        return
+    
+    # Toggle channel status
+    channel['active'] = not channel['active']
+    status = "activated" if channel['active'] else "deactivated"
+    
+    await callback_query.answer(f"✅ Channel {status} successfully!")
+    
+    # Return to edit view
+    await handle_edit_channel_select(callback_query, state)
+
+@router.callback_query(F.data == "admin_remove_channel")
+async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle remove channel callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    text = "🗑️ **Remove Channel**\n\n⚠️ Select a channel to remove (this action cannot be undone):"
+    
+    keyboard = []
+    for channel_id, channel in admin_system.channels.items():
+        keyboard.append([InlineKeyboardButton(
+            text=f"🗑️ {channel['name']} ({channel['telegram_id']})",
+            callback_data=f"remove_channel_{channel_id}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")])
+    
+    await callback_query.message.edit_text(
+        text, 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("remove_channel_"))
+async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel removal confirmation"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    channel_id = callback_query.data.replace("remove_channel_", "")
+    channel = admin_system.channels.get(channel_id)
+    
+    if not channel:
+        await callback_query.answer("❌ Channel not found.")
+        return
+    
+    # Remove channel
+    del admin_system.channels[channel_id]
+    
+    await callback_query.answer("✅ Channel removed successfully!")
+    
+    # Return to channel management
+    await admin_system.show_channel_management(callback_query)
+
+# Pricing Management Handlers
+@router.callback_query(F.data.startswith("admin_price_"))
+async def admin_price_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle pricing update callbacks"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    package_type = callback_query.data.replace("admin_price_", "")
+    package = admin_system.subscription_packages.get(package_type)
+    
+    if not package:
+        await callback_query.answer("❌ Package not found.")
+        return
+    
+    await state.set_state(AdminStates.set_pricing)
+    await state.update_data(package_type=package_type)
+    
+    text = f"""
+💰 **Update {package['name']} Price**
+
+**Current Price:** ${package['price_usd']} USD
+**Duration:** {package['duration_days']} days
+**Posts per Day:** {package['posts_per_day']}
+**Channels Included:** {package['channels_included']}
+
+Please enter the new price in USD (numbers only):
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_pricing")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.message(AdminStates.set_pricing)
+async def handle_price_update_message(message: Message, state: FSMContext):
+    """Handle price update message"""
+    try:
+        data = await state.get_data()
+        package_type = data['package_type']
+        new_price = float(message.text.strip())
+        
+        if new_price <= 0:
+            await message.reply("❌ Price must be greater than 0.")
+            return
+        
+        # Update package price
+        old_price = admin_system.subscription_packages[package_type]['price_usd']
+        admin_system.subscription_packages[package_type]['price_usd'] = new_price
+        
+        success_text = f"""
+✅ **Price Updated Successfully!**
+
+**Package:** {admin_system.subscription_packages[package_type]['name']}
+**Old Price:** ${old_price} USD
+**New Price:** ${new_price} USD
+
+The pricing has been updated and will apply to all new orders.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💰 Back to Pricing Management", callback_data="admin_pricing")],
+            [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
+        ])
+        
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await state.clear()
+        
+    except ValueError:
+        await message.reply("❌ Invalid price format. Please enter a valid number.")
+    except Exception as e:
+        logger.error(f"Error updating price: {e}")
+        await message.reply("❌ Error updating price. Please try again.")
+
+# Subscription Management Handlers
+@router.callback_query(F.data == "admin_create_subscription")
+async def admin_create_subscription_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle create subscription callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    await state.set_state(AdminStates.create_subscription)
+    
+    text = """
+➕ **Create New Subscription Package**
+
+Please provide the package information in this format:
+
+**Package Name**
+**Price in USD** (number)
+**Duration in Days** (number)
+**Posts per Day** (number)
+**Channels Included** (number)
+
+Example:
+```
+Premium Package
+35.00
+30
+4
+2
+```
+
+Send the package information now:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Back to Subscriptions", callback_data="admin_subscriptions")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.message(AdminStates.create_subscription)
+async def handle_create_subscription_message(message: Message, state: FSMContext):
+    """Handle subscription creation message"""
+    try:
+        lines = message.text.strip().split('\n')
+        if len(lines) < 5:
+            await message.reply("❌ Invalid format. Please provide all 5 fields: Name, Price, Duration, Posts/Day, Channels")
+            return
+        
+        package_name = lines[0].strip()
+        price_usd = float(lines[1].strip())
+        duration_days = int(lines[2].strip())
+        posts_per_day = int(lines[3].strip())
+        channels_included = int(lines[4].strip())
+        
+        # Generate unique package ID
+        import time
+        package_id = f"package_{int(time.time())}"
+        
+        # Add to admin system packages
+        admin_system.subscription_packages[package_id] = {
+            'name': package_name,
+            'price_usd': price_usd,
+            'duration_days': duration_days,
+            'posts_per_day': posts_per_day,
+            'channels_included': channels_included
+        }
+        
+        success_text = f"""
+✅ **Subscription Package Created Successfully!**
+
+**Name:** {package_name}
+**Price:** ${price_usd} USD
+**Duration:** {duration_days} days
+**Posts per Day:** {posts_per_day}
+**Channels Included:** {channels_included}
+
+The package has been added to the system and is now available for users.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📦 Back to Subscription Management", callback_data="admin_subscriptions")],
+            [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
+        ])
+        
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await state.clear()
+        
+    except ValueError:
+        await message.reply("❌ Invalid format. Please check that prices and numbers are valid.")
+    except Exception as e:
+        logger.error(f"Error creating subscription: {e}")
+        await message.reply("❌ Error creating subscription. Please try again.")
+
+@router.callback_query(F.data == "admin_edit_subscription")
+async def admin_edit_subscription_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle edit subscription callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    text = "📝 **Edit Subscription Package**\n\nSelect a package to edit:"
+    
+    keyboard = []
+    for package_id, package in admin_system.subscription_packages.items():
+        keyboard.append([InlineKeyboardButton(
+            text=f"{package['name']} (${package['price_usd']})",
+            callback_data=f"edit_package_{package_id}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton(text="⬅️ Back to Subscriptions", callback_data="admin_subscriptions")])
+    
+    await callback_query.message.edit_text(
+        text, 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.callback_query(F.data == "admin_remove_subscription")
+async def admin_remove_subscription_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle remove subscription callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    text = "🗑️ **Remove Subscription Package**\n\n⚠️ Select a package to remove (this action cannot be undone):"
+    
+    keyboard = []
+    for package_id, package in admin_system.subscription_packages.items():
+        keyboard.append([InlineKeyboardButton(
+            text=f"🗑️ {package['name']} (${package['price_usd']})",
+            callback_data=f"remove_package_{package_id}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton(text="⬅️ Back to Subscriptions", callback_data="admin_subscriptions")])
+    
+    await callback_query.message.edit_text(
+        text, 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("remove_package_"))
+async def handle_remove_package_confirm(callback_query: CallbackQuery, state: FSMContext):
+    """Handle package removal confirmation"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    package_id = callback_query.data.replace("remove_package_", "")
+    package = admin_system.subscription_packages.get(package_id)
+    
+    if not package:
+        await callback_query.answer("❌ Package not found.")
+        return
+    
+    # Remove package
+    del admin_system.subscription_packages[package_id]
+    
+    await callback_query.answer("✅ Package removed successfully!")
+    
+    # Return to subscription management
+    await admin_system.show_subscription_management(callback_query)
+
+@router.callback_query(F.data == "admin_channel_stats")
+async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel stats callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    total_subscribers = sum(ch['subscribers'] for ch in admin_system.channels.values())
+    active_channels = len([ch for ch in admin_system.channels.values() if ch['active']])
+    
+    text = f"""
+📊 **Channel Statistics**
+
+**Total Channels:** {len(admin_system.channels)}
+**Active Channels:** {active_channels}
+**Total Subscribers:** {total_subscribers:,}
+**Average Subscribers:** {total_subscribers // len(admin_system.channels) if admin_system.channels else 0:,}
+
+**Channel Details:**
+    """.strip()
+    
+    for channel_id, channel in admin_system.channels.items():
+        status = "✅" if channel['active'] else "❌"
+        text += f"\n{status} **{channel['name']}**"
+        text += f"\n   • {channel['subscribers']:,} subscribers"
+        text += f"\n   • Category: {channel['category']}"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📺 Back to Channel Management", callback_data="admin_channels")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "admin_subscription_stats")
+async def admin_subscription_stats_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle subscription stats callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied.")
+        return
+    
+    text = f"""
+📊 **Subscription Package Statistics**
+
+**Total Packages:** {len(admin_system.subscription_packages)}
+
+**Package Performance:**
+    """.strip()
+    
+    for package_id, package in admin_system.subscription_packages.items():
+        text += f"\n📦 **{package['name']}**"
+        text += f"\n   • Price: ${package['price_usd']} USD"
+        text += f"\n   • Duration: {package['duration_days']} days"
+        text += f"\n   • Posts/Day: {package['posts_per_day']}"
+        text += f"\n   • Revenue Potential: ${package['price_usd'] * 10:.2f}/month (est.)"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📦 Back to Subscription Management", callback_data="admin_subscriptions")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
 def setup_admin_handlers(dp):
     """Setup admin handlers"""
     dp.include_router(router)
