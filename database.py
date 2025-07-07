@@ -133,8 +133,7 @@ class Database:
             
             await db.commit()
             
-        # Initialize default channels
-        await self.init_default_channels()
+        # Database initialized - admin will add channels and packages manually
     
     async def init_default_channels(self):
         """Initialize default channels"""

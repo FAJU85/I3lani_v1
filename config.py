@@ -29,30 +29,8 @@ CHANNEL_ID = os.getenv('CHANNEL_ID', '@i3lani')
 
 # Channel configuration
 CHANNELS = {
-    'i3lani_main': {
-        'id': 'i3lani_main',
-        'name': 'I3lani Channel',
-        'telegram_channel_id': '@i3lani',
-        'subscribers': 45000,
-        'base_price_usd': 15.0,
-        'is_popular': True
-    },
-    'gaming_hub': {
-        'id': 'gaming_hub',
-        'name': 'Gaming Hub',
-        'telegram_channel_id': '@gaming_channel',
-        'subscribers': 32000,
-        'base_price_usd': 12.0,
-        'is_popular': False
-    },
-    'business_tips': {
-        'id': 'business_tips',
-        'name': 'Business Tips',
-        'telegram_channel_id': '@business_channel',
-        'subscribers': 28000,
-        'base_price_usd': 10.0,
-        'is_popular': False
-    }
+    # All channels will be created by admin through the admin panel
+    # No default channels - admin has full control
 }
 
 # Pricing configuration
@@ -69,45 +47,11 @@ CURRENCY_RATES = {
     'RUB': 92.0
 }
 
-# Package definitions - Updated pricing structure
+# Package definitions - Admin will create packages manually
 PACKAGES = {
-    'free': {
-        'name': 'Free Plan',
-        'duration_days': 3,
-        'posts_per_day': 1,
-        'price_usd': 0.0,
-        'price_ton': 0.0,
-        'description': '🎁 Free for @i3lani members',
-        'restriction': 'Once every 2 months',
-        'emoji': '🎁'
-    },
-    'bronze': {
-        'name': 'Bronze Plan',
-        'duration_days': 30,
-        'posts_per_day': 0.33,  # 1 post every 3 days
-        'price_usd': 10.0,
-        'price_ton': 1.0,
-        'description': '🟫 1 post every 3 days',
-        'emoji': '🟫'
-    },
-    'silver': {
-        'name': 'Silver Plan', 
-        'duration_days': 90,  # 3 months
-        'posts_per_day': 3,
-        'price_usd': 29.0,
-        'price_ton': 2.9,
-        'description': '🥈 3 posts per day for 3 months',
-        'emoji': '🥈'
-    },
-    'gold': {
-        'name': 'Gold Plan',
-        'duration_days': 180,  # 6 months
-        'posts_per_day': 6,
-        'price_usd': 47.0,
-        'price_ton': 4.7,
-        'description': '🥇 6 posts per day for 6 months',
-        'emoji': '🥇'
-    }
+    # All packages will be created by admin through the admin panel
+    # No default packages - admin has full control
+
 }
 
 # Ad categories configuration
