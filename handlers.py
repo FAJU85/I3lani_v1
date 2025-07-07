@@ -1053,61 +1053,44 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Use the correct pricing display function
-    pricing_text = f"""
-🎁 **Free Plan**
-• Duration: 3 days
-• 1 post per day
-• Daily posting
-• Price: **FREE**
-
----
-
-🟫 **Bronze Plan**
-• Duration: 1 month
-• 1 post every 3 days
-• Daily posting
-• Price: **$10**
-
----
-
-🥈 **Silver Plan**
-• Duration: 3 months
-• 1 post every 2 days
-• Daily posting
-• Price: **$29**
-
----
-
-🥇 **Gold Plan**
-• Duration: 6 months
-• 6 posts per day
-• Daily posting
-• Price: **$47**
-
----
-
-✅ Admins can edit all prices and posting rules via control panel.
-
-📞 **Need help?** Contact /support
-    """.strip()
+    # Check if user has free ads remaining
+    user = await db.get_user(user_id)
+    free_ads_used = user.get('free_ads_used', 0) if user else 0
+    free_ads_remaining = max(0, 3 - free_ads_used)
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")],
-        [
-            InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze"),
-            InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")
-        ],
-        [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")],
-        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
-    ])
-    
-    await callback_query.message.edit_text(
-        pricing_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    await callback_query.answer("Choose your package to start creating your ad!")
+    if free_ads_remaining > 0:
+        # Start free ad creation
+        await state.set_state(AdCreationStates.select_category)
+        
+        text = f"""
+🎯 **Create Your Advertisement**
+
+You have **{free_ads_remaining}** free ads remaining this month.
+
+Please select a category for your ad:
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🚗 Vehicles", callback_data="category_vehicles"),
+                InlineKeyboardButton(text="🏠 Real Estate", callback_data="category_real_estate")
+            ],
+            [
+                InlineKeyboardButton(text="📱 Electronics", callback_data="category_electronics"),
+                InlineKeyboardButton(text="💼 Jobs", callback_data="category_jobs")
+            ],
+            [
+                InlineKeyboardButton(text="🛠️ Services", callback_data="category_services"),
+                InlineKeyboardButton(text="👗 Fashion", callback_data="category_fashion")
+            ],
+            [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_start")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    else:
+        # No free ads, show pricing
+        await show_pricing_handler(callback_query)
+    await callback_query.answer()
 
 
 async def check_free_ads_limit(user_id: int) -> int:
@@ -2195,40 +2178,81 @@ async def dashboard_command(message: Message):
     await message.reply(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
 
 
-@router.callback_query(F.data == "view_pricing")
+@router.callback_query(F.data == "pricing")
 async def show_pricing_handler(callback_query: CallbackQuery):
     """Show pricing information"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    channels = await db.get_channels()
+    # Get packages from database for dynamic pricing
+    packages = await db.get_packages(active_only=True)
     
-    pricing_text = f"""
-💰 **{get_text(language, 'pricing')}**
-
-📺 **{get_text(language, 'available_channels')}:**
-"""
+    # Get free ads remaining
+    user = await db.get_user(user_id)
+    free_ads_used = user.get('free_ads_used', 0) if user else 0
+    free_ads_remaining = max(0, 3 - free_ads_used)
     
-    for channel in channels:
-        pricing_text += f"\n• {channel['name']}: ${channel['price_per_month']}/month"
+    # Build pricing text dynamically
+    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Channel)**\n\n"
+    pricing_text += "All plans are per channel and can be managed via the Admin Control Panel.\n\n"
     
-    pricing_text += f"""
-
-📦 **{get_text(language, 'packages')}:**
-• 1 month: Standard price
-• 3 months: 10% discount
-• 6 months: 20% discount
-• 12 months: 30% discount
-
-💎 **{get_text(language, 'payment_methods')}:**
-• TON Cryptocurrency
-• Telegram Stars
-"""
+    # Add free plan manually
+    pricing_text += "---\n\n"
+    pricing_text += "🎁 **Free Plan**\n"
+    pricing_text += f"• Duration: 3 days\n"
+    pricing_text += f"• 1 post per day\n"
+    pricing_text += f"• Daily posting\n"
+    pricing_text += f"• Price: **FREE**\n"
+    pricing_text += f"• You have **{free_ads_remaining}** free ads remaining\n\n"
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text(language, 'start_advertising'), callback_data="start_advertising")],
-        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
-    ])
+    # Add database packages
+    for package in packages:
+        pricing_text += f"---\n\n"
+        pricing_text += f"💰 **{package['name']}**\n"
+        pricing_text += f"• Duration: {package['duration_days']} days\n"
+        pricing_text += f"• {package['posts_per_day']} posts per day\n"
+        pricing_text += f"• {package['channels_included']} channels included\n"
+        pricing_text += f"• Price: **${package['price_usd']}**\n\n"
+    
+    pricing_text += "---\n\n"
+    pricing_text += "✅ Admins can edit all prices and posting rules via control panel.\n\n"
+    pricing_text += "📞 **Need help?** Contact /support"
+    
+    # Build keyboard dynamically based on available packages
+    keyboard_buttons = []
+    
+    # Add free plan button
+    keyboard_buttons.append([InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")])
+    
+    # Add package buttons
+    if packages:
+        package_row = []
+        for package in packages:
+            emoji = "💰"
+            if "bronze" in package['name'].lower():
+                emoji = "🟫"
+            elif "silver" in package['name'].lower():
+                emoji = "🥈"
+            elif "gold" in package['name'].lower():
+                emoji = "🥇"
+                
+            package_row.append(InlineKeyboardButton(
+                text=f"{emoji} {package['name']} ${package['price_usd']}",
+                callback_data=f"select_package_{package['package_id']}"
+            ))
+            
+            # Add two buttons per row
+            if len(package_row) == 2:
+                keyboard_buttons.append(package_row)
+                package_row = []
+        
+        # Add remaining buttons if any
+        if package_row:
+            keyboard_buttons.append(package_row)
+    
+    keyboard_buttons.append([InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback_query.message.edit_text(pricing_text, reply_markup=keyboard, parse_mode='Markdown')
     await callback_query.answer()
