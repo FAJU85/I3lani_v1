@@ -110,6 +110,89 @@ PACKAGES = {
     }
 }
 
+# Ad categories configuration
+AD_CATEGORIES = {
+    'vehicles': {
+        'name': '🚗 Vehicles',
+        'emoji': '🚗',
+        'subcategories': {
+            'cars': '🚙 Cars',
+            'motorcycles': '🏍️ Motorcycles',
+            'trucks': '🚛 Trucks',
+            'boats': '⛵ Boats',
+            'parts': '🔧 Parts & Accessories'
+        }
+    },
+    'real_estate': {
+        'name': '🏠 Real Estate',
+        'emoji': '🏠',
+        'subcategories': {
+            'apartments': '🏢 Apartments',
+            'houses': '🏘️ Houses',
+            'commercial': '🏬 Commercial',
+            'land': '🌾 Land',
+            'rentals': '🔑 Rentals'
+        }
+    },
+    'electronics': {
+        'name': '📱 Electronics',
+        'emoji': '📱',
+        'subcategories': {
+            'phones': '📱 Mobile Phones',
+            'computers': '💻 Computers',
+            'gaming': '🎮 Gaming',
+            'audio': '🎧 Audio & Video',
+            'accessories': '🔌 Accessories'
+        }
+    },
+    'jobs': {
+        'name': '💼 Jobs',
+        'emoji': '💼',
+        'subcategories': {
+            'fulltime': '⏰ Full-time',
+            'parttime': '🕐 Part-time',
+            'freelance': '💻 Freelance',
+            'internship': '📚 Internships',
+            'remote': '🌐 Remote Work'
+        }
+    },
+    'services': {
+        'name': '🛠️ Services',
+        'emoji': '🛠️',
+        'subcategories': {
+            'cleaning': '🧹 Cleaning',
+            'repair': '🔧 Repair',
+            'tutoring': '👨‍🏫 Tutoring',
+            'delivery': '🚚 Delivery',
+            'consulting': '💡 Consulting'
+        }
+    },
+    'fashion': {
+        'name': '👗 Fashion',
+        'emoji': '👗',
+        'subcategories': {
+            'clothing': '👕 Clothing',
+            'shoes': '👟 Shoes',
+            'accessories': '👜 Accessories',
+            'jewelry': '💍 Jewelry',
+            'beauty': '💄 Beauty'
+        }
+    }
+}
+
+# Location options
+LOCATIONS = {
+    'riyadh': '🏙️ Riyadh',
+    'jeddah': '🌊 Jeddah',
+    'dammam': '🏗️ Dammam',
+    'mecca': '🕋 Mecca',
+    'medina': '🕌 Medina',
+    'khobar': '🏢 Khobar',
+    'taif': '🌄 Taif',
+    'tabuk': '🏜️ Tabuk',
+    'online': '🌐 Online/Nationwide'
+}
+
 # Referral configuration
 REFERRAL_FRIEND_DISCOUNT = 0.05  # 5% discount for friends
 REFERRAL_REWARD_DAYS = 3  # 3 free posting days per referral

@@ -334,12 +334,485 @@ async def package_selection_handler(callback_query: CallbackQuery, state: FSMCon
             parse_mode='Markdown'
         )
         
-        await state.set_state(AdCreationStates.waiting_for_content)
+        # Start enhanced ad creation flow
+        await state.set_state(AdCreationStates.select_category)
+        await show_category_selection(callback_query, state)
         await callback_query.answer(f"{package['name']} selected!")
         
     except Exception as e:
         logger.error(f"Package selection error: {e}")
         await callback_query.answer("Error selecting package. Please try again.")
+
+
+# Enhanced Ad Creation Flow Handlers
+
+async def show_category_selection(callback_query: CallbackQuery, state: FSMContext):
+    """Show category selection for ad creation"""
+    from config import AD_CATEGORIES
+    
+    category_text = """
+📂 **Select Ad Category**
+
+Choose the category that best fits your advertisement:
+    """.strip()
+    
+    # Create category keyboard
+    keyboard_rows = []
+    for category_id, category_data in AD_CATEGORIES.items():
+        keyboard_rows.append([InlineKeyboardButton(
+            text=category_data['name'],
+            callback_data=f"category_{category_id}"
+        )])
+    
+    keyboard_rows.append([InlineKeyboardButton(
+        text="⬅️ Back to Packages",
+        callback_data="pricing"
+    )])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    await callback_query.message.edit_text(
+        category_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+
+
+@router.callback_query(F.data.startswith("category_"))
+async def category_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle category selection"""
+    try:
+        category_id = callback_query.data.replace("category_", "")
+        from config import AD_CATEGORIES
+        
+        if category_id not in AD_CATEGORIES:
+            await callback_query.answer("Invalid category", show_alert=True)
+            return
+            
+        category = AD_CATEGORIES[category_id]
+        await state.update_data(selected_category=category_id, category_name=category['name'])
+        
+        # Show subcategory selection
+        subcategory_text = f"""
+{category['emoji']} **{category['name']}**
+
+Select a subcategory:
+        """.strip()
+        
+        # Create subcategory keyboard
+        keyboard_rows = []
+        for sub_id, sub_name in category['subcategories'].items():
+            keyboard_rows.append([InlineKeyboardButton(
+                text=sub_name,
+                callback_data=f"subcategory_{sub_id}"
+            )])
+        
+        keyboard_rows.append([InlineKeyboardButton(
+            text="⬅️ Back to Categories",
+            callback_data="back_to_categories"
+        )])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+        
+        await callback_query.message.edit_text(
+            subcategory_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        await state.set_state(AdCreationStates.select_subcategory)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Category selection error: {e}")
+        await callback_query.answer("Error selecting category")
+
+
+@router.callback_query(F.data.startswith("subcategory_"))
+async def subcategory_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle subcategory selection"""
+    try:
+        subcategory_id = callback_query.data.replace("subcategory_", "")
+        data = await state.get_data()
+        category_id = data.get('selected_category')
+        
+        from config import AD_CATEGORIES
+        
+        if category_id not in AD_CATEGORIES or subcategory_id not in AD_CATEGORIES[category_id]['subcategories']:
+            await callback_query.answer("Invalid subcategory", show_alert=True)
+            return
+            
+        subcategory_name = AD_CATEGORIES[category_id]['subcategories'][subcategory_id]
+        await state.update_data(selected_subcategory=subcategory_id, subcategory_name=subcategory_name)
+        
+        # Show location selection
+        await show_location_selection(callback_query, state)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Subcategory selection error: {e}")
+        await callback_query.answer("Error selecting subcategory")
+
+
+async def show_location_selection(callback_query: CallbackQuery, state: FSMContext):
+    """Show location selection"""
+    from config import LOCATIONS
+    
+    location_text = """
+📍 **Select Location**
+
+Where is your ad located?
+    """.strip()
+    
+    # Create location keyboard (2 columns)
+    keyboard_rows = []
+    locations = list(LOCATIONS.items())
+    
+    for i in range(0, len(locations), 2):
+        row = []
+        for j in range(2):
+            if i + j < len(locations):
+                loc_id, loc_name = locations[i + j]
+                row.append(InlineKeyboardButton(
+                    text=loc_name,
+                    callback_data=f"location_{loc_id}"
+                ))
+        keyboard_rows.append(row)
+    
+    keyboard_rows.append([InlineKeyboardButton(
+        text="⬅️ Back to Subcategories",
+        callback_data="back_to_subcategories"
+    )])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    await callback_query.message.edit_text(
+        location_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    
+    await state.set_state(AdCreationStates.select_location)
+
+
+@router.callback_query(F.data.startswith("location_"))
+async def location_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle location selection"""
+    try:
+        location_id = callback_query.data.replace("location_", "")
+        from config import LOCATIONS
+        
+        if location_id not in LOCATIONS:
+            await callback_query.answer("Invalid location", show_alert=True)
+            return
+            
+        location_name = LOCATIONS[location_id]
+        await state.update_data(selected_location=location_id, location_name=location_name)
+        
+        # Ask for ad details
+        data = await state.get_data()
+        
+        details_text = f"""
+✍️ **Enter Ad Details**
+
+**Category:** {data.get('category_name', 'N/A')} → {data.get('subcategory_name', 'N/A')}
+**Location:** {location_name}
+
+Please write your advertisement description:
+• Title
+• Description
+• Price (if applicable)
+• Any additional details
+
+Send your ad content as a text message.
+        """.strip()
+        
+        await callback_query.message.edit_text(
+            details_text,
+            parse_mode='Markdown'
+        )
+        
+        await state.set_state(AdCreationStates.enter_ad_details)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Location selection error: {e}")
+        await callback_query.answer("Error selecting location")
+
+
+@router.message(AdCreationStates.enter_ad_details)
+async def handle_ad_details(message: Message, state: FSMContext):
+    """Handle ad details input"""
+    try:
+        ad_details = message.text
+        await state.update_data(ad_details=ad_details, ad_content=ad_details)
+        
+        # Ask for photos
+        photo_text = """
+📷 **Upload Photos (Optional)**
+
+You can upload up to 5 photos for your ad.
+
+• Send photos one by one
+• Send /skip to skip photo upload
+• Send /done when finished uploading
+        """.strip()
+        
+        await message.reply(photo_text, parse_mode='Markdown')
+        await state.set_state(AdCreationStates.upload_photos)
+        await state.update_data(uploaded_photos=[])
+        
+    except Exception as e:
+        logger.error(f"Ad details error: {e}")
+        await message.reply("Error processing ad details. Please try again.")
+
+
+@router.message(AdCreationStates.upload_photos, F.photo)
+async def handle_photo_upload(message: Message, state: FSMContext):
+    """Handle photo uploads"""
+    try:
+        data = await state.get_data()
+        uploaded_photos = data.get('uploaded_photos', [])
+        
+        if len(uploaded_photos) >= 5:
+            await message.reply("Maximum 5 photos allowed. Send /done to continue.")
+            return
+        
+        # Store photo file_id
+        photo_file_id = message.photo[-1].file_id
+        uploaded_photos.append({
+            'file_id': photo_file_id,
+            'type': 'photo'
+        })
+        
+        await state.update_data(uploaded_photos=uploaded_photos)
+        await message.reply(f"Photo {len(uploaded_photos)}/5 uploaded. Send more photos or /done to continue.")
+        
+    except Exception as e:
+        logger.error(f"Photo upload error: {e}")
+        await message.reply("Error uploading photo. Please try again.")
+
+
+@router.message(AdCreationStates.upload_photos, F.text.in_(["/skip", "/done"]))
+async def handle_photo_completion(message: Message, state: FSMContext):
+    """Handle photo upload completion"""
+    try:
+        # Ask for contact information
+        contact_text = """
+📞 **Provide Contact Information**
+
+How should interested buyers contact you?
+
+Please provide:
+• Phone number
+• Email (optional)
+• Preferred contact method
+• Available times
+
+Send your contact information as a text message.
+        """.strip()
+        
+        await message.reply(contact_text, parse_mode='Markdown')
+        await state.set_state(AdCreationStates.provide_contact_info)
+        
+    except Exception as e:
+        logger.error(f"Photo completion error: {e}")
+        await message.reply("Error processing request. Please try again.")
+
+
+@router.message(AdCreationStates.provide_contact_info)
+async def handle_contact_info(message: Message, state: FSMContext):
+    """Handle contact information input"""
+    try:
+        contact_info = message.text
+        await state.update_data(contact_info=contact_info)
+        
+        # Show preview
+        await show_ad_preview(message, state)
+        
+    except Exception as e:
+        logger.error(f"Contact info error: {e}")
+        await message.reply("Error processing contact information. Please try again.")
+
+
+async def show_ad_preview(message: Message, state: FSMContext):
+    """Show ad preview for confirmation"""
+    try:
+        data = await state.get_data()
+        
+        preview_text = f"""
+👀 **Ad Preview**
+
+**Category:** {data.get('category_name', 'N/A')} → {data.get('subcategory_name', 'N/A')}
+**Location:** {data.get('location_name', 'N/A')}
+**Package:** {data.get('package_details', {}).get('name', 'N/A')}
+
+**Ad Details:**
+{data.get('ad_details', 'No details provided')}
+
+**Contact Information:**
+{data.get('contact_info', 'No contact info provided')}
+
+**Photos:** {len(data.get('uploaded_photos', []))} uploaded
+
+Is this correct?
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Confirm & Continue", callback_data="confirm_ad"),
+                InlineKeyboardButton(text="✏️ Edit Ad", callback_data="edit_ad")
+            ],
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="cancel_ad")]
+        ])
+        
+        await message.reply(preview_text, reply_markup=keyboard, parse_mode='Markdown')
+        await state.set_state(AdCreationStates.preview_ad)
+        
+    except Exception as e:
+        logger.error(f"Preview error: {e}")
+        await message.reply("Error showing preview. Please try again.")
+
+
+@router.callback_query(F.data == "confirm_ad")
+async def confirm_ad_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle ad confirmation and proceed to payment"""
+    try:
+        data = await state.get_data()
+        
+        # Create ad in database
+        user_id = callback_query.from_user.id
+        ad_content = data.get('ad_details', '')
+        
+        # Combine all ad information
+        full_ad_content = f"""
+{data.get('category_name', '')} → {data.get('subcategory_name', '')}
+📍 {data.get('location_name', '')}
+
+{ad_content}
+
+📞 Contact: {data.get('contact_info', '')}
+        """.strip()
+        
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=full_ad_content,
+            media_url=data.get('uploaded_photos', [{}])[0].get('file_id') if data.get('uploaded_photos') else None,
+            content_type='photo' if data.get('uploaded_photos') else 'text'
+        )
+        
+        await state.update_data(ad_id=ad_id, ad_content=full_ad_content)
+        
+        # Proceed to channel selection or payment based on package
+        package_details = data.get('package_details', {})
+        if package_details.get('price_usd', 0) == 0:
+            # Free package - skip payment, go directly to publishing
+            await handle_free_package_publishing(callback_query, state)
+        else:
+            # Paid package - proceed to channel selection and payment
+            await show_channel_selection_for_enhanced_flow(callback_query, state)
+            
+    except Exception as e:
+        logger.error(f"Ad confirmation error: {e}")
+        await callback_query.answer("Error confirming ad. Please try again.")
+
+
+async def handle_free_package_publishing(callback_query: CallbackQuery, state: FSMContext):
+    """Handle free package ad publishing"""
+    try:
+        data = await state.get_data()
+        user_id = callback_query.from_user.id
+        
+        # Publish immediately to @i3lani channel for free package
+        bot = callback_query.bot
+        i3lani_channel = "@i3lani"
+        ad_content = data.get('ad_content', '')
+        uploaded_photos = data.get('uploaded_photos', [])
+        
+        # Format ad with free package indicator
+        formatted_content = f"🎁 **FREE AD**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+        
+        try:
+            if uploaded_photos:
+                # Send with photo
+                await bot.send_photo(
+                    chat_id=i3lani_channel,
+                    photo=uploaded_photos[0]['file_id'],
+                    caption=formatted_content,
+                    parse_mode='Markdown'
+                )
+            else:
+                # Send text only
+                await bot.send_message(
+                    chat_id=i3lani_channel,
+                    text=formatted_content,
+                    parse_mode='Markdown'
+                )
+            
+            success_text = """
+🎉 **Free Ad Published Successfully!**
+
+✅ Your ad is now live on the I3lani channel!
+📅 Duration: 3 days
+🔗 View: https://t.me/i3lani
+
+Thank you for using I3lani Bot!
+            """.strip()
+            
+            await callback_query.message.edit_text(success_text, parse_mode='Markdown')
+            await state.clear()
+            
+        except Exception as publish_error:
+            logger.error(f"Free ad publishing error: {publish_error}")
+            await callback_query.message.edit_text(
+                "✅ **Ad Created Successfully!**\n\nYour free ad will be published shortly.",
+                parse_mode='Markdown'
+            )
+            await state.clear()
+            
+    except Exception as e:
+        logger.error(f"Free package publishing error: {e}")
+        await callback_query.answer("Error publishing free ad. Please contact support.")
+
+
+async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
+    """Show channel selection for enhanced flow"""
+    channels = await db.get_channels()
+    
+    if not channels:
+        await callback_query.message.edit_text(
+            "❌ No channels available. Please contact support.",
+            parse_mode='Markdown'
+        )
+        return
+    
+    channel_text = """
+📺 **Select Advertising Channels**
+
+Choose which channels to advertise on:
+    """.strip()
+    
+    keyboard_rows = []
+    for channel in channels:
+        keyboard_rows.append([InlineKeyboardButton(
+            text=f"{channel['name']} ({channel['subscribers']:,} subscribers)",
+            callback_data=f"enhanced_channel_{channel['channel_id']}"
+        )])
+    
+    keyboard_rows.append([InlineKeyboardButton(
+        text="➡️ Continue to Payment",
+        callback_data="proceed_to_payment"
+    )])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    await callback_query.message.edit_text(
+        channel_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    
+    await state.set_state(AdCreationStates.channel_selection)
 
 
 @router.callback_query(F.data == "settings")
