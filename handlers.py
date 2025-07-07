@@ -329,12 +329,13 @@ async def category_selection_handler(callback_query: CallbackQuery, state: FSMCo
             return
             
         category = AD_CATEGORIES[category_id]
-        await state.update_data(selected_category=category_id, category_name=category['name'])
         
-        # Show subcategory selection with translation
+        # Extract translated category name
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
         category_name = category['name'].get(language, category['name']['en'])
+        
+        await state.update_data(selected_category=category_id, category_name=category_name)
         subcategory_text = f"{category['emoji']} **{category_name}**\n\n"
         if language == 'ar':
             subcategory_text += "اختر فئة فرعية:"

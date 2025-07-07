@@ -151,43 +151,59 @@ Select an option to continue:
 
     async def show_channel_management(self, callback_query: CallbackQuery):
         """Show channel management interface"""
-        text = f"""
+        try:
+            # Get real channel data from database
+            channels = await db.get_channels(active_only=False)
+            active_channels = [ch for ch in channels if ch.get('is_active', False)]
+            logger.info(f"Channel management: Found {len(channels)} channels, {len(active_channels)} active")
+            
+            text = f"""
 📺 Channel Management
 
-Active Channels: {len([c for c in self.channels.values() if c['active']])}
+Active Channels: {len(active_channels)}
+Total Channels: {len(channels)}
 
 Channels:
-        """.strip()
-        
-        for channel_id, channel in self.channels.items():
-            status = "SUCCESS:" if channel['active'] else "ERROR:"
-            text += f"\n{status} {channel['name']}"
-            text += f"\n   - ID: {channel['telegram_id']}"
-            text += f"\n   - Subscribers: {channel['subscribers']:,}"
-            text += f"\n   - Category: {channel['category']}"
-        
-        keyboard = [
-            [
-                InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
-                InlineKeyboardButton(text="EDIT: Edit Channel", callback_data="admin_edit_channel")
-            ],
-            [
-                InlineKeyboardButton(text="🗑️ Remove Channel", callback_data="admin_remove_channel"),
-                InlineKeyboardButton(text="STATS: Channel Stats", callback_data="admin_channel_stats")
-            ],
-            [
-                InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+            """.strip()
+            
+            if not channels:
+                text += "\n\nNo channels found. Add channels by making the bot admin in a channel."
+            else:
+                for channel in channels:
+                    status = "SUCCESS:" if channel.get('is_active', False) else "ERROR:"
+                    text += f"\n{status} {channel['name']}"
+                    text += f"\n   - ID: {channel['telegram_channel_id']}"
+                    text += f"\n   - Subscribers: {channel['subscribers']:,}"
+                    text += f"\n   - Category: {channel.get('category', 'general')}"
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
+                    InlineKeyboardButton(text="EDIT: Edit Channel", callback_data="admin_edit_channel")
+                ],
+                [
+                    InlineKeyboardButton(text="🗑️ Remove Channel", callback_data="admin_remove_channel"),
+                    InlineKeyboardButton(text="STATS: Channel Stats", callback_data="admin_channel_stats")
+                ],
+                [
+                    InlineKeyboardButton(text="🔍 Discover Channels", callback_data="admin_discover_channels"),
+                    InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_refresh")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+                ]
             ]
-        ]
-        
-        try:
+            
             await callback_query.message.edit_text(
                 text, 
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='Markdown'
             )
+            
         except Exception as e:
-            logger.error(f"Channel management display error: {e}")
-            simple_text = f"Channel Management\n\nActive Channels: {len([c for c in self.channels.values() if c['active']])}\n\nNo channels available."
+            logger.error(f"Channel management error: {e}")
+            simple_text = f"📺 Channel Management\n\nError loading channels: {str(e)}"
+            keyboard = [[InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]]
             await callback_query.message.edit_text(
                 simple_text,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
