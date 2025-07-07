@@ -207,11 +207,11 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         # Clear state and show main menu
         await state.clear()
         await show_main_menu(callback_query, language_code)
-        await callback_query.answer("Language updated successfully!")
+        await callback_query.answer(get_text(language_code, 'language_updated'))
         
     except Exception as e:
         logger.error(f"Language selection error: {e}")
-        await callback_query.answer("Error updating language. Please try again.")
+        await callback_query.answer(get_text(language_code, 'error_updating_language'))
 
 
 
@@ -274,7 +274,7 @@ async def package_selection_handler(callback_query: CallbackQuery, state: FSMCon
         
     except Exception as e:
         logger.error(f"Package selection error: {e}")
-        await callback_query.answer("Error selecting package. Please try again.")
+        await callback_query.answer(get_text(language, 'error_selecting_package'))
 
 
 # Enhanced Ad Creation Flow Handlers
@@ -370,7 +370,7 @@ async def category_selection_handler(callback_query: CallbackQuery, state: FSMCo
         
     except Exception as e:
         logger.error(f"Category selection error: {e}")
-        await callback_query.answer("Error selecting category")
+        await callback_query.answer(get_text(language, 'error_selecting_category'))
 
 
 @router.callback_query(F.data.startswith("subcategory_"))
@@ -516,7 +516,7 @@ You can upload up to 5 photos for your ad.
         
     except Exception as e:
         logger.error(f"Ad details error: {e}")
-        await message.reply("Error processing ad details. Please try again.")
+        await message.reply(get_text(language, 'error_processing_ad'))
 
 
 @router.message(AdCreationStates.upload_photos, F.photo)
@@ -554,7 +554,7 @@ async def handle_photo_upload(message: Message, state: FSMContext):
         
     except Exception as e:
         logger.error(f"Photo upload error: {e}")
-        await message.reply("Error uploading photo. Please try again.")
+        await message.reply(get_text(language, 'error_uploading_photo'))
 
 
 @router.callback_query(F.data == "continue_from_photos")
@@ -674,7 +674,7 @@ Send your contact information as a text message.
         
     except Exception as e:
         logger.error(f"Photo completion error: {e}")
-        await message.reply("Error processing request. Please try again.")
+        await message.reply(get_text(language, 'error_processing_request'))
 
 
 @router.message(AdCreationStates.provide_contact_info)
@@ -840,9 +840,9 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
         language = await get_user_language(user_id)
         
         no_channels_text = {
-            'en': "❌ **No channels available**\n\nThe bot needs to be added as an administrator to channels before they can be used for advertising.\n\nPlease contact support to add channels.",
-            'ar': "❌ **لا توجد قنوات متاحة**\n\nيجب إضافة البوت كمشرف في القنوات قبل أن يتمكن من استخدامها للإعلانات.\n\nيرجى الاتصال بالدعم لإضافة القنوات.",
-            'ru': "❌ **Нет доступных каналов**\n\nБот должен быть добавлен как администратор в каналы, прежде чем их можно будет использовать для рекламы.\n\nОбратитесь в службу поддержки для добавления каналов."
+            'en': get_text('en', 'no_channels'),
+            'ar': get_text('ar', 'no_channels'),
+            'ru': get_text('ru', 'no_channels')
         }
         
         await callback_query.message.edit_text(
@@ -851,11 +851,7 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
         )
         return
     
-    channel_text = """
-📺 **Select Advertising Channels**
-
-Choose which channels to advertise on:
-    """.strip()
+    channel_text = get_text(language, 'select_channels_text')
     
     # Get selected channels from state
     data = await state.get_data()
@@ -2051,58 +2047,18 @@ async def help_command(message: Message):
     user_id = message.from_user.id
     language = await get_user_language(user_id)
     
-    help_text = f"""
-📚 **{get_text(language, 'help_title', default='Help & Commands')}**
-
-**🚀 Getting Started:**
-• /start - Start the bot or restart
-• Choose your language
-• Create your first ad
-• Select channels and duration
-• Make payment and go live!
-
-**💳 Payment System:**
-• TON Cryptocurrency supported
-• Telegram Stars supported
-• AB0102 memo format (6 characters)
-• Automatic payment detection
-
-**🌍 Languages:**
-• English (USD)
-• Arabic (SAR)
-• Russian (RUB)
-
-**🎁 Referral System:**
-• Share your link: Get 3 free days per referral
-• Friends get 5% discount
-• Earn rewards for every referral
-
-**🔧 Troubleshooting:**
-• /debug - Debug information
-• /status - Check bot status
-• /support - Get help
-• /start - Restart bot
-
-**📊 Commands:**
-• /start - Start/restart bot
-• /debug - Debug info
-• /status - System status
-• /support - Get support
-• /help - This message
-
-Questions? Use /support to get help!
-    """.strip()
+    help_text = get_text(language, 'help_text')
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📝 Create Ad", callback_data="create_ad"),
+            InlineKeyboardButton(text=get_text(language, 'create_ad'), callback_data="create_ad"),
             # InlineKeyboardButton(text="💰 Pricing", callback_data="pricing") # REMOVED
         ],
         [
-            InlineKeyboardButton(text="🎁 Share & Earn", callback_data="share_earn"),
-            InlineKeyboardButton(text="📊 Dashboard", callback_data="dashboard")
+            InlineKeyboardButton(text=get_text(language, 'share_earn'), callback_data="share_earn"),
+            InlineKeyboardButton(text=get_text(language, 'dashboard'), callback_data="dashboard")
         ],
-        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_start")]
+        [InlineKeyboardButton(text=get_text(language, 'main_menu'), callback_data="back_to_start")]
     ])
     
     await message.reply(help_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -2371,11 +2327,11 @@ async def language_change_handler(callback_query: CallbackQuery, state: FSMConte
         
         # Show main menu in new language
         await show_main_menu(callback_query, language_code)
-        await callback_query.answer(f"Language changed to {language_code.upper()}")
+        await callback_query.answer(get_text(language_code, 'language_updated'))
         
     except Exception as e:
         logger.error(f"Language change error: {e}")
-        await callback_query.answer("Language change failed. Please try again.")
+        await callback_query.answer(get_text(language_code, 'error_updating_language'))
 
 
 # Navigation handlers

@@ -69,6 +69,28 @@ LANGUAGES = {
         'error': 'Error occurred',
         'success': 'Success!',
         'processing': 'Processing...',
+        'no_channels': '❌ **No channels available**\n\nThe bot needs to be added as an administrator to channels before they can be used for advertising.\n\nPlease contact support to add channels.',
+        'support_message': '📞 Need help? Contact /support for assistance!',
+        'error_updating_language': 'Error updating language. Please try again.',
+        'error_selecting_package': 'Error selecting package. Please try again.',
+        'error_selecting_category': 'Error selecting category',
+        'error_processing_ad': 'Error processing ad details. Please try again.',
+        'error_uploading_photo': 'Error uploading photo. Please try again.',
+        'error_processing_request': 'Error processing request. Please try again.',
+        'language_updated': 'Language updated successfully!',
+        
+        # Help
+        'help_text': """🤖 **I3lani Bot - Help & Commands**
+
+**Available Commands:**
+• /start - Start the bot
+• /admin - Admin panel (admins only)  
+• /dashboard - My ads dashboard
+• /support - Get support
+• /help - This message
+
+Questions? Use /support to get help!""",
+        'select_channels_text': '📺 **Select Advertising Channels**\n\nChoose which channels to advertise on:',
     },
     
     'ar': {
@@ -147,6 +169,28 @@ LANGUAGES = {
         'error': 'حدث خطأ',
         'success': 'نجح!',
         'processing': 'جاري المعالجة...',
+        'no_channels': '❌ **لا توجد قنوات متاحة**\n\nيجب إضافة البوت كمشرف في القنوات قبل أن يتمكن من استخدامها للإعلانات.\n\nيرجى الاتصال بالدعم لإضافة القنوات.',
+        'support_message': '📞 تحتاج مساعدة؟ تواصل مع /support للحصول على المساعدة!',
+        'error_updating_language': 'خطأ في تحديث اللغة. يرجى المحاولة مرة أخرى.',
+        'error_selecting_package': 'خطأ في اختيار الحزمة. يرجى المحاولة مرة أخرى.',
+        'error_selecting_category': 'خطأ في اختيار الفئة',
+        'error_processing_ad': 'خطأ في معالجة تفاصيل الإعلان. يرجى المحاولة مرة أخرى.',
+        'error_uploading_photo': 'خطأ في رفع الصورة. يرجى المحاولة مرة أخرى.',
+        'error_processing_request': 'خطأ في معالجة الطلب. يرجى المحاولة مرة أخرى.',
+        'language_updated': 'تم تحديث اللغة بنجاح!',
+        
+        # Help
+        'help_text': """🤖 **بوت إعلاني - المساعدة والأوامر**
+
+**الأوامر المتاحة:**
+• /start - بدء تشغيل البوت
+• /admin - لوحة الإدارة (للإداريين فقط)
+• /dashboard - لوحة تحكم إعلاناتي
+• /support - الحصول على الدعم
+• /help - هذه الرسالة
+
+أسئلة؟ استخدم /support للحصول على المساعدة!""",
+        'select_channels_text': '📺 **اختر قنوات الإعلان**\n\nاختر القنوات التي تريد الإعلان عليها:',
     },
     
     'ru': {
@@ -215,6 +259,28 @@ LANGUAGES = {
         'error': 'Произошла ошибка',
         'success': 'Успешно!',
         'processing': 'Обработка...',
+        'no_channels': '❌ **Нет доступных каналов**\n\nБот должен быть добавлен как администратор в каналы, прежде чем их можно будет использовать для рекламы.\n\nОбратитесь в службу поддержки для добавления каналов.',
+        'support_message': '📞 Нужна помощь? Обратитесь к /support за помощью!',
+        'error_updating_language': 'Ошибка обновления языка. Пожалуйста, попробуйте снова.',
+        'error_selecting_package': 'Ошибка выбора пакета. Пожалуйста, попробуйте снова.',
+        'error_selecting_category': 'Ошибка выбора категории',
+        'error_processing_ad': 'Ошибка обработки деталей объявления. Пожалуйста, попробуйте снова.',
+        'error_uploading_photo': 'Ошибка загрузки фото. Пожалуйста, попробуйте снова.',
+        'error_processing_request': 'Ошибка обработки запроса. Пожалуйста, попробуйте снова.',
+        'language_updated': 'Язык успешно обновлен!',
+        
+        # Help
+        'help_text': """🤖 **I3lani Bot - Справка и команды**
+
+**Доступные команды:**
+• /start - Запустить бота
+• /admin - Панель администратора (только для администраторов)
+• /dashboard - Панель управления моими объявлениями
+• /support - Получить поддержку
+• /help - Это сообщение
+
+Вопросы? Используйте /support для получения помощи!""",
+        'select_channels_text': '📺 **Выберите рекламные каналы**\n\nВыберите каналы для размещения рекламы:',
     }
 }
 
