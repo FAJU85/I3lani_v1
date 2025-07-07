@@ -931,7 +931,7 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     language = await get_user_language(user_id)
     
     # Start with package selection for enhanced flow
-    await show_pricing_page(callback_query, state)
+    await show_pricing_handler(callback_query)
     await callback_query.answer("Starting ad creation...")
 
 
