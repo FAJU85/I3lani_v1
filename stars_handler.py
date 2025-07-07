@@ -19,13 +19,46 @@ from flask import Flask, request, jsonify
 
 from config import BOT_TOKEN, ADMIN_IDS, CHANNEL_ID
 from database import Database
-from stars_config import (
-    STARS_PACKAGE_PRICES, 
-    WEBHOOK_CONFIG, 
-    get_package_by_stars, 
-    get_invoice_config,
-    convert_stars_to_usd
-)
+# Stars configuration inline
+STARS_PACKAGE_PRICES = {
+    'bronze': {'name': '1 Month', 'price_stars': 306, 'price_usd': 9, 'duration_days': 30},
+    'silver': {'name': '3 Months', 'price_stars': 918, 'price_usd': 27, 'duration_days': 90},
+    'gold': {'name': '6 Months', 'price_stars': 1323, 'price_usd': 49, 'duration_days': 180}
+}
+
+def get_package_by_stars(stars_amount):
+    """Get package by stars amount"""
+    for package_id, package in STARS_PACKAGE_PRICES.items():
+        if package['price_stars'] == stars_amount:
+            return package_id, package
+    return None, None
+
+def convert_stars_to_usd(stars_amount):
+    """Convert stars to USD"""
+    return stars_amount / 34  # 34 stars per USD
+
+def get_invoice_config(package_id):
+    """Get invoice configuration for package"""
+    if package_id in STARS_PACKAGE_PRICES:
+        package = STARS_PACKAGE_PRICES[package_id]
+        return {
+            'title': f"I3lani Bot - {package['name']}",
+            'description': f"Premium advertising package for {package['duration_days']} days",
+            'payload': f"package_{package_id}",
+            'provider_token': "",
+            'currency': "XTR",
+            'prices': [{"label": package['name'], "amount": package['price_stars']}]
+        }
+    return None
+
+# Webhook configuration
+WEBHOOK_CONFIG = {
+    'host': '0.0.0.0',
+    'port': 5001,
+    'debug': False,
+    'threaded': True
+}
+
 from languages import get_text
 
 # Configure logging

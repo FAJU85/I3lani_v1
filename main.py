@@ -10,8 +10,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from database import init_db
 from handlers import setup_handlers
-from debug_system import init_debug_system, setup_debug_handlers
-from debug_dashboard import init_dashboard, setup_dashboard_handlers
+# Debug system removed for cleanup
 from admin_system import setup_admin_handlers
 from stars_handler import init_stars_handler, setup_stars_handlers
 
@@ -38,15 +37,7 @@ async def main():
         await init_db()
         logger.info("Database initialized successfully")
         
-        # Initialize debug system
-        logger.info("Initializing debug system...")
-        debug_system = init_debug_system(bot)
-        logger.info("Debug system initialized successfully")
-        
-        # Initialize debug dashboard
-        logger.info("Initializing debug dashboard...")
-        dashboard = init_dashboard(bot)
-        logger.info("Debug dashboard initialized successfully")
+        # Debug system removed for cleanup
         
         # Initialize Telegram Stars system
         logger.info("Initializing Telegram Stars payment system...")
@@ -56,8 +47,7 @@ async def main():
         # Setup handlers
         logger.info("Setting up handlers...")
         setup_handlers(dp)
-        setup_debug_handlers(dp)
-        setup_dashboard_handlers(dp)
+        # Debug handlers removed for cleanup
         setup_admin_handlers(dp)
         setup_stars_handlers(dp)
         logger.info("Handlers setup completed")

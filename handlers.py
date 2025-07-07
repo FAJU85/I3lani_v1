@@ -13,10 +13,10 @@ from states import AdCreationStates, UserStates
 from languages import get_text, get_currency_info, LANGUAGES
 from database import db, ensure_user_exists, get_user_language
 from payments import payment_processor
-from config import CHANNELS, ADMIN_IDS
+from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
-from flow_validator import flow_validator, validate_flow_transition
+# Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
 
@@ -2622,15 +2622,6 @@ Something went wrong. Choose how to continue:
 @router.callback_query(F.data == "back_to_start")
 async def back_to_start_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle back to start"""
-    await state.clear()
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    await show_main_menu(callback_query, language)
-
-
-@router.callback_query(F.data == "back_to_main")
-async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle back to main menu"""
     await state.clear()
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
