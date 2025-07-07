@@ -2132,11 +2132,134 @@ async def help_command(message: Message):
 • /support - Get support
 • /help - This message
 
-**Questions?** Use /support to get help!
+Questions? Use /support to get help!
     """.strip()
     
-    await message.reply(help_text, parse_mode='Markdown')
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📝 Create Ad", callback_data="create_ad"),
+            InlineKeyboardButton(text="💰 Pricing", callback_data="pricing")
+        ],
+        [
+            InlineKeyboardButton(text="🎁 Share & Earn", callback_data="share_earn"),
+            InlineKeyboardButton(text="📊 Dashboard", callback_data="dashboard")
+        ],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_start")]
+    ])
+    
+    await message.reply(help_text, reply_markup=keyboard, parse_mode='Markdown')
 
+
+@router.callback_query(F.data.startswith("toggle_channel_"))
+async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel toggle selection"""
+    try:
+        channel_id = callback_query.data.replace("toggle_channel_", "")
+        
+        # Get current selection
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        # Toggle channel selection
+        if channel_id in selected_channels:
+            selected_channels.remove(channel_id)
+        else:
+            selected_channels.append(channel_id)
+        
+        # Update state
+        await state.update_data(selected_channels=selected_channels)
+        
+        # Refresh the channel selection interface
+        await show_channel_selection(callback_query, state)
+        await callback_query.answer(f"Channel {'selected' if channel_id in selected_channels else 'deselected'}!")
+        
+    except Exception as e:
+        logger.error(f"Channel toggle error: {e}")
+        await callback_query.answer("Error toggling channel selection.")
+
+@router.callback_query(F.data == "select_all_channels")
+async def select_all_channels_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Select all available channels"""
+    try:
+        channels = await db.get_channels()
+        selected_channels = [channel['channel_id'] for channel in channels]
+        
+        await state.update_data(selected_channels=selected_channels)
+        await show_channel_selection(callback_query, state)
+        await callback_query.answer("All channels selected!")
+        
+    except Exception as e:
+        logger.error(f"Select all channels error: {e}")
+        await callback_query.answer("Error selecting all channels.")
+
+@router.callback_query(F.data == "deselect_all_channels")
+async def deselect_all_channels_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Deselect all channels"""
+    try:
+        await state.update_data(selected_channels=[])
+        await show_channel_selection(callback_query, state)
+        await callback_query.answer("All channels deselected!")
+        
+    except Exception as e:
+        logger.error(f"Deselect all channels error: {e}")
+        await callback_query.answer("Error deselecting channels.")
+
+@router.callback_query(F.data == "continue_with_channels")
+async def continue_with_channels_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Continue with selected channels"""
+    try:
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        if not selected_channels:
+            await callback_query.answer("Please select at least one channel!")
+            return
+        
+        # Proceed to duration selection
+        await state.set_state(AdCreationStates.duration_selection)
+        await show_duration_selection(callback_query, state)
+        await callback_query.answer(f"{len(selected_channels)} channels selected!")
+        
+    except Exception as e:
+        logger.error(f"Continue with channels error: {e}")
+        await callback_query.answer("Error proceeding with channels.")
+
+@router.callback_query(F.data.startswith("select_package_"))
+async def dynamic_package_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle dynamic package selection"""
+    try:
+        package_id = callback_query.data.replace("select_package_", "")
+        
+        if package_id == "free":
+            await select_free_package(callback_query, state)
+            return
+        elif package_id in ["bronze", "silver", "gold"]:
+            # Handle static packages
+            await state.update_data(package=package_id)
+            await state.set_state(AdCreationStates.select_category)
+            await show_category_selection(callback_query, state)
+            await callback_query.answer(f"{package_id.title()} package selected!")
+            return
+        
+        # Handle dynamic packages from database
+        packages = await db.get_packages(active_only=True)
+        package = next((p for p in packages if p['package_id'] == package_id), None)
+        
+        if not package:
+            await callback_query.answer("Package not found!")
+            return
+        
+        await state.update_data(
+            package=package_id,
+            package_info=package
+        )
+        await state.set_state(AdCreationStates.select_category)
+        await show_category_selection(callback_query, state)
+        await callback_query.answer(f"{package['name']} package selected!")
+        
+    except Exception as e:
+        logger.error(f"Package selection error: {e}")
+        await callback_query.answer("Error selecting package.")
 
 @router.message(Command("dashboard"))
 async def dashboard_command(message: Message):
