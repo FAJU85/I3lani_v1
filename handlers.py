@@ -926,21 +926,13 @@ async def show_help_handler(callback_query: CallbackQuery):
 
 @router.callback_query(F.data == "create_ad")
 async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Start ad creation process"""
+    """Start enhanced ad creation process"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    await state.set_state(AdCreationStates.ad_content)
-    await callback_query.message.edit_text(
-        get_text(language, 'send_ad_content'),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text=get_text(language, 'back'), 
-                callback_data="back_to_main"
-            )]
-        ])
-    )
-    await callback_query.answer()
+    # Start with package selection for enhanced flow
+    await show_pricing_page(callback_query, state)
+    await callback_query.answer("Starting ad creation...")
 
 
 @router.message(AdCreationStates.ad_content)
@@ -2134,3 +2126,83 @@ def setup_handlers(dp):
     """Setup all handlers"""
     dp.include_router(router)
     logger.info("Handlers setup completed")
+
+
+# Back Navigation Handlers for Enhanced Flow
+
+@router.callback_query(F.data == "back_to_categories")
+async def back_to_categories_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle back to categories navigation"""
+    await show_category_selection(callback_query, state)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_subcategories")
+async def back_to_subcategories_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle back to subcategories navigation"""
+    data = await state.get_data()
+    category_id = data.get('selected_category')
+    
+    if category_id:
+        from config import AD_CATEGORIES
+        category = AD_CATEGORIES.get(category_id)
+        if category:
+            # Recreate subcategory selection
+            subcategory_text = f"""
+{category['emoji']} **{category['name']}**
+
+Select a subcategory:
+            """.strip()
+            
+            keyboard_rows = []
+            for sub_id, sub_name in category['subcategories'].items():
+                keyboard_rows.append([InlineKeyboardButton(
+                    text=sub_name,
+                    callback_data=f"subcategory_{sub_id}"
+                )])
+            
+            keyboard_rows.append([InlineKeyboardButton(
+                text="⬅️ Back to Categories",
+                callback_data="back_to_categories"
+            )])
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+            
+            await callback_query.message.edit_text(
+                subcategory_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            await state.set_state(AdCreationStates.select_subcategory)
+    
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "edit_ad")
+async def edit_ad_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle edit ad request"""
+    await callback_query.message.edit_text(
+        "✏️ **Edit Ad**\n\nWhat would you like to edit?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📝 Ad Details", callback_data="edit_ad_details")],
+            [InlineKeyboardButton(text="📞 Contact Info", callback_data="edit_contact_info")],
+            [InlineKeyboardButton(text="📷 Photos", callback_data="edit_photos")],
+            [InlineKeyboardButton(text="⬅️ Back to Preview", callback_data="back_to_preview")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "cancel_ad")
+async def cancel_ad_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle ad cancellation"""
+    await callback_query.message.edit_text(
+        "❌ **Ad Creation Cancelled**\n\nYour ad creation has been cancelled.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🏠 Back to Home", callback_data="back_to_main")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await state.clear()
+    await callback_query.answer()

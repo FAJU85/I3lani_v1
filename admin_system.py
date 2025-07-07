@@ -173,16 +173,16 @@ Select an option to continue:
     async def show_channel_management(self, callback_query: CallbackQuery):
         """Show channel management interface"""
         text = f"""
-📺 **Channel Management**
+📺 Channel Management
 
-**Active Channels:** {len([c for c in self.channels.values() if c['active']])}
+Active Channels: {len([c for c in self.channels.values() if c['active']])}
 
-**Channels:**
+Channels:
         """.strip()
         
         for channel_id, channel in self.channels.items():
             status = "✅" if channel['active'] else "❌"
-            text += f"\n{status} **{channel['name']}**"
+            text += f"\n{status} {channel['name']}"
             text += f"\n   • ID: {channel['telegram_id']}"
             text += f"\n   • Subscribers: {channel['subscribers']:,}"
             text += f"\n   • Category: {channel['category']}"
@@ -201,11 +201,18 @@ Select an option to continue:
             ]
         ]
         
-        await callback_query.message.edit_text(
-            text, 
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
-        )
+        try:
+            await callback_query.message.edit_text(
+                text, 
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
+        except Exception as e:
+            logger.error(f"Channel management display error: {e}")
+            simple_text = f"Channel Management\n\nActive Channels: {len([c for c in self.channels.values() if c['active']])}\n\nNo channels available."
+            await callback_query.message.edit_text(
+                simple_text,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
 
     async def show_subscription_management(self, callback_query: CallbackQuery):
         """Show subscription management interface"""
@@ -716,11 +723,11 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     await state.set_state(AdminStates.add_channel)
     
     text = """
-➕ **Add New Channel**
+➕ Add New Channel
 
 Please provide the channel information in this format:
 
-**Channel Name**
+Channel Name
 **Telegram ID** (e.g., @channel_name)
 **Category** (e.g., Technology, Business, General)
 **Estimated Subscribers** (number)
