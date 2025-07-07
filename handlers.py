@@ -210,6 +210,138 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
     await callback_query.answer("Language updated successfully!")
 
 
+@router.callback_query(F.data == "pricing")
+async def show_pricing_handler(callback_query: CallbackQuery):
+    """Show pricing information"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    pricing_text = f"""
+💰 **{get_text(language, 'pricing_title', default='Pricing & Packages')}**
+
+📊 **Available Channels:**
+• Tech Channel (156K subscribers) - 15 TON/month
+• Gaming Hub (89K subscribers) - 12 TON/month
+• Crypto News (234K subscribers) - 20 TON/month
+• Business Hub (178K subscribers) - 18 TON/month
+
+🎯 **Package Options:**
+• **Basic** - 1 channel, 1 month: 10 TON
+• **Pro** - 3 channels, 1 month: 25 TON
+• **Premium** - 5 channels, 1 month: 40 TON
+• **Enterprise** - All channels, 1 month: 60 TON
+
+💳 **Payment Methods:**
+• TON Cryptocurrency
+• Telegram Stars (⭐)
+
+📞 **Need custom pricing?** Contact /support
+    """.strip()
+    
+    await callback_query.message.edit_text(
+        pricing_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'back'), 
+                callback_data="back_to_main"
+            )]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "settings")
+async def show_settings_handler(callback_query: CallbackQuery):
+    """Show settings menu"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    settings_text = f"""
+⚙️ **{get_text(language, 'settings_title', default='Settings')}**
+
+🌍 **Current Language:** {LANGUAGES[language]['name']} {LANGUAGES[language]['flag']}
+
+🔄 **Change Language:**
+Choose your preferred language below.
+
+📊 **Account Info:**
+• User ID: {user_id}
+• Language: {language.upper()}
+• Status: Active
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
+            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
+        ],
+        [
+            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")
+        ],
+        [
+            InlineKeyboardButton(
+                text=get_text(language, 'back'), 
+                callback_data="back_to_main"
+            )
+        ]
+    ])
+    
+    await callback_query.message.edit_text(
+        settings_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "help")
+async def show_help_handler(callback_query: CallbackQuery):
+    """Show help information"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    help_text = f"""
+📚 **{get_text(language, 'help_title', default='Help & Commands')}**
+
+🚀 **Getting Started:**
+1. Click "Create Ad" to start
+2. Submit your ad content
+3. Choose channels and duration
+4. Make payment (TON or Stars)
+5. Your ad goes live automatically!
+
+💡 **Available Commands:**
+• /start - Main menu
+• /mystats - View your statistics
+• /support - Get help
+• /admin - Admin panel (admins only)
+• /refresh - Refresh data
+• /help - This help message
+
+🎯 **Features:**
+• Multi-channel advertising
+• TON and Telegram Stars payment
+• Real-time ad publishing
+• Campaign tracking
+• Referral system
+
+❓ **Need Help?** Use /support to contact us!
+    """.strip()
+    
+    await callback_query.message.edit_text(
+        help_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'back'), 
+                callback_data="back_to_main"
+            )]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
 @router.callback_query(F.data == "create_ad")
 async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     """Start ad creation process"""
@@ -435,7 +567,7 @@ async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMConte
     ad_media = data.get('ad_media')
     
     # Publish ad to I3lani channel immediately
-    bot = Bot.get_current()
+    bot = callback_query.bot  # Access bot from callback query
     i3lani_channel = "@i3lani"
     published = False
     
