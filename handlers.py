@@ -879,13 +879,11 @@ async def confirm_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         await state.update_data(ad_id=ad_id, ad_content=full_ad_content)
         
         # Proceed to channel selection or payment based on package
-        package_details = data.get('package_details', {})
-        if package_details.get('price_usd', 0) == 0:
-            # Free package - skip payment, go directly to publishing
-            await handle_free_package_publishing(callback_query, state)
-        else:
-            # Paid package - proceed to channel selection and payment
-            await show_channel_selection_for_enhanced_flow(callback_query, state)
+        package = data.get('package', 'free')
+        
+        # Always proceed to channel selection first for proper flow
+        # The proceed_to_payment_handler will determine if payment is needed
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
             
     except Exception as e:
         logger.error(f"Ad confirmation error: {e}")
@@ -2329,7 +2327,8 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
         
         # Check if payment is needed
         if package_details.get('price_usd', 0) == 0:
-            await callback_query.answer("Free package doesn't require payment!")
+            # Free package - proceed to publishing
+            await handle_free_package_publishing(callback_query, state)
             return
         
         # Show payment method selection
@@ -2349,9 +2348,15 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
 Choose your payment method:
         """.strip()
         
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="payment_stars")],
+            [InlineKeyboardButton(text="💎 TON Cryptocurrency", callback_data="payment_ton")],
+            [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="back_to_channels")]
+        ])
+        
         await callback_query.message.edit_text(
             payment_text,
-            reply_markup=create_payment_method_keyboard(language),
+            reply_markup=keyboard,
             parse_mode='Markdown'
         )
         await callback_query.answer(f"Proceeding to payment for {len(selected_channels)} channels!")
