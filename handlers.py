@@ -232,13 +232,13 @@ async def show_pricing_handler(callback_query: CallbackQuery):
     free_ads_remaining = max(0, 3 - free_ads_used)
     
     # Build pricing text dynamically
-    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Channel)**\n\n"
-    pricing_text += "All plans are per channel and can be managed via the Admin Control Panel.\n\n"
+    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Month)**\n\n"
+    pricing_text += "All plans are monthly subscriptions and can be managed via the Admin Control Panel.\n\n"
     
     # Add free plan manually
     pricing_text += "---\n\n"
     pricing_text += "🎁 **Free Plan**\n"
-    pricing_text += "• Duration: 3 days\n"
+    pricing_text += "• Duration: 3 days trial\n"
     pricing_text += "• 1 post per day\n"
     pricing_text += "• Price: **Free**\n"
     pricing_text += f"• 🔁 Remaining free ads: {free_ads_remaining}/3\n\n"
@@ -260,7 +260,7 @@ async def show_pricing_handler(callback_query: CallbackQuery):
             pricing_text += f"• Duration: {package['duration_days']} days\n"
             pricing_text += f"• {package['posts_per_day']} posts per day\n"
             pricing_text += f"• Max channels: {package['channels_included']}\n"
-            pricing_text += f"• Price: **${package['price_usd']}**\n\n"
+            pricing_text += f"• Price: **${package['price_usd']}/month**\n\n"
     else:
         # Fallback to default packages if none in database
         pricing_text += """---
@@ -268,7 +268,7 @@ async def show_pricing_handler(callback_query: CallbackQuery):
 🟫 **Bronze Plan**
 • Duration: 30 days
 • 1 post every 3 days
-• Price: **$10**
+• Price: **$10/month**
 
 ---
 
@@ -276,7 +276,7 @@ async def show_pricing_handler(callback_query: CallbackQuery):
 • Duration: 90 days
 • 3 posts per day
 • Daily posting
-• Price: **$29**
+• Price: **$29/month**
 
 ---
 
@@ -2380,13 +2380,13 @@ async def show_pricing_handler(callback_query: CallbackQuery):
     free_ads_remaining = max(0, 3 - free_ads_used)
     
     # Build pricing text dynamically
-    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Channel)**\n\n"
-    pricing_text += "All plans are per channel and can be managed via the Admin Control Panel.\n\n"
+    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Month)**\n\n"
+    pricing_text += "All plans are monthly subscriptions and can be managed via the Admin Control Panel.\n\n"
     
     # Add free plan manually
     pricing_text += "---\n\n"
     pricing_text += "🎁 **Free Plan**\n"
-    pricing_text += f"• Duration: 3 days\n"
+    pricing_text += f"• Duration: 3 days trial\n"
     pricing_text += f"• 1 post per day\n"
     pricing_text += f"• Daily posting\n"
     pricing_text += f"• Price: **FREE**\n"
@@ -2399,7 +2399,7 @@ async def show_pricing_handler(callback_query: CallbackQuery):
         pricing_text += f"• Duration: {package['duration_days']} days\n"
         pricing_text += f"• {package['posts_per_day']} posts per day\n"
         pricing_text += f"• {package['channels_included']} channels included\n"
-        pricing_text += f"• Price: **${package['price_usd']}**\n\n"
+        pricing_text += f"• Price: **${package['price_usd']}/month**\n\n"
     
     pricing_text += "---\n\n"
     pricing_text += "✅ Admins can edit all prices and posting rules via control panel.\n\n"
