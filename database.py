@@ -228,7 +228,7 @@ class Database:
             if 'description' not in columns:
                 await db.execute('ALTER TABLE channels ADD COLUMN description TEXT')
             if 'last_updated' not in columns:
-                await db.execute('ALTER TABLE channels ADD COLUMN last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                await db.execute('ALTER TABLE channels ADD COLUMN last_updated TIMESTAMP')
             
             # Insert or update channel with all details
             await db.execute('''

@@ -853,7 +853,7 @@ async def admin_refresh_callback(callback_query: CallbackQuery, state: FSMContex
     await admin_system.show_main_menu(callback_query, edit=True)
 
 # Channel Management Handlers
-@router.callback_query(F.data == "admin_add_channel")
+@router.callback_query(F.data == "admin_discover_channels")
 async def admin_discover_channels_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle discover existing channels callback"""
     await callback_query.answer()
@@ -903,11 +903,11 @@ Found {len(channels)} active channels:
         await callback_query.message.edit_text(
             "❌ Channel manager not initialized. Please restart the bot.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔍 Discover Existing Channels", callback_data="admin_discover_channels")],
-        [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
+                        [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
             ])
         )
 
+@router.callback_query(F.data == "admin_add_channel")
 async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle add channel callback"""
     user_id = callback_query.from_user.id
@@ -919,19 +919,22 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     await state.set_state(AdminStates.add_channel)
     
     text = """
-Add New Channel
+📺 **Add New Channel**
 
-Please provide the channel information in this format:
+Please send the channel username (e.g., @channel_name) or channel ID:
 
-Channel Name
-Telegram ID (e.g., @channel_name)
-Category (e.g., Technology, Business, General)
-Estimated Subscribers (number)
+**Note:** The bot must be added as an administrator to the channel first.
 
-Example:
-Tech News Channel
-@technews
-Technology
+**Auto-Discovery:** If the bot is already admin in existing channels, use the "Discover Existing Channels" button instead.
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔍 Discover Existing Channels", callback_data="admin_discover_channels")],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard)
+    await callback_query.answer()
 15000
 
 Send the channel information now:
@@ -973,7 +976,7 @@ async def handle_add_channel_message(message: Message, state: FSMContext):
         }
         
         success_text = f"""
-✅ **Channel Added Successfully!**
+**Channel Added Successfully!**
 
 **Name:** {channel_name}
 **ID:** {telegram_id}
