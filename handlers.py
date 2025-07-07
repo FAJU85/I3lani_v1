@@ -105,19 +105,31 @@ def create_channel_selection_keyboard(language: str, selected_channels: List[str
 
 
 def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
-    """Create duration selection keyboard"""
+    """Create duration selection keyboard with progressive frequency plans"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="1 Day - $0.17/channel", callback_data="duration_1_day"),
-            InlineKeyboardButton(text="3 Days - $0.50/channel", callback_data="duration_3_days")
+            InlineKeyboardButton(text="1 Month - $30 (1 post/day)", callback_data="duration_1_month"),
+            InlineKeyboardButton(text="2 Months - $108 (2 posts/day)", callback_data="duration_2_months")
         ],
         [
-            InlineKeyboardButton(text="1 Week - $1.17/channel", callback_data="duration_7_days"),
-            InlineKeyboardButton(text="2 Weeks - $2.33/channel", callback_data="duration_14_days")
+            InlineKeyboardButton(text="3 Months - $229.50 (3 posts/day)", callback_data="duration_3_months"),
+            InlineKeyboardButton(text="4 Months - $384 (4 posts/day)", callback_data="duration_4_months")
         ],
         [
-            InlineKeyboardButton(text="1 Month - $5.00/channel", callback_data="duration_30_days"),
-            InlineKeyboardButton(text="3 Months - $15.00/channel", callback_data="duration_90_days")
+            InlineKeyboardButton(text="5 Months - $562.50 (5 posts/day)", callback_data="duration_5_months"),
+            InlineKeyboardButton(text="6 Months - $756 (6 posts/day)", callback_data="duration_6_months")
+        ],
+        [
+            InlineKeyboardButton(text="7 Months - $999.60 (7 posts/day)", callback_data="duration_7_months"),
+            InlineKeyboardButton(text="8 Months - $1267.20 (8 posts/day)", callback_data="duration_8_months")
+        ],
+        [
+            InlineKeyboardButton(text="9 Months - $1555.20 (9 posts/day)", callback_data="duration_9_months"),
+            InlineKeyboardButton(text="10 Months - $1860 (10 posts/day)", callback_data="duration_10_months")
+        ],
+        [
+            InlineKeyboardButton(text="11 Months - $2178 (11 posts/day)", callback_data="duration_11_months"),
+            InlineKeyboardButton(text="12 Months - $2409 (12 posts/day)", callback_data="duration_12_months")
         ],
         [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="back_to_channels")]
     ])
@@ -125,7 +137,7 @@ def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
 
 
 async def show_duration_selection(callback_query: CallbackQuery, state: FSMContext):
-    """Show duration selection interface"""
+    """Show duration selection interface with progressive frequency plans"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
@@ -134,15 +146,22 @@ async def show_duration_selection(callback_query: CallbackQuery, state: FSMConte
         selected_channels = data.get('selected_channels', [])
         
         duration_text = f"""
-⏰ **Select Advertisement Duration**
+📅 **Full-Year Posting Plans (Progressive Frequency)**
 
 📺 **Selected Channels:** {len(selected_channels)}
 
-Choose how long you want your advertisement to run:
+🎯 **Progressive Frequency System:**
+• Month 1: 1 post/day → Month 12: 12 posts/day
+• Automatic discount scaling (up to 45% off)
+• Base price: $1 per post per channel
+• Higher frequency = Better engagement
 
-💡 **Pricing per channel per period**
-• Longer durations offer better value
-• Your ad will be visible for the entire duration
+💰 **Discount Benefits:**
+• 2+ months: 10%+ discount
+• 6+ months: 30%+ discount  
+• 12 months: 45% discount (Best Value!)
+
+Choose your posting plan:
         """.strip()
         
         keyboard = create_duration_keyboard(language)
@@ -159,22 +178,50 @@ Choose how long you want your advertisement to run:
         await callback_query.answer("Error showing duration options.")
         
 
+def get_progressive_plan_details(months: int) -> dict:
+    """Get progressive plan details with pricing and discount"""
+    plan_data = {
+        1: {"posts_per_day": 1, "total_days": 30, "total_posts": 30, "base_price": 30, "discount": 0, "final_price": 30},
+        2: {"posts_per_day": 2, "total_days": 60, "total_posts": 120, "base_price": 120, "discount": 10, "final_price": 108},
+        3: {"posts_per_day": 3, "total_days": 90, "total_posts": 270, "base_price": 270, "discount": 15, "final_price": 229.50},
+        4: {"posts_per_day": 4, "total_days": 120, "total_posts": 480, "base_price": 480, "discount": 20, "final_price": 384},
+        5: {"posts_per_day": 5, "total_days": 150, "total_posts": 750, "base_price": 750, "discount": 25, "final_price": 562.50},
+        6: {"posts_per_day": 6, "total_days": 180, "total_posts": 1080, "base_price": 1080, "discount": 30, "final_price": 756},
+        7: {"posts_per_day": 7, "total_days": 210, "total_posts": 1470, "base_price": 1470, "discount": 32, "final_price": 999.60},
+        8: {"posts_per_day": 8, "total_days": 240, "total_posts": 1920, "base_price": 1920, "discount": 34, "final_price": 1267.20},
+        9: {"posts_per_day": 9, "total_days": 270, "total_posts": 2430, "base_price": 2430, "discount": 36, "final_price": 1555.20},
+        10: {"posts_per_day": 10, "total_days": 300, "total_posts": 3000, "base_price": 3000, "discount": 38, "final_price": 1860},
+        11: {"posts_per_day": 11, "total_days": 330, "total_posts": 3630, "base_price": 3630, "discount": 40, "final_price": 2178},
+        12: {"posts_per_day": 12, "total_days": 365, "total_posts": 4380, "base_price": 4380, "discount": 45, "final_price": 2409}
+    }
+    return plan_data.get(months, plan_data[1])
+
+
 @router.callback_query(F.data.startswith("duration_"))
 async def duration_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle duration selection"""
+    """Handle progressive frequency plan selection"""
     try:
         duration_data = callback_query.data.replace("duration_", "")
         
-        # Parse duration
-        if duration_data.endswith("_day"):
-            duration_days = int(duration_data.replace("_day", ""))
-        elif duration_data.endswith("_days"):
-            duration_days = int(duration_data.replace("_days", ""))
+        # Parse months from callback data
+        if duration_data.endswith("_month") or duration_data.endswith("_months"):
+            months = int(duration_data.replace("_month", "").replace("_months", ""))
         else:
-            duration_days = 1  # Default
+            months = 1  # Default
         
-        # Store duration in state
-        await state.update_data(duration_days=duration_days)
+        # Get plan details
+        plan_details = get_progressive_plan_details(months)
+        
+        # Store plan information in state
+        await state.update_data(
+            duration_months=months,
+            duration_days=plan_details["total_days"],
+            posts_per_day=plan_details["posts_per_day"],
+            total_posts=plan_details["total_posts"],
+            base_price=plan_details["base_price"],
+            discount_percent=plan_details["discount"],
+            final_price=plan_details["final_price"]
+        )
         
         # Proceed to payment
         await proceed_to_payment_handler(callback_query, state)
@@ -1499,18 +1546,27 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                     is_flexible=False
                 )
                 
-                duration_days = data.get('duration_days', 1)
-                duration_text = f"{duration_days} days" if duration_days < 30 else f"{duration_days // 30} month(s)"
+                duration_months = data.get('duration_months', 1)
+                posts_per_day = data.get('posts_per_day', 1)
+                total_posts = data.get('total_posts', 30)
+                discount_percent = data.get('discount_percent', 0)
                 
-                payment_summary = f"⭐ **Telegram Stars Payment**\n\n"
-                payment_summary += f"⏰ **Duration:** {duration_text}\n"
-                payment_summary += f"💰 **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
+                plan_text = f"{duration_months} month(s)" if duration_months == 1 else f"{duration_months} months"
+                
+                payment_summary = f"⭐ **Telegram Stars Payment - Progressive Plan**\n\n"
+                payment_summary += f"⏰ **Plan:** {plan_text}\n"
+                payment_summary += f"📊 **Frequency:** {posts_per_day} posts/day\n"
+                payment_summary += f"📈 **Total Posts:** {total_posts * len(selected_channels):,} posts\n"
+                if discount_percent > 0:
+                    payment_summary += f"💰 **Discount:** {discount_percent}% OFF\n"
+                payment_summary += f"💳 **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
                 payment_summary += f"📺 **Channels:** {len(selected_channels)}\n\n"
                 
                 for detail in channel_pricing_details:
-                    payment_summary += f"• {detail['name']}: {detail['total_price_stars']:,} Stars ({duration_text})\n"
+                    savings_text = f" (Save {detail['discount_percent']}%)" if detail['discount_percent'] > 0 else ""
+                    payment_summary += f"• {detail['name']}: {detail['plan_price_stars']:,} Stars ({detail['posts_per_day']} posts/day){savings_text}\n"
                 
-                payment_summary += f"\n✅ **Invoice sent!** Please complete payment using the invoice above.\n\nYour ad will be published automatically after payment confirmation."
+                payment_summary += f"\n✅ **Invoice sent!** Please complete payment using the invoice above.\n\nYour progressive posting plan will activate automatically after payment confirmation."
                 
                 await callback_query.message.edit_text(
                     payment_summary,
@@ -2265,34 +2321,33 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
             else:
                 package_details = {'price_usd': 0.0, 'name': 'Free Plan'}
         
-        # Get duration from state (default to 1 day if not set)
-        duration_days = data.get('duration_days', 1)
-        duration_months = data.get('duration_months', 0)
+        # Get progressive plan details from state
+        final_price = data.get('final_price', 30)  # Default to 1 month plan
+        duration_months = data.get('duration_months', 1)
+        duration_days = data.get('duration_days', 30)
+        posts_per_day = data.get('posts_per_day', 1)
+        total_posts = data.get('total_posts', 30)
+        base_price = data.get('base_price', 30)
+        discount_percent = data.get('discount_percent', 0)
         
-        # Convert months to days if needed
-        if duration_months > 0:
-            duration_days = duration_months * 30
+        # Calculate pricing based on progressive plan and selected channels
+        total_price_usd = final_price * len(selected_channels)
+        total_price_stars = int(total_price_usd * 34)  # 1 USD ≈ 34 Stars
         
-        # Calculate actual pricing based on selected channels and duration
-        total_price_usd = 0
-        total_price_stars = 0
+        # Get channel details for display
         channel_pricing_details = []
-        
-        # Get channel details and calculate pricing per day
         all_channels = await db.get_channels(active_only=True)
         for channel_id in selected_channels:
             for channel in all_channels:
                 if channel['channel_id'] == channel_id:
-                    base_price_per_day = channel.get('base_price_usd', 5.0) / 30  # Convert monthly to daily
-                    total_channel_price = base_price_per_day * duration_days
-                    total_price_usd += total_channel_price
-                    total_price_stars += int(total_channel_price * 34)  # 1 USD ≈ 34 Stars
                     channel_pricing_details.append({
                         'name': channel['name'],
-                        'price_per_day': base_price_per_day,
-                        'total_price_usd': total_channel_price,
-                        'total_price_stars': int(total_channel_price * 34),
-                        'duration_days': duration_days
+                        'plan_price_usd': final_price,
+                        'plan_price_stars': int(final_price * 34),
+                        'posts_per_day': posts_per_day,
+                        'total_posts': total_posts,
+                        'duration_months': duration_months,
+                        'discount_percent': discount_percent
                     })
                     break
         
@@ -2313,18 +2368,21 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
         )
         await state.set_state(AdCreationStates.payment_method)
         
-        # Create detailed pricing text with duration breakdown
-        duration_text = f"{duration_days} days" if duration_days < 30 else f"{duration_days // 30} month(s)"
+        # Create detailed pricing text with progressive plan breakdown
+        plan_text = f"{duration_months} month(s)" if duration_months == 1 else f"{duration_months} months"
         
         pricing_breakdown = ""
         for detail in channel_pricing_details:
-            pricing_breakdown += f"• {detail['name']}: ${detail['total_price_usd']:.2f} ({duration_text})\n"
+            savings_text = f" (Save {detail['discount_percent']}%)" if detail['discount_percent'] > 0 else ""
+            pricing_breakdown += f"• {detail['name']}: ${detail['plan_price_usd']:.2f} ({detail['posts_per_day']} posts/day × {detail['total_posts']} posts){savings_text}\n"
         
         payment_text = f"""
-💳 **Payment Required**
+💳 **Payment Required - Progressive Plan**
 
 📺 **Selected Channels:** {len(selected_channels)}
-⏰ **Duration:** {duration_text}
+⏰ **Plan Duration:** {plan_text}
+📊 **Posting Frequency:** {posts_per_day} posts/day
+📈 **Total Posts:** {total_posts * len(selected_channels):,} posts across all channels
 
 {pricing_breakdown}
 ━━━━━━━━━━━━━━━━━

@@ -76,7 +76,7 @@ class Database:
                 )
             ''')
             
-            # Subscriptions table
+            # Subscriptions table with progressive plan support
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS subscriptions (
                     subscription_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,6 +88,9 @@ class Database:
                     end_date TIMESTAMP,
                     total_price REAL NOT NULL,
                     currency TEXT DEFAULT 'USD',
+                    posts_per_day INTEGER DEFAULT 1,
+                    total_posts INTEGER DEFAULT 30,
+                    discount_percent INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
@@ -337,14 +340,18 @@ class Database:
     
     async def create_subscription(self, user_id: int, ad_id: int, 
                                  channel_id: str, duration_months: int,
-                                 total_price: float, currency: str = 'USD') -> int:
-        """Create new subscription"""
+                                 total_price: float, currency: str = 'USD',
+                                 posts_per_day: int = 1, total_posts: int = 30,
+                                 discount_percent: int = 0) -> int:
+        """Create new subscription with progressive plan details"""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute('''
                 INSERT INTO subscriptions 
-                (user_id, ad_id, channel_id, duration_months, total_price, currency)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (user_id, ad_id, channel_id, duration_months, total_price, currency))
+                (user_id, ad_id, channel_id, duration_months, total_price, currency, 
+                 posts_per_day, total_posts, discount_percent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, ad_id, channel_id, duration_months, total_price, currency,
+                  posts_per_day, total_posts, discount_percent))
             await db.commit()
             return cursor.lastrowid
     
