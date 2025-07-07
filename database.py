@@ -254,6 +254,36 @@ class Database:
             await db.commit()
             return True
     
+    async def activate_channel(self, channel_id: str) -> bool:
+        """Activate a channel"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    UPDATE channels 
+                    SET is_active = 1, last_updated = CURRENT_TIMESTAMP
+                    WHERE telegram_channel_id = ? OR channel_id = ?
+                ''', (channel_id, channel_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error activating channel: {e}")
+            return False
+    
+    async def deactivate_channel(self, channel_id: str) -> bool:
+        """Deactivate a channel"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    UPDATE channels 
+                    SET is_active = 0, last_updated = CURRENT_TIMESTAMP
+                    WHERE telegram_channel_id = ? OR channel_id = ?
+                ''', (channel_id, channel_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deactivating channel: {e}")
+            return False
+    
     async def get_bot_admin_channels(self) -> List[Dict]:
         """Get channels where bot is admin (active channels only)"""
         async with aiosqlite.connect(self.db_path) as db:

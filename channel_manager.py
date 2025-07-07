@@ -224,12 +224,91 @@ Users can now select this channel when creating ads through the bot.
     async def sync_existing_channels(self):
         """Sync existing channels where bot is admin"""
         try:
-            # This method can be called on bot startup to sync existing channels
-            # For now, we'll rely on the automatic detection when status changes
-            pass
+            logger.info("🔍 Scanning for existing channels where bot is administrator...")
+            
+            # Unfortunately, Telegram Bot API doesn't provide a direct way to get all chats
+            # where the bot is admin. We need to implement a different approach:
+            
+            # Option 1: Check channels we know about in database
+            await self._verify_database_channels()
+            
+            # Option 2: Provide admin command to manually add channels
+            logger.info("💡 Use /admin command and 'Add Channel' to manually register existing channels")
+            logger.info("💡 Or have channel admins re-add the bot to trigger auto-detection")
             
         except Exception as e:
             logger.error(f"Error syncing existing channels: {e}")
+    
+    async def _verify_database_channels(self):
+        """Verify channels in database are still valid"""
+        try:
+            channels = await self.db.get_channels(active_only=False)
+            active_count = 0
+            inactive_count = 0
+            
+            for channel in channels:
+                channel_id = channel['telegram_channel_id']
+                try:
+                    # Try to get chat info to verify bot is still admin
+                    chat = await self.bot.get_chat(channel_id)
+                    
+                    # Get bot's status in this chat
+                    bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
+                    
+                    if bot_member.status == 'administrator' and bot_member.can_post_messages:
+                        # Channel is valid and bot is admin
+                        await self.db.activate_channel(channel_id)
+                        await self.update_channel_stats(channel_id)
+                        active_count += 1
+                        logger.info(f"✅ Verified channel: {channel['name']}")
+                    else:
+                        # Bot is not admin or cannot post
+                        await self.db.deactivate_channel(channel_id)
+                        inactive_count += 1
+                        logger.info(f"❌ Bot not admin in: {channel['name']}")
+                        
+                except Exception as e:
+                    # Channel not accessible, probably bot was removed
+                    await self.db.deactivate_channel(channel_id)
+                    inactive_count += 1
+                    logger.warning(f"❌ Cannot access channel: {channel['name']} - {e}")
+            
+            logger.info(f"📊 Channel verification complete: {active_count} active, {inactive_count} inactive")
+            
+        except Exception as e:
+            logger.error(f"Error verifying database channels: {e}")
+    
+    async def discover_channel_by_username(self, username: str) -> bool:
+        """Manually discover and add a channel by username"""
+        try:
+            if not username.startswith('@'):
+                username = '@' + username
+                
+            chat = await self.bot.get_chat(username)
+            
+            # Check if it's a channel/supergroup
+            if chat.type not in ['channel', 'supergroup']:
+                logger.warning(f"Chat {username} is not a channel")
+                return False
+            
+            # Check if bot is admin
+            bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
+            
+            if bot_member.status != 'administrator':
+                logger.warning(f"Bot is not administrator in {username}")
+                return False
+                
+            if not bot_member.can_post_messages:
+                logger.warning(f"Bot cannot post messages in {username}")
+                return False
+            
+            # Add channel using existing logic
+            await self.add_channel_as_admin(chat, bot_member)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error discovering channel {username}: {e}")
+            return False
     
     async def get_channel_info(self, channel_id: str) -> Optional[Dict]:
         """Get detailed channel information"""

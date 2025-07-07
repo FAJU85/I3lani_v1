@@ -54,10 +54,14 @@ async def main():
         
         # Initialize channel manager
         logger.info("Initializing channel manager...")
-        init_channel_manager(bot, db)
+        channel_manager = init_channel_manager(bot, db)
         
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
+        
+        # Sync existing channels on startup
+        logger.info("Syncing existing channels...")
+        await channel_manager.sync_existing_channels()
         
         logger.info("Handlers setup completed")
         

@@ -854,6 +854,60 @@ async def admin_refresh_callback(callback_query: CallbackQuery, state: FSMContex
 
 # Channel Management Handlers
 @router.callback_query(F.data == "admin_add_channel")
+async def admin_discover_channels_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle discover existing channels callback"""
+    await callback_query.answer()
+    
+    text = """
+🔍 **Discovering Existing Channels**
+
+Scanning for channels where the bot is already an administrator...
+    """.strip()
+    
+    # Show loading message
+    await callback_query.message.edit_text(text)
+    
+    # Import channel manager
+    from channel_manager import channel_manager
+    
+    if channel_manager:
+        # Sync existing channels
+        await channel_manager.sync_existing_channels()
+        
+        # Get updated channel list
+        channels = await admin_system.db.get_channels(active_only=True)
+        
+        result_text = f"""
+🔍 **Channel Discovery Complete**
+
+Found {len(channels)} active channels:
+
+"""
+        
+        for i, channel in enumerate(channels, 1):
+            result_text += f"{i}. **{channel['name']}** - {channel['subscribers']:,} subscribers\n"
+        
+        if not channels:
+            result_text += "No channels found where bot is administrator.\n\n"
+            result_text += "**To add channels:**\n"
+            result_text += "1. Add the bot as administrator to your channel\n"
+            result_text += "2. Give the bot permission to post messages\n"
+            result_text += "3. The bot will automatically detect and add the channel\n"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]
+        ])
+        
+        await callback_query.message.edit_text(result_text, reply_markup=keyboard)
+    else:
+        await callback_query.message.edit_text(
+            "❌ Channel manager not initialized. Please restart the bot.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔍 Discover Existing Channels", callback_data="admin_discover_channels")],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
+            ])
+        )
+
 async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle add channel callback"""
     user_id = callback_query.from_user.id
