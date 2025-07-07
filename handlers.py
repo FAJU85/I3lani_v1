@@ -16,6 +16,7 @@ from payments import payment_processor
 from config import CHANNELS, ADMIN_IDS
 import os
 from datetime import datetime, timedelta
+from flow_validator import flow_validator, validate_flow_transition
 
 logger = logging.getLogger(__name__)
 
@@ -2616,6 +2617,220 @@ async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext)
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     await show_main_menu(callback_query, language)
+
+
+@router.callback_query(F.data == "back_to_photos")
+async def back_to_photos_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to photo upload step"""
+    await state.set_state(AdCreationStates.upload_photos)
+    
+    await callback_query.message.edit_text(
+        "📸 **Upload Photos** (Optional)\n\nYou can upload up to 5 photos for your ad.\n\n📷 Send photos one by one, or skip this step.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⏭️ Skip Photos", callback_data="skip_photos")],
+            [InlineKeyboardButton(text="⬅️ Back to Ad Details", callback_data="back_to_details")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_details") 
+async def back_to_details_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to ad details entry"""
+    await state.set_state(AdCreationStates.enter_ad_details)
+    
+    await callback_query.message.edit_text(
+        "✏️ **Enter Ad Details**\n\nPlease provide detailed information about your ad:\n• Product/service description\n• Key features\n• Benefits\n• Call to action",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Location", callback_data="back_to_location")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_location")
+async def back_to_location_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to location selection"""
+    await state.set_state(AdCreationStates.select_location)
+    await show_location_selection(callback_query, state)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_preview")
+async def back_to_preview_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to ad preview"""
+    await state.set_state(AdCreationStates.preview_ad)
+    await show_ad_preview(callback_query.message, state)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "edit_ad")
+async def edit_ad_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Edit ad details"""
+    await state.set_state(AdCreationStates.enter_ad_details)
+    await back_to_details_handler(callback_query, state)
+
+
+@router.callback_query(F.data == "cancel_ad")
+async def cancel_ad_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Cancel ad creation"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.clear()
+    await callback_query.message.edit_text(
+        "❌ **Ad Creation Cancelled**\n\nYour ad has been cancelled. You can start a new ad anytime!",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🆕 Create New Ad", callback_data="create_ad")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer("Ad creation cancelled")
+
+
+@router.callback_query(F.data == "go_home")
+async def go_home_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Go to home/main menu"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.clear()
+    await show_main_menu(callback_query, language)
+    await callback_query.answer("Returned to main menu")
+
+
+@router.callback_query(F.data == "add_more_photos")
+async def add_more_photos_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Add more photos to the ad"""
+    await state.set_state(AdCreationStates.upload_photos)
+    
+    await callback_query.message.edit_text(
+        "📸 **Upload More Photos**\n\nSend additional photos for your ad (up to 5 total).",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Done with Photos", callback_data="done_photos")],
+            [InlineKeyboardButton(text="⬅️ Back to Contact", callback_data="back_to_contact")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "back_to_contact")
+async def back_to_contact_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Back to contact information step"""
+    await state.set_state(AdCreationStates.provide_contact_info)
+    
+    await callback_query.message.edit_text(
+        "📞 **Contact Information**\n\nPlease provide your contact details:\n• Phone number\n• Email address\n• Telegram username\n• Any other contact method",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Photos", callback_data="back_to_photos")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("payment_timeout_"))
+async def payment_timeout_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payment timeout"""
+    payment_id = callback_query.data.replace("payment_timeout_", "")
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    timeout_text = f"""
+⏰ **Payment Timeout**
+
+Your payment session has expired.
+
+🔄 **Options:**
+• Try payment again
+• Choose different payment method
+• Return to main menu
+
+What would you like to do?
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Retry Payment", callback_data=f"retry_payment_{payment_id}")],
+        [InlineKeyboardButton(text="💳 Change Method", callback_data="change_payment_method")],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(timeout_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Payment session expired")
+
+
+@router.callback_query(F.data == "change_payment_method")
+async def change_payment_method_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Change payment method"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.set_state(AdCreationStates.payment_method)
+    await callback_query.message.edit_text(
+        "💳 **Choose Payment Method**\n\nSelect your preferred payment option:",
+        reply_markup=create_payment_method_keyboard(language),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer("Choose payment method")
+
+
+@router.callback_query(F.data == "error_recovery")
+async def error_recovery_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle error recovery"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    recovery_text = f"""
+🔧 **Error Recovery**
+
+Something went wrong. Let's get you back on track.
+
+🔄 **Recovery Options:**
+• Continue from where you left off
+• Start over with new ad
+• Return to main menu
+• Contact support
+
+Choose your preferred option:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Continue", callback_data="continue_flow")],
+        [InlineKeyboardButton(text="🆕 Start Over", callback_data="create_ad")],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+        [InlineKeyboardButton(text="📞 Support", callback_data="show_help")]
+    ])
+    
+    await callback_query.message.edit_text(recovery_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Error recovery options")
+
+
+@router.callback_query(F.data == "continue_flow")
+async def continue_flow_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Continue flow from current state"""
+    current_state = await state.get_state()
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Determine appropriate continuation based on current state
+    if current_state == AdCreationStates.select_category:
+        await show_category_selection(callback_query, state)
+    elif current_state == AdCreationStates.upload_photos:
+        await back_to_photos_handler(callback_query, state)
+    elif current_state == AdCreationStates.payment_method:
+        await callback_query.message.edit_text(
+            "💳 **Choose Payment Method**",
+            reply_markup=create_payment_method_keyboard(language)
+        )
+    else:
+        # Default to main menu if state unknown
+        await back_to_main_handler(callback_query, state)
+    
+    await callback_query.answer("Continuing flow")
 
 
 @router.callback_query(F.data.startswith("retry_payment_"))

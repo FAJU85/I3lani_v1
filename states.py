@@ -29,6 +29,10 @@ class AdCreationStates(StatesGroup):
     waiting_for_channels = State()
     waiting_for_duration = State()
     waiting_for_payment = State()
+    payment_selection = State()
+    payment_processing = State()
+    error_state = State()
+    confirmation_pending = State()
 
 
 class UserStates(StatesGroup):
