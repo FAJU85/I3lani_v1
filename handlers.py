@@ -266,26 +266,24 @@ async def show_pricing_handler(callback_query: CallbackQuery):
         # Fallback to default packages if none in database
         pricing_text += """---
 
-🟫 **Bronze Plan**
+⭐ **1 Month Plan**
 • Duration: 30 days
-• 1 post every 3 days
-• Price: **$10/month**
+• 1 post per day
+• Price: **$9** / TON / **306⭐**
 
 ---
 
-🥈 **Silver Plan**
-• Duration: 90 days
+⭐⭐ **3 Months Plan**
+• Duration: 90 days  
 • 3 posts per day
-• Daily posting
-• Price: **$29/month**
+• Price: **$27** / TON / **918⭐**
 
 ---
 
-🥇 **Gold Plan**
+🌟 **6 Months Plan**
 • Duration: 180 days
 • 6 posts per day
-• Daily posting
-• Price: **$47**
+• Price: **$49** / TON / **1323⭐**
 
 """
     
@@ -328,10 +326,10 @@ async def show_pricing_handler(callback_query: CallbackQuery):
         # Fallback to default buttons if no packages in database
         keyboard_buttons.extend([
             [
-                InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze"),
-                InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")
+                InlineKeyboardButton(text="⭐ 1 Month $9", callback_data="select_package_1month"),
+                InlineKeyboardButton(text="⭐⭐ 3 Months $27", callback_data="select_package_3months")
             ],
-            [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")]
+            [InlineKeyboardButton(text="🌟 6 Months $49", callback_data="select_package_6months")]
         ])
     
     keyboard_buttons.append([InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")])
@@ -2322,6 +2320,12 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
                 package_details = {'price_usd': 29.0, 'name': 'Silver Plan'}
             elif package == 'gold':
                 package_details = {'price_usd': 47.0, 'name': 'Gold Plan'}
+            elif package == '1month':
+                package_details = {'price_usd': 9.0, 'name': '1 Month Plan', 'stars_price': 306}
+            elif package == '3months':
+                package_details = {'price_usd': 27.0, 'name': '3 Months Plan', 'stars_price': 918}
+            elif package == '6months':
+                package_details = {'price_usd': 49.0, 'name': '6 Months Plan', 'stars_price': 1323}
             else:
                 package_details = {'price_usd': 0.0, 'name': 'Free Plan'}
         
@@ -2375,12 +2379,25 @@ async def dynamic_package_selection_handler(callback_query: CallbackQuery, state
         if package_id == "free":
             await select_free_package(callback_query, state)
             return
-        elif package_id in ["bronze", "silver", "gold"]:
-            # Handle static packages
-            await state.update_data(package=package_id)
+        elif package_id in ["bronze", "silver", "gold", "1month", "3months", "6months"]:
+            # Handle static packages with new names
+            package_mapping = {
+                "bronze": {"name": "Bronze Plan", "price_usd": 10, "duration_days": 30, "posts_per_day": 1},
+                "silver": {"name": "Silver Plan", "price_usd": 29, "duration_days": 90, "posts_per_day": 3},
+                "gold": {"name": "Gold Plan", "price_usd": 47, "duration_days": 180, "posts_per_day": 6},
+                "1month": {"name": "1 Month Plan", "price_usd": 9, "duration_days": 30, "posts_per_day": 1, "stars_price": 306},
+                "3months": {"name": "3 Months Plan", "price_usd": 27, "duration_days": 90, "posts_per_day": 3, "stars_price": 918},
+                "6months": {"name": "6 Months Plan", "price_usd": 49, "duration_days": 180, "posts_per_day": 6, "stars_price": 1323}
+            }
+            
+            package_details = package_mapping.get(package_id, package_mapping["1month"])
+            await state.update_data(
+                package=package_id,
+                package_details=package_details
+            )
             await state.set_state(AdCreationStates.select_category)
             await show_category_selection(callback_query, state)
-            await callback_query.answer(f"{package_id.title()} package selected!")
+            await callback_query.answer(f"{package_details['name']} selected!")
             return
         
         # Handle dynamic packages from database

@@ -11,40 +11,40 @@ STARS_WEBHOOK_URL = os.getenv('STARS_WEBHOOK_URL', 'https://yourdomain.com/webho
 STARS_BACKEND_PORT = int(os.getenv('STARS_BACKEND_PORT', '5001'))
 STARS_BACKEND_HOST = os.getenv('STARS_BACKEND_HOST', '0.0.0.0')
 
-# Package pricing in Telegram Stars
+# Package pricing in Telegram Stars (exact I3lani specifications)
 STARS_PACKAGE_PRICES = {
-    'starter': {
-        'stars': 15,  # 15 stars = ~$1.50
-        'usd_value': 1.50,
-        'duration_days': 7,
+    '1month': {
+        'stars': 306,  # Exactly 306 stars = $9 USD
+        'usd_value': 9.0,
+        'duration_days': 30,
         'posts_per_day': 1,
         'channels': 1,
-        'name': 'Starter Package',
-        'description': 'Basic advertising package for new users'
+        'name': '1 Month Plan',
+        'description': 'Monthly advertising with daily posts'
     },
-    'professional': {
-        'stars': 75,  # 75 stars = ~$7.50
-        'usd_value': 7.50,
-        'duration_days': 15,
-        'posts_per_day': 2,
-        'channels': 2,
-        'name': 'Professional Package',
-        'description': 'Advanced advertising with multi-channel reach'
-    },
-    'enterprise': {
-        'stars': 225,  # 225 stars = ~$22.50
-        'usd_value': 22.50,
-        'duration_days': 30,
+    '3months': {
+        'stars': 918,  # Exactly 918 stars = $27 USD
+        'usd_value': 27.0,
+        'duration_days': 90,
         'posts_per_day': 3,
         'channels': 3,
-        'name': 'Enterprise Package',
-        'description': 'Premium advertising with maximum exposure'
+        'name': '3 Months Plan',
+        'description': 'Quarterly advertising with triple daily posts'
+    },
+    '6months': {
+        'stars': 1323,  # Exactly 1323 stars = $49 USD
+        'usd_value': 49.0,
+        'duration_days': 180,
+        'posts_per_day': 6,
+        'channels': 6,
+        'name': '6 Months Plan',
+        'description': 'Semi-annual advertising with maximum daily posts'
     }
 }
 
-# Stars conversion rates
-STARS_TO_USD_RATE = 0.1  # 1 star = $0.10 USD
-USD_TO_STARS_RATE = 10   # $1 USD = 10 stars
+# Stars conversion rates (I3lani specifications)
+STARS_TO_USD_RATE = 0.0294  # 1 star = ~$0.0294 USD (306 stars = $9)
+USD_TO_STARS_RATE = 34      # $1 USD = ~34 stars
 
 # Webhook configuration
 WEBHOOK_CONFIG = {
