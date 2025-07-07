@@ -47,6 +47,20 @@ class Database:
                 )
             ''')
             
+            # Packages table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS packages (
+                    package_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    price_usd REAL NOT NULL,
+                    duration_days INTEGER NOT NULL,
+                    posts_per_day INTEGER NOT NULL,
+                    channels_included INTEGER NOT NULL,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             # Ads table
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS ads (
@@ -333,6 +347,67 @@ class Database:
             )
             await db.commit()
             return True
+            
+    async def create_package(self, package_id: str, name: str, price_usd: float,
+                            duration_days: int, posts_per_day: int, channels_included: int) -> bool:
+        """Create new package"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                INSERT OR REPLACE INTO packages 
+                (package_id, name, price_usd, duration_days, posts_per_day, channels_included)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (package_id, name, price_usd, duration_days, posts_per_day, channels_included))
+            await db.commit()
+            return True
+            
+    async def get_packages(self, active_only: bool = True) -> List[Dict]:
+        """Get all packages"""
+        async with aiosqlite.connect(self.db_path) as db:
+            if active_only:
+                cursor = await db.execute('''
+                    SELECT package_id, name, price_usd, duration_days, posts_per_day, channels_included
+                    FROM packages WHERE is_active = 1
+                    ORDER BY price_usd ASC
+                ''')
+            else:
+                cursor = await db.execute('''
+                    SELECT package_id, name, price_usd, duration_days, posts_per_day, channels_included
+                    FROM packages
+                    ORDER BY price_usd ASC
+                ''')
+            
+            rows = await cursor.fetchall()
+            return [
+                {
+                    'package_id': row[0],
+                    'name': row[1],
+                    'price_usd': row[2],
+                    'duration_days': row[3],
+                    'posts_per_day': row[4],
+                    'channels_included': row[5]
+                }
+                for row in rows
+            ]
+            
+    async def get_package(self, package_id: str) -> Optional[Dict]:
+        """Get package by ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute('''
+                SELECT package_id, name, price_usd, duration_days, posts_per_day, channels_included
+                FROM packages WHERE package_id = ?
+            ''', (package_id,))
+            row = await cursor.fetchone()
+            
+            if row:
+                return {
+                    'package_id': row[0],
+                    'name': row[1],
+                    'price_usd': row[2],
+                    'duration_days': row[3],
+                    'posts_per_day': row[4],
+                    'channels_included': row[5]
+                }
+            return None
 
 
 # Global database instance

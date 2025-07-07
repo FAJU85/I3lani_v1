@@ -123,7 +123,7 @@ class AdminSystem:
         keyboard = [
             [
                 InlineKeyboardButton(text="📺 Channel Management", callback_data="admin_channels"),
-                InlineKeyboardButton(text="📦 Subscription Management", callback_data="admin_subscriptions")
+                InlineKeyboardButton(text="📦 Package Management", callback_data="admin_packages")
             ],
             [
                 InlineKeyboardButton(text="💰 Pricing Management", callback_data="admin_pricing"),
@@ -217,7 +217,7 @@ Channels:
     async def show_subscription_management(self, callback_query: CallbackQuery):
         """Show subscription management interface"""
         text = f"""
-📦 **Subscription Management**
+📦 **Package Management**
 
 **Available Packages:** {len(self.subscription_packages)}
 
@@ -621,8 +621,8 @@ async def admin_channels_callback(callback_query: CallbackQuery, state: FSMConte
     await admin_system.show_channel_management(callback_query)
     await callback_query.answer()
 
-@router.callback_query(F.data == "admin_subscriptions")
-async def admin_subscriptions_callback(callback_query: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "admin_packages")
+async def admin_packages_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle subscription management callback"""
     user_id = callback_query.from_user.id
     
@@ -1099,7 +1099,7 @@ async def handle_create_subscription_message(message: Message, state: FSMContext
         import time
         package_id = f"package_{int(time.time())}"
         
-        # Add to admin system packages
+        # Add to admin system packages (in-memory)
         admin_system.subscription_packages[package_id] = {
             'name': package_name,
             'price_usd': price_usd,
@@ -1107,6 +1107,10 @@ async def handle_create_subscription_message(message: Message, state: FSMContext
             'posts_per_day': posts_per_day,
             'channels_included': channels_included
         }
+        
+        # Also save to database for persistence
+        from database import db
+        await db.create_package(package_id, package_name, price_usd, duration_days, posts_per_day, channels_included)
         
         success_text = f"""
 ✅ **Subscription Package Created Successfully!**

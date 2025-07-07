@@ -223,30 +223,57 @@ async def show_pricing_handler(callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    pricing_text = f"""
-💸 **Telegram Ad Bot – Pricing Plans (Per Channel)**
-
-All plans are per channel and can be managed via the Admin Control Panel.
-
----
-
-🎁 **Free Plan**
-• Duration: 3 days
-• 1 post per day
-• Price: **Free**
-• 🔁 1 use every 2 months (for @i3lani members only)
-
----
+    # Get packages from database for dynamic pricing
+    packages = await db.get_packages(active_only=True)
+    
+    # Get free ads remaining
+    user = await db.get_user(user_id)
+    free_ads_used = user.get('free_ads_used', 0) if user else 0
+    free_ads_remaining = max(0, 3 - free_ads_used)
+    
+    # Build pricing text dynamically
+    pricing_text = "💸 **Telegram Ad Bot – Pricing Plans (Per Channel)**\n\n"
+    pricing_text += "All plans are per channel and can be managed via the Admin Control Panel.\n\n"
+    
+    # Add free plan manually
+    pricing_text += "---\n\n"
+    pricing_text += "🎁 **Free Plan**\n"
+    pricing_text += "• Duration: 3 days\n"
+    pricing_text += "• 1 post per day\n"
+    pricing_text += "• Price: **Free**\n"
+    pricing_text += f"• 🔁 Remaining free ads: {free_ads_remaining}/3\n\n"
+    
+    # Add database packages or fallback to defaults
+    if packages:
+        for package in packages:
+            pricing_text += "---\n\n"
+            
+            emoji = "💰"
+            if "bronze" in package['name'].lower():
+                emoji = "🟫"
+            elif "silver" in package['name'].lower():
+                emoji = "🥈"
+            elif "gold" in package['name'].lower():
+                emoji = "🥇"
+                
+            pricing_text += f"{emoji} **{package['name']}**\n"
+            pricing_text += f"• Duration: {package['duration_days']} days\n"
+            pricing_text += f"• {package['posts_per_day']} posts per day\n"
+            pricing_text += f"• Max channels: {package['channels_included']}\n"
+            pricing_text += f"• Price: **${package['price_usd']}**\n\n"
+    else:
+        # Fallback to default packages if none in database
+        pricing_text += """---
 
 🟫 **Bronze Plan**
-• Duration: 1 month
+• Duration: 30 days
 • 1 post every 3 days
 • Price: **$10**
 
 ---
 
 🥈 **Silver Plan**
-• Duration: 3 months
+• Duration: 90 days
 • 3 posts per day
 • Daily posting
 • Price: **$29**
@@ -254,17 +281,16 @@ All plans are per channel and can be managed via the Admin Control Panel.
 ---
 
 🥇 **Gold Plan**
-• Duration: 6 months
+• Duration: 180 days
 • 6 posts per day
 • Daily posting
 • Price: **$47**
 
----
-
-✅ Admins can edit all prices and posting rules via control panel.
-
-📞 **Need help?** Contact /support
-    """.strip()
+"""
+    
+    pricing_text += "---\n\n"
+    pricing_text += "✅ Admins can edit all prices and posting rules via control panel.\n\n"
+    pricing_text += "📞 **Need help?** Contact /support"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")],
