@@ -123,11 +123,11 @@ class AdminSystem:
         keyboard = [
             [
                 InlineKeyboardButton(text="📺 Channel Management", callback_data="admin_channels"),
-                InlineKeyboardButton(text="📦 Package Management", callback_data="admin_packages")
+                InlineKeyboardButton(text="💰 Price Management", callback_data="admin_pricing")
             ],
             [
-                InlineKeyboardButton(text="💰 Pricing Management", callback_data="admin_pricing"),
-                InlineKeyboardButton(text="⏰ Publishing Schedules", callback_data="admin_schedules")
+                InlineKeyboardButton(text="⏰ Publishing Schedules", callback_data="admin_schedules"),
+                InlineKeyboardButton(text="👥 User Management", callback_data="admin_users")
             ],
             [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
@@ -252,34 +252,36 @@ Channels:
         )
 
     async def show_pricing_management(self, callback_query: CallbackQuery):
-        """Show pricing management interface"""
-        text = """
-💰 **Pricing Management**
-
-**Current Pricing:**
-
-**Free Package:** $0 (3 days, 3 ads per month)
-**Bronze Package:** $10 (1 month)
-**Silver Package:** $29 (3 months)
-**Gold Package:** $47 (6 months)
-
-**Payment Methods:**
-• TON Cryptocurrency ✅
-• Telegram Stars ✅
-
-**Exchange Rates:**
-• 1 USD = 100 Telegram Stars
-• TON rate: Live market rate
-        """.strip()
+        """Show price management interface"""
+        from database import db
+        
+        # Get current packages from database
+        packages = await db.get_packages(active_only=False)
+        
+        text = "💰 **Price Management**\n\n"
+        
+        if packages:
+            text += "**Current Packages:**\n"
+            for package in packages:
+                status = "✅ Active" if package.get('active', True) else "❌ Inactive"
+                text += f"• {package['name']}: ${package['price_usd']} ({status})\n"
+        else:
+            text += "**No packages found in database.**\n"
+        
+        text += "\n**Package Management Options:**\n"
+        text += "Create, edit, remove, or view statistics for pricing packages.\n"
         
         keyboard = [
             [
-                InlineKeyboardButton(text="🟫 Update Bronze Price", callback_data="admin_price_bronze"),
-                InlineKeyboardButton(text="🥈 Update Silver Price", callback_data="admin_price_silver")
+                InlineKeyboardButton(text="➕ Create Price", callback_data="admin_create_price"),
+                InlineKeyboardButton(text="✏️ Edit Price", callback_data="admin_edit_price")
             ],
             [
-                InlineKeyboardButton(text="🥇 Update Gold Price", callback_data="admin_price_gold"),
-                InlineKeyboardButton(text="🔄 Refresh Rates", callback_data="admin_refresh_rates")
+                InlineKeyboardButton(text="🗑️ Remove Price", callback_data="admin_remove_price"),
+                InlineKeyboardButton(text="📊 Price Stats", callback_data="admin_price_stats")
+            ],
+            [
+                InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_refresh")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
@@ -621,17 +623,156 @@ async def admin_channels_callback(callback_query: CallbackQuery, state: FSMConte
     await admin_system.show_channel_management(callback_query)
     await callback_query.answer()
 
-@router.callback_query(F.data == "admin_packages")
-async def admin_packages_callback(callback_query: CallbackQuery, state: FSMContext):
-    """Handle subscription management callback"""
+# Package management removed - using dynamic pricing system instead
+
+@router.callback_query(F.data == "admin_create_price")
+async def admin_create_price_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle create price callback"""
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("❌ Access denied!")
         return
     
-    await state.set_state(AdminStates.subscription_management)
-    await admin_system.show_subscription_management(callback_query)
+    await state.set_state(AdminStates.create_subscription)
+    
+    text = """
+➕ **Create New Price Package**
+
+Please enter the package details in this format:
+`package_id|name|price_usd|duration_days|posts_per_day|channels_included`
+
+**Example:**
+`premium|Premium Plan|99|365|10|5`
+
+**Fields:**
+• package_id: Unique identifier (no spaces)
+• name: Display name for the package
+• price_usd: Price in USD
+• duration_days: Package duration in days
+• posts_per_day: Maximum posts per day
+• channels_included: Number of channels included
+
+Type your package details:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "admin_edit_price")
+async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle edit price callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied!")
+        return
+    
+    from database import db
+    packages = await db.get_packages(active_only=False)
+    
+    if not packages:
+        await callback_query.answer("❌ No packages found!")
+        return
+    
+    text = "✏️ **Edit Price Package**\n\nSelect a package to edit:"
+    
+    keyboard_buttons = []
+    for package in packages:
+        keyboard_buttons.append([
+            InlineKeyboardButton(
+                text=f"{package['name']} - ${package['price_usd']}",
+                callback_data=f"admin_edit_pkg_{package['package_id']}"
+            )
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "admin_remove_price")
+async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle remove price callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied!")
+        return
+    
+    from database import db
+    packages = await db.get_packages(active_only=False)
+    
+    if not packages:
+        await callback_query.answer("❌ No packages found!")
+        return
+    
+    text = "🗑️ **Remove Price Package**\n\n⚠️ Warning: This will permanently delete the package!\n\nSelect a package to remove:"
+    
+    keyboard_buttons = []
+    for package in packages:
+        keyboard_buttons.append([
+            InlineKeyboardButton(
+                text=f"🗑️ {package['name']} - ${package['price_usd']}",
+                callback_data=f"admin_remove_pkg_{package['package_id']}"
+            )
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_pricing")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "admin_price_stats")
+async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle price stats callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied!")
+        return
+    
+    from database import db
+    packages = await db.get_packages(active_only=False)
+    
+    text = "📊 **Price Statistics**\n\n"
+    
+    if packages:
+        total_packages = len(packages)
+        active_packages = len([p for p in packages if p.get('active', True)])
+        total_revenue = sum(p['price_usd'] for p in packages)
+        avg_price = total_revenue / total_packages if total_packages > 0 else 0
+        
+        text += f"**Package Overview:**\n"
+        text += f"• Total Packages: {total_packages}\n"
+        text += f"• Active Packages: {active_packages}\n"
+        text += f"• Average Price: ${avg_price:.2f}\n\n"
+        
+        text += "**Package Details:**\n"
+        for package in packages:
+            status = "✅" if package.get('active', True) else "❌"
+            text += f"{status} {package['name']}: ${package['price_usd']} ({package['duration_days']} days)\n"
+    else:
+        text += "**No packages found in database.**\n"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_price_stats")],
+        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_pricing")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_pricing")
@@ -1297,6 +1438,71 @@ async def admin_subscription_stats_callback(callback_query: CallbackQuery, state
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     await callback_query.answer()
+
+@router.message(AdminStates.create_subscription)
+async def handle_create_price_message(message: Message, state: FSMContext):
+    """Handle create price form submission"""
+    user_id = message.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await message.reply("❌ Access denied!")
+        return
+    
+    try:
+        # Parse package details: package_id|name|price_usd|duration_days|posts_per_day|channels_included
+        parts = message.text.strip().split('|')
+        if len(parts) != 6:
+            await message.reply("❌ Invalid format! Please use: `package_id|name|price_usd|duration_days|posts_per_day|channels_included`")
+            return
+        
+        package_id, name, price_usd, duration_days, posts_per_day, channels_included = parts
+        
+        # Validate data types
+        price_usd = float(price_usd)
+        duration_days = int(duration_days)
+        posts_per_day = int(posts_per_day)
+        channels_included = int(channels_included)
+        
+        # Create package in database
+        from database import db
+        success = await db.create_package(
+            package_id.strip(),
+            name.strip(),
+            price_usd,
+            duration_days,
+            posts_per_day,
+            channels_included
+        )
+        
+        if success:
+            success_text = f"""
+✅ **Price Package Created Successfully!**
+
+**Package Details:**
+• ID: {package_id}
+• Name: {name}
+• Price: ${price_usd}
+• Duration: {duration_days} days
+• Posts per day: {posts_per_day}
+• Channels included: {channels_included}
+
+The package is now available in the pricing menu!
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_pricing")]
+            ])
+            
+            await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        else:
+            await message.reply("❌ Failed to create package. Package ID might already exist.")
+        
+    except ValueError:
+        await message.reply("❌ Invalid number format! Please check price, duration, posts per day, and channels values.")
+    except Exception as e:
+        await message.reply(f"❌ Error creating package: {str(e)}")
+    
+    await state.clear()
 
 def setup_admin_handlers(dp):
     """Setup admin handlers"""
