@@ -387,7 +387,10 @@ async def subcategory_selection_handler(callback_query: CallbackQuery, state: FS
             await callback_query.answer("Invalid subcategory", show_alert=True)
             return
             
-        subcategory_name = AD_CATEGORIES[category_id]['subcategories'][subcategory_id]
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        subcategory_data = AD_CATEGORIES[category_id]['subcategories'][subcategory_id]
+        subcategory_name = subcategory_data.get(language, subcategory_data['en'])
         await state.update_data(selected_subcategory=subcategory_id, subcategory_name=subcategory_name)
         
         # Show location selection
@@ -2304,12 +2307,6 @@ async def dashboard_command(message: Message):
     ])
     
     await message.reply(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
-
-
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
-    await callback_query.message.edit_text(pricing_text, reply_markup=keyboard, parse_mode='Markdown')
-    await callback_query.answer()
 
 
 # Duplicate handlers removed - using main handlers with callback_data "help" and "settings"
