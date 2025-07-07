@@ -1288,6 +1288,63 @@ async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext)
     await show_main_menu(callback_query, language)
 
 
+@router.callback_query(F.data.startswith("retry_payment_"))
+async def retry_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle retry payment request"""
+    try:
+        subscription_id = callback_query.data.replace("retry_payment_", "")
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Get subscription details
+        subscription = await db.get_subscription(subscription_id)
+        if not subscription:
+            await callback_query.answer("Subscription not found", show_alert=True)
+            return
+        
+        # Create new payment invoice
+        payment_processor = PaymentProcessor()
+        invoice = await payment_processor.create_payment_invoice(
+            user_id=user_id,
+            subscription_id=subscription_id,
+            amount=subscription['total_price'],
+            currency='TON',
+            payment_method='ton'
+        )
+        
+        # Show new payment instructions
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="✅ Payment Sent", 
+                callback_data=f"confirm_payment_{invoice['payment_id']}"
+            )],
+            [InlineKeyboardButton(
+                text="🏠 Go Home", 
+                callback_data="go_home"
+            )]
+        ])
+        
+        await callback_query.message.edit_text(
+            invoice['instructions'],
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        await callback_query.answer("New payment instructions generated!")
+        
+    except Exception as e:
+        logger.error(f"Retry payment error: {e}")
+        await callback_query.answer("Error generating payment. Please try again.")
+
+
+@router.callback_query(F.data == "go_home")
+async def go_home_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle go home request"""
+    await state.clear()
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    await show_main_menu(callback_query, language)
+
+
 # Old admin handler removed - now handled by admin_system.py
 
 

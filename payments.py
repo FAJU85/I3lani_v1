@@ -92,23 +92,27 @@ class PaymentProcessor:
         """Get payment instructions for method"""
         if payment_method == 'ton':
             return f"""
-💎 **TON Payment Instructions**
+💎 TON Payment Instructions
 
-📋 **Payment Details:**
+📋 Payment Details:
 • Amount: {amount} TON
-• Wallet: `{self.ton_wallet}`
-• Memo: `{memo}`
+• Wallet: {self.ton_wallet}
+• Memo: {memo}
 
-📱 **How to Pay:**
+📱 How to Pay:
+
 1. Open your TON wallet
-2. Send exactly {amount} TON
-3. Include memo: {memo}
-4. Confirm transaction
 
-⚠️ **Important:**
+2. Send exactly {amount} TON
+
+3. Include memo: {memo}
+
+⚠️ Important:
 • Include the exact memo: {memo}
-• Payment expires in 30 minutes
+• Payment expires in 15 minutes
 • Don't send from exchange wallet
+
+⏳ Monitoring your payment...
             """.strip()
         elif payment_method == 'stars':
             return f"""
@@ -132,9 +136,9 @@ class PaymentProcessor:
         return "❌ Unsupported payment method"
     
     async def _monitor_ton_payment(self, payment_id: int, memo: str, 
-                                  expected_amount: float, timeout_minutes: int = 30):
-        """Monitor TON payment via API"""
-        if not self.ton_api_key or not self.ton_wallet:
+                                  expected_amount: float, timeout_minutes: int = 15):
+        """Monitor TON payment via tonviewer.com API"""
+        if not self.ton_wallet:
             return
             
         timeout_seconds = timeout_minutes * 60
@@ -142,18 +146,21 @@ class PaymentProcessor:
         
         for _ in range(timeout_seconds // check_interval):
             try:
-                # Check for payment via TON API
+                # Check for payment via tonviewer.com
                 if await self._check_ton_transaction(memo, expected_amount):
-                    await self._confirm_payment(payment_id)
+                    await self._confirm_payment_success(payment_id)
                     return
                     
                 await asyncio.sleep(check_interval)
             except Exception as e:
                 print(f"Error monitoring TON payment: {e}")
                 await asyncio.sleep(check_interval)
+        
+        # Payment timeout - send failure notification
+        await self._handle_payment_timeout(payment_id)
     
     async def _check_ton_transaction(self, memo: str, expected_amount: float) -> bool:
-        """Check if TON transaction exists"""
+        """Check if TON transaction exists via tonviewer.com"""
         try:
             # Use tonviewer.com API to check transactions
             url = f"https://tonviewer.com/api/v1/address/{self.ton_wallet}/transactions"
@@ -164,17 +171,21 @@ class PaymentProcessor:
                 transactions = response.json()
                 
                 for tx in transactions.get('transactions', []):
-                    # Check if transaction has the correct memo and amount
-                    if (tx.get('memo') == memo and 
-                        float(tx.get('amount', 0)) >= expected_amount):
-                        return True
+                    # Check transaction details
+                    if 'in_msg' in tx and tx['in_msg']:
+                        tx_memo = tx['in_msg'].get('message', '')
+                        tx_amount = float(tx['in_msg'].get('value', 0)) / 1e9  # Convert from nanotons
+                        
+                        # Check if memo matches and amount is sufficient (95% tolerance)
+                        if memo in tx_memo and tx_amount >= expected_amount * 0.95:
+                            return True
             return False
         except Exception as e:
-            print(f"Error checking TON transaction: {e}")
+            print(f"Error checking TON transaction via tonviewer.com: {e}")
             return False
     
-    async def _confirm_payment(self, payment_id: int):
-        """Confirm payment and activate subscription"""
+    async def _confirm_payment_success(self, payment_id: int):
+        """Confirm successful payment and notify user"""
         try:
             # Update payment status
             async with aiosqlite.connect(db.db_path) as conn:
@@ -184,7 +195,7 @@ class PaymentProcessor:
                     WHERE payment_id = ?
                 ''', (payment_id,))
                 
-                # Get subscription details
+                # Get subscription and user details
                 async with conn.execute('''
                     SELECT s.*, p.user_id 
                     FROM subscriptions s 
@@ -212,8 +223,91 @@ class PaymentProcessor:
                 
                 await conn.commit()
                 
+                # Send success notification to user
+                await self._send_payment_success_notification(subscription['user_id'])
+                
         except Exception as e:
             print(f"Error confirming payment: {e}")
+    
+    async def _send_payment_success_notification(self, user_id: int):
+        """Send payment success notification to user"""
+        try:
+            from aiogram import Bot
+            from config import BOT_TOKEN
+            
+            bot = Bot(token=BOT_TOKEN)
+            message = """
+✅ **Payment Confirmed!**
+
+Your payment has been confirmed and your campaign will start shortly.
+
+Thank you for choosing I3lani! 🚀
+            """.strip()
+            
+            await bot.send_message(user_id, message, parse_mode='Markdown')
+        except Exception as e:
+            print(f"Error sending success notification: {e}")
+    
+    async def _handle_payment_timeout(self, payment_id: int):
+        """Handle payment timeout and offer retry"""
+        try:
+            # Get user information
+            async with aiosqlite.connect(db.db_path) as conn:
+                async with conn.execute('''
+                    SELECT p.user_id, p.subscription_id, p.amount, p.memo
+                    FROM payments p
+                    WHERE p.payment_id = ? AND p.status = 'pending'
+                ''', (payment_id,)) as cursor:
+                    payment = await cursor.fetchone()
+                
+                if payment:
+                    # Update payment status to failed
+                    await conn.execute('''
+                        UPDATE payments 
+                        SET status = 'failed', failed_at = CURRENT_TIMESTAMP
+                        WHERE payment_id = ?
+                    ''', (payment_id,))
+                    await conn.commit()
+                    
+                    # Send failure notification with retry option
+                    await self._send_payment_failure_notification(
+                        payment['user_id'], 
+                        payment['subscription_id'],
+                        payment['amount']
+                    )
+                    
+        except Exception as e:
+            print(f"Error handling payment timeout: {e}")
+    
+    async def _send_payment_failure_notification(self, user_id: int, subscription_id: int, amount: float):
+        """Send payment failure notification with retry option"""
+        try:
+            from aiogram import Bot
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            from config import BOT_TOKEN
+            
+            bot = Bot(token=BOT_TOKEN)
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Try Again", callback_data=f"retry_payment_{subscription_id}")],
+                [InlineKeyboardButton(text="🏠 Go Home", callback_data="go_home")]
+            ])
+            
+            message = """
+❌ **Payment Failed**
+
+Your payment was not received within the 15-minute window.
+
+Would you like to try again?
+            """.strip()
+            
+            await bot.send_message(user_id, message, reply_markup=keyboard, parse_mode='Markdown')
+        except Exception as e:
+            print(f"Error sending failure notification: {e}")
+    
+    async def _confirm_payment(self, payment_id: int):
+        """Legacy confirm payment function for backward compatibility"""
+        await self._confirm_payment_success(payment_id)
     
     async def verify_stars_payment(self, payment_id: int, charge_id: str) -> bool:
         """Verify Telegram Stars payment"""

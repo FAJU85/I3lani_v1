@@ -215,6 +215,16 @@ class Database:
             await db.commit()
             return cursor.lastrowid
     
+    async def get_subscription(self, subscription_id: int) -> Optional[Dict]:
+        """Get subscription by ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute('''
+                SELECT * FROM subscriptions WHERE subscription_id = ?
+            ''', (subscription_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+    
     async def create_payment(self, user_id: int, subscription_id: int,
                            amount: float, currency: str, payment_method: str,
                            memo: str) -> int:
