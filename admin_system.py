@@ -146,7 +146,7 @@ class AdminSystem:
     async def show_main_menu(self, message_or_query, edit: bool = False):
         """Show main admin menu"""
         text = f"""
-🔧 **I3lani Bot Admin Panel**
+**I3lani Bot Admin Panel**
 
 **System Status:** ✅ Online
 **Total Users:** {await self.get_total_users()}
@@ -154,11 +154,11 @@ class AdminSystem:
 **Revenue Today:** ${await self.get_daily_revenue():.2f}
 
 **Quick Actions:**
-• Manage channels and subscriptions
-• Control packages and schedules
-• Monitor user activity
-• View detailed statistics
-• Send broadcast messages
+- Manage channels and subscriptions
+- Control packages and schedules
+- Monitor user activity
+- View detailed statistics
+- Send broadcast messages
 
 Select an option to continue:
         """.strip()
@@ -183,9 +183,9 @@ Channels:
         for channel_id, channel in self.channels.items():
             status = "✅" if channel['active'] else "❌"
             text += f"\n{status} {channel['name']}"
-            text += f"\n   • ID: {channel['telegram_id']}"
-            text += f"\n   • Subscribers: {channel['subscribers']:,}"
-            text += f"\n   • Category: {channel['category']}"
+            text += f"\n   - ID: {channel['telegram_id']}"
+            text += f"\n   - Subscribers: {channel['subscribers']:,}"
+            text += f"\n   - Category: {channel['category']}"
         
         keyboard = [
             [
@@ -217,7 +217,7 @@ Channels:
     async def show_subscription_management(self, callback_query: CallbackQuery):
         """Show subscription management interface"""
         text = f"""
-📦 **Package Management**
+**Package Management**
 
 **Available Packages:** {len(self.subscription_packages)}
 
@@ -225,11 +225,11 @@ Channels:
         """.strip()
         
         for package_id, package in self.subscription_packages.items():
-            text += f"\n🎯 **{package['name']}**"
-            text += f"\n   • Price: ${package['price_usd']}"
-            text += f"\n   • Duration: {package['duration_days']} days"
-            text += f"\n   • Posts/Day: {package['posts_per_day']}"
-            text += f"\n   • Channels: {package['channels_included']}"
+            text += f"\n**{package['name']}**"
+            text += f"\n   - Price: ${package['price_usd']}"
+            text += f"\n   - Duration: {package['duration_days']} days"
+            text += f"\n   - Posts/Day: {package['posts_per_day']}"
+            text += f"\n   - Channels: {package['channels_included']}"
         
         keyboard = [
             [
@@ -258,13 +258,13 @@ Channels:
         # Get current packages from database
         packages = await db.get_packages(active_only=False)
         
-        text = "💰 **Price Management**\n\n"
+        text = "**Price Management**\n\n"
         
         if packages:
             text += "**Current Packages:**\n"
             for package in packages:
                 status = "✅ Active" if package.get('active', True) else "❌ Inactive"
-                text += f"• {package['name']}: ${package['price_usd']} ({status})\n"
+                text += f"- {package['name']}: ${package['price_usd']} ({status})\n"
         else:
             text += "**No packages found in database.**\n"
         
@@ -309,10 +309,10 @@ Channels:
         text += f"""
 
 **Schedule Settings:**
-• Auto-publish: ✅ Enabled
-• Timezone: UTC
-• Retry failed posts: ✅ Enabled
-• Max posts per hour: 10
+- Auto-publish: ✅ Enabled
+- Timezone: UTC
+- Retry failed posts: ✅ Enabled
+- Max posts per hour: 10
         """.strip()
         
         keyboard = [
@@ -346,11 +346,11 @@ Channels:
 **Active Sessions:** {await self.get_active_sessions()}
 
 **Bot Features:**
-• Multi-language support (EN/AR/RU) ✅
-• Payment processing (TON/Stars) ✅
-• Auto-publishing ✅
-• Referral system ✅
-• Debug system ✅
+- Multi-language support (EN/AR/RU) ✅
+- Payment processing (TON/Stars) ✅
+- Auto-publishing ✅
+- Referral system ✅
+- Debug system ✅
 
 **Control Options:**
         """.strip()
@@ -385,13 +385,13 @@ Channels:
         active_users = await self.get_active_users()
         
         text = f"""
-👥 **User Management**
+**User Management**
 
 **User Statistics:**
-• Total Users: {total_users}
-• Active Users: {active_users}
-• New Users Today: {await self.get_new_users_today()}
-• Paid Users: {await self.get_paid_users()}
+Total Users: {total_users}
+Active Users: {active_users}
+- New Users Today: {await self.get_new_users_today()}
+- Paid Users: {await self.get_paid_users()}
 
 **User Actions:**
         """.strip()
@@ -423,27 +423,27 @@ Channels:
     async def show_statistics(self, callback_query: CallbackQuery):
         """Show detailed statistics"""
         text = f"""
-📊 **Detailed Statistics**
+**Detailed Statistics**
 
 **Revenue:**
-• Today: ${await self.get_daily_revenue():.2f}
-• This Week: ${await self.get_weekly_revenue():.2f}
-• This Month: ${await self.get_monthly_revenue():.2f}
+Today: ${await self.get_daily_revenue():.2f}
+This Week: ${await self.get_weekly_revenue():.2f}
+This Month: ${await self.get_monthly_revenue():.2f}
 
 **Users:**
-• Total: {await self.get_total_users()}
-• Active: {await self.get_active_users()}
-• Premium: {await self.get_paid_users()}
+- Total: {await self.get_total_users()}
+- Active: {await self.get_active_users()}
+- Premium: {await self.get_paid_users()}
 
 **Campaigns:**
-• Active: {await self.get_active_campaigns()}
-• Completed: {await self.get_completed_campaigns()}
-• Success Rate: {await self.get_success_rate()}%
+- Active: {await self.get_active_campaigns()}
+- Completed: {await self.get_completed_campaigns()}
+- Success Rate: {await self.get_success_rate()}%
 
 **Channels:**
-• Total Posts: {await self.get_total_posts()}
-• Posts Today: {await self.get_posts_today()}
-• Engagement Rate: {await self.get_engagement_rate()}%
+- Total Posts: {await self.get_total_posts()}
+- Posts Today: {await self.get_posts_today()}
+- Engagement Rate: {await self.get_engagement_rate()}%
         """.strip()
         
         keyboard = [
@@ -646,12 +646,12 @@ Please enter the package details in this format:
 `premium|Premium Plan|99|365|10|5`
 
 **Fields:**
-• package_id: Unique identifier (no spaces)
-• name: Display name for the package
-• price_usd: Price in USD
-• duration_days: Package duration in days
-• posts_per_day: Maximum posts per day
-• channels_included: Number of channels included
+- package_id: Unique identifier (no spaces)
+- name: Display name for the package
+- price_usd: Price in USD
+- duration_days: Package duration in days
+- posts_per_day: Maximum posts per day
+- channels_included: Number of channels included
 
 Type your package details:
     """.strip()
@@ -679,7 +679,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
         await callback_query.answer("❌ No packages found!")
         return
     
-    text = "✏️ **Edit Price Package**\n\nSelect a package to edit:"
+    text = "**Edit Price Package**\n\nSelect a package to edit:"
     
     keyboard_buttons = []
     for package in packages:
@@ -715,7 +715,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
         await callback_query.answer("❌ No packages found!")
         return
     
-    text = "🗑️ **Remove Price Package**\n\n⚠️ Warning: This will permanently delete the package!\n\nSelect a package to remove:"
+    text = "**Remove Price Package**\n\nWarning: This will permanently delete the package!\n\nSelect a package to remove:"
     
     keyboard_buttons = []
     for package in packages:
@@ -747,7 +747,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
     from database import db
     packages = await db.get_packages(active_only=False)
     
-    text = "📊 **Price Statistics**\n\n"
+    text = "**Price Statistics**\n\n"
     
     if packages:
         total_packages = len(packages)
@@ -756,9 +756,9 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
         avg_price = total_revenue / total_packages if total_packages > 0 else 0
         
         text += f"**Package Overview:**\n"
-        text += f"• Total Packages: {total_packages}\n"
-        text += f"• Active Packages: {active_packages}\n"
-        text += f"• Average Price: ${avg_price:.2f}\n\n"
+        text += f"- Total Packages: {total_packages}\n"
+        text += f"- Active Packages: {active_packages}\n"
+        text += f"- Average Price: ${avg_price:.2f}\n\n"
         
         text += "**Package Details:**\n"
         for package in packages:
@@ -859,7 +859,7 @@ async def admin_discover_channels_callback(callback_query: CallbackQuery, state:
     await callback_query.answer()
     
     text = """
-🔍 **Discovering Existing Channels**
+**Discovering Existing Channels**
 
 Scanning for channels where the bot is already an administrator...
     """.strip()
@@ -878,7 +878,7 @@ Scanning for channels where the bot is already an administrator...
         channels = await admin_system.db.get_channels(active_only=True)
         
         result_text = f"""
-🔍 **Channel Discovery Complete**
+**Channel Discovery Complete**
 
 Found {len(channels)} active channels:
 
@@ -1045,14 +1045,14 @@ async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMCo
         return
     
     text = f"""
-📝 **Edit Channel: {channel['name']}**
+**Edit Channel: {channel['name']}**
 
 **Current Information:**
-• Name: {channel['name']}
-• Telegram ID: {channel['telegram_id']}
-• Category: {channel['category']}
-• Subscribers: {channel['subscribers']:,}
-• Status: {'✅ Active' if channel['active'] else '❌ Inactive'}
+Name: {channel['name']}
+Telegram ID: {channel['telegram_id']}
+Category: {channel['category']}
+Subscribers: {channel['subscribers']:,}
+Status: {'Active' if channel['active'] else 'Inactive'}
 
 What would you like to edit?
     """.strip()
@@ -1068,7 +1068,7 @@ What would you like to edit?
         ],
         [
             InlineKeyboardButton(
-                text="❌ Deactivate" if channel['active'] else "✅ Activate",
+                text="Deactivate" if channel['active'] else "Activate",
                 callback_data=f"toggle_channel_{channel_id}"
             )
         ],
@@ -1102,7 +1102,7 @@ async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext
     channel['active'] = not channel['active']
     status = "activated" if channel['active'] else "deactivated"
     
-    await callback_query.answer(f"✅ Channel {status} successfully!")
+    await callback_query.answer(f"Channel {status} successfully!")
     
     # Return to edit view
     await handle_edit_channel_select(callback_query, state)
@@ -1351,10 +1351,10 @@ async def admin_edit_subscription_callback(callback_query: CallbackQuery, state:
 Select a package to edit:
 
 **Available Packages:**
-• Free Package: $0 (3 days, 3 ads per month)
-• Bronze Package: $10 (1 month)
-• Silver Package: $29 (3 months)  
-• Gold Package: $47 (6 months)
+- Free Package: $0 (3 days, 3 ads per month)
+- Bronze Package: $10 (1 month)
+- Silver Package: $29 (3 months)  
+- Gold Package: $47 (6 months)
 
 Choose a package to modify:
     """.strip()
@@ -1455,8 +1455,8 @@ async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSM
     for channel_id, channel in admin_system.channels.items():
         status = "✅" if channel['active'] else "❌"
         text += f"\n{status} **{channel['name']}**"
-        text += f"\n   • {channel['subscribers']:,} subscribers"
-        text += f"\n   • Category: {channel['category']}"
+        text += f"\n   - {channel['subscribers']:,} subscribers"
+        text += f"\n   - Category: {channel['category']}"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📺 Back to Channel Management", callback_data="admin_channels")]
@@ -1484,10 +1484,10 @@ async def admin_subscription_stats_callback(callback_query: CallbackQuery, state
     
     for package_id, package in admin_system.subscription_packages.items():
         text += f"\n📦 **{package['name']}**"
-        text += f"\n   • Price: ${package['price_usd']} USD"
-        text += f"\n   • Duration: {package['duration_days']} days"
-        text += f"\n   • Posts/Day: {package['posts_per_day']}"
-        text += f"\n   • Revenue Potential: ${package['price_usd'] * 10:.2f}/month (est.)"
+        text += f"\n   - Price: ${package['price_usd']} USD"
+        text += f"\n   - Duration: {package['duration_days']} days"
+        text += f"\n   - Posts/Day: {package['posts_per_day']}"
+        text += f"\n   - Revenue Potential: ${package['price_usd'] * 10:.2f}/month (est.)"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📦 Back to Subscription Management", callback_data="admin_subscriptions")]
@@ -1536,12 +1536,12 @@ async def handle_create_price_message(message: Message, state: FSMContext):
 ✅ **Price Package Created Successfully!**
 
 **Package Details:**
-• ID: {package_id}
-• Name: {name}
-• Price: ${price_usd}
-• Duration: {duration_days} days
-• Posts per day: {posts_per_day}
-• Channels included: {channels_included}
+- ID: {package_id}
+- Name: {name}
+- Price: ${price_usd}
+- Duration: {duration_days} days
+- Posts per day: {posts_per_day}
+- Channels included: {channels_included}
 
 The package is now available in the pricing menu!
             """.strip()
@@ -1590,9 +1590,9 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
 ✅ **Package Removed Successfully!**
 
 **Removed Package:**
-• Name: {package['name']}
-• Price: ${package['price_usd']}
-• ID: {package_id}
+- Name: {package['name']}
+- Price: ${package['price_usd']}
+- ID: {package_id}
 
 The package has been permanently deleted and is no longer available in the pricing menu.
         """.strip()
@@ -1634,12 +1634,12 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
 ✏️ **Edit Package: {package['name']}**
 
 **Current Details:**
-• ID: {package['package_id']}
-• Name: {package['name']}
-• Price: ${package['price_usd']}
-• Duration: {package['duration_days']} days
-• Posts per day: {package['posts_per_day']}
-• Channels: {package['channels_included']}
+- ID: {package['package_id']}
+- Name: {package['name']}
+- Price: ${package['price_usd']}
+- Duration: {package['duration_days']} days
+- Posts per day: {package['posts_per_day']}
+- Channels: {package['channels_included']}
 
 Please enter the new package details in this format:
 `name|price_usd|duration_days|posts_per_day|channels_included`
@@ -1705,12 +1705,12 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
 ✅ **Package Updated Successfully!**
 
 **Updated Package Details:**
-• ID: {package_id}
-• Name: {name}
-• Price: ${price_usd}
-• Duration: {duration_days} days
-• Posts per day: {posts_per_day}
-• Channels included: {channels_included}
+- ID: {package_id}
+- Name: {name}
+- Price: ${price_usd}
+- Duration: {duration_days} days
+- Posts per day: {posts_per_day}
+- Channels included: {channels_included}
 
 The changes are now live in the pricing menu!
         """.strip()
@@ -1752,18 +1752,18 @@ async def admin_channel_details_handler(message: Message):
             last_updated = channel.get('last_updated', 'Never')
             
             response += f"**{channel['name']}**\n"
-            response += f"• **Channel ID:** `{channel['telegram_channel_id']}`\n"
-            response += f"• **Category:** {category}\n"
-            response += f"• **Total Subscribers:** {channel.get('subscribers', 0):,}\n"
-            response += f"• **Active Subscribers:** {active_subs:,}\n"
-            response += f"• **Total Posts:** {total_posts:,}\n"
-            response += f"• **Base Price:** ${channel.get('base_price_usd', 0):.2f}\n"
-            response += f"• **Status:** {status}\n"
-            response += f"• **Last Updated:** {last_updated}\n"
+            response += f"- **Channel ID:** `{channel['telegram_channel_id']}`\n"
+            response += f"- **Category:** {category}\n"
+            response += f"- **Total Subscribers:** {channel.get('subscribers', 0):,}\n"
+            response += f"- **Active Subscribers:** {active_subs:,}\n"
+            response += f"- **Total Posts:** {total_posts:,}\n"
+            response += f"- **Base Price:** ${channel.get('base_price_usd', 0):.2f}\n"
+            response += f"- **Status:** {status}\n"
+            response += f"- **Last Updated:** {last_updated}\n"
             
             if description and len(description) > 50:
                 description = description[:47] + "..."
-            response += f"• **Description:** {description}\n\n"
+            response += f"- **Description:** {description}\n\n"
             
             # Prevent message from being too long
             if len(response) > 3500:
