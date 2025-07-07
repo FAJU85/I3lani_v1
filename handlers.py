@@ -71,18 +71,27 @@ def create_main_menu_keyboard(language: str) -> InlineKeyboardMarkup:
     return keyboard
 
 
-def create_channel_selection_keyboard(language: str, selected_channels: List[str] = None) -> InlineKeyboardMarkup:
-    """Create channel selection keyboard"""
+async def create_channel_selection_keyboard(language: str, selected_channels: List[str] = None) -> InlineKeyboardMarkup:
+    """Create channel selection keyboard using database channels"""
     if selected_channels is None:
         selected_channels = []
     
     buttons = []
-    for channel_id, channel_data in CHANNELS.items():
+    # Get channels from database
+    channels = await db.get_channels(active_only=True)
+    for channel in channels:
+        channel_id = channel['channel_id']
         is_selected = channel_id in selected_channels
-        popular_mark = " 🔥" if channel_data['is_popular'] else ""
         selection_mark = "✅ " if is_selected else ""
         
-        text = f"{selection_mark}{channel_data['name']} ({channel_data['subscribers']//1000}K){popular_mark}"
+        # Display channel with subscriber count if available
+        subscribers = channel.get('subscribers', 0)
+        if subscribers > 0:
+            sub_text = f" ({subscribers//1000}K)" if subscribers >= 1000 else f" ({subscribers})"
+        else:
+            sub_text = ""
+        
+        text = f"{selection_mark}{channel['name']}{sub_text}"
         buttons.append([InlineKeyboardButton(
             text=text, 
             callback_data=f"toggle_channel_{channel_id}"
@@ -92,7 +101,7 @@ def create_channel_selection_keyboard(language: str, selected_channels: List[str
     if selected_channels:
         buttons.append([InlineKeyboardButton(
             text=get_text(language, 'continue'), 
-            callback_data="continue_to_duration"
+            callback_data="continue_with_channels"
         )])
     
     # Add back button
@@ -108,28 +117,28 @@ def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
     """Create duration selection keyboard with progressive frequency plans"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="1 Month - $30 (1 post/day)", callback_data="duration_1_month"),
-            InlineKeyboardButton(text="2 Months - $108 (2 posts/day)", callback_data="duration_2_months")
+            InlineKeyboardButton(text="1 Month - $30", callback_data="duration_1_month"),
+            InlineKeyboardButton(text="2 Months - $108 (10% off)", callback_data="duration_2_months")
         ],
         [
-            InlineKeyboardButton(text="3 Months - $229.50 (3 posts/day)", callback_data="duration_3_months"),
-            InlineKeyboardButton(text="4 Months - $384 (4 posts/day)", callback_data="duration_4_months")
+            InlineKeyboardButton(text="3 Months - $229.50 (15% off)", callback_data="duration_3_months"),
+            InlineKeyboardButton(text="4 Months - $384 (20% off)", callback_data="duration_4_months")
         ],
         [
-            InlineKeyboardButton(text="5 Months - $562.50 (5 posts/day)", callback_data="duration_5_months"),
-            InlineKeyboardButton(text="6 Months - $756 (6 posts/day)", callback_data="duration_6_months")
+            InlineKeyboardButton(text="5 Months - $562.50 (25% off)", callback_data="duration_5_months"),
+            InlineKeyboardButton(text="6 Months - $756 (30% off)", callback_data="duration_6_months")
         ],
         [
-            InlineKeyboardButton(text="7 Months - $999.60 (7 posts/day)", callback_data="duration_7_months"),
-            InlineKeyboardButton(text="8 Months - $1267.20 (8 posts/day)", callback_data="duration_8_months")
+            InlineKeyboardButton(text="7 Months - $999.60 (32% off)", callback_data="duration_7_months"),
+            InlineKeyboardButton(text="8 Months - $1267.20 (34% off)", callback_data="duration_8_months")
         ],
         [
-            InlineKeyboardButton(text="9 Months - $1555.20 (9 posts/day)", callback_data="duration_9_months"),
-            InlineKeyboardButton(text="10 Months - $1860 (10 posts/day)", callback_data="duration_10_months")
+            InlineKeyboardButton(text="9 Months - $1555.20 (36% off)", callback_data="duration_9_months"),
+            InlineKeyboardButton(text="10 Months - $1860 (38% off)", callback_data="duration_10_months")
         ],
         [
-            InlineKeyboardButton(text="11 Months - $2178 (11 posts/day)", callback_data="duration_11_months"),
-            InlineKeyboardButton(text="12 Months - $2409 (12 posts/day)", callback_data="duration_12_months")
+            InlineKeyboardButton(text="11 Months - $2178 (40% off)", callback_data="duration_11_months"),
+            InlineKeyboardButton(text="12 Months - $2409 (45% off)", callback_data="duration_12_months")
         ],
         [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="back_to_channels")]
     ])
@@ -1403,7 +1412,7 @@ async def ad_content_handler(message: Message, state: FSMContext):
     # Show channel selection
     await message.answer(
         f"{get_text(language, 'ad_received')}\n\n{get_text(language, 'choose_channels')}",
-        reply_markup=create_channel_selection_keyboard(language)
+        reply_markup=await create_channel_selection_keyboard(language)
     )
 
 
@@ -1430,16 +1439,16 @@ async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContex
     
     # Update keyboard
     await callback_query.message.edit_reply_markup(
-        reply_markup=create_channel_selection_keyboard(language, selected_channels)
+        reply_markup=await create_channel_selection_keyboard(language, selected_channels)
     )
     await callback_query.answer()
 
 
 @router.callback_query(F.data == "continue_to_duration")
 async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Continue to duration selection"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
+    """Continue to duration selection (legacy handler)"""
+    # Redirect to the new handler
+    await continue_with_channels_handler(callback_query, state)
     
     await state.set_state(AdCreationStates.duration_selection)
     await callback_query.message.edit_text(
@@ -2032,7 +2041,7 @@ async def back_to_channels_handler(callback_query: CallbackQuery, state: FSMCont
     await state.set_state(AdCreationStates.channel_selection)
     await callback_query.message.edit_text(
         get_text(language, 'choose_channels'),
-        reply_markup=create_channel_selection_keyboard(language, selected_channels)
+        reply_markup=await create_channel_selection_keyboard(language, selected_channels)
     )
     await callback_query.answer()
 
