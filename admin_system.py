@@ -875,7 +875,7 @@ Scanning for channels where the bot is already an administrator...
         await channel_manager.sync_existing_channels()
         
         # Get updated channel list
-        channels = await admin_system.db.get_channels(active_only=True)
+        channels = await db.get_channels(active_only=True)
         
         result_text = f"""
 **Channel Discovery Complete**
