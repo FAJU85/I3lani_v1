@@ -930,9 +930,61 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Start with package selection for enhanced flow
-    await show_pricing_handler(callback_query)
-    await callback_query.answer("Starting ad creation...")
+    # Use the correct pricing display function
+    pricing_text = f"""
+🎁 **Free Plan**
+• Duration: 3 days
+• 1 post per day
+• Daily posting
+• Price: **FREE**
+
+---
+
+🟫 **Bronze Plan**
+• Duration: 1 month
+• 1 post every 3 days
+• Daily posting
+• Price: **$10**
+
+---
+
+🥈 **Silver Plan**
+• Duration: 3 months
+• 1 post every 2 days
+• Daily posting
+• Price: **$29**
+
+---
+
+🥇 **Gold Plan**
+• Duration: 6 months
+• 6 posts per day
+• Daily posting
+• Price: **$47**
+
+---
+
+✅ Admins can edit all prices and posting rules via control panel.
+
+📞 **Need help?** Contact /support
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")],
+        [
+            InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze"),
+            InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")
+        ],
+        [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")],
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
+    ])
+    
+    await callback_query.message.edit_text(
+        pricing_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    await callback_query.answer("Choose your package to start creating your ad!")
 
 
 @router.message(AdCreationStates.ad_content)
