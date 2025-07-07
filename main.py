@@ -59,8 +59,12 @@ async def main():
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         
-        # Sync existing channels on startup
+        # Clean up invalid channels first
         logger.info("Syncing existing channels...")
+        cleaned_count = await db.clean_invalid_channels()
+        if cleaned_count > 0:
+            logger.info(f"🧹 Cleaned up {cleaned_count} invalid channels")
+        
         await channel_manager.sync_existing_channels()
         
         logger.info("Handlers setup completed")

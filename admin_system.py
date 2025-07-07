@@ -1144,13 +1144,21 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
         await callback_query.answer("ERROR: Channel not found.")
         return
     
-    # Remove channel
-    await db.deactivate_channel(channel_id)
+    # Remove channel permanently
+    success = await db.delete_channel(channel_id)
     
-    await callback_query.answer("SUCCESS: Channel removed successfully!")
+    if success:
+        await callback_query.message.edit_text(
+            f"✅ **Channel Removed Successfully**\n\n**{channel['name']}** has been permanently deleted from the system.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")]
+            ]),
+            parse_mode='Markdown'
+        )
+    else:
+        await callback_query.answer("ERROR: Failed to remove channel.")
     
-    # Return to channel management
-    await admin_system.show_channel_management(callback_query)
+
 
 # Package Management Handlers
 @router.callback_query(F.data.startswith("admin_price_"))

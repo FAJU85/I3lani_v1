@@ -284,6 +284,36 @@ class Database:
             logger.error(f"Error deactivating channel: {e}")
             return False
     
+    async def delete_channel(self, channel_id: str) -> bool:
+        """Permanently delete a channel from database"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    DELETE FROM channels 
+                    WHERE telegram_channel_id = ? OR channel_id = ?
+                ''', (channel_id, channel_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting channel: {e}")
+            return False
+    
+    async def clean_invalid_channels(self) -> int:
+        """Remove all channels that bot can't access"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Delete invalid channels (these are old fake channels)
+                result = await db.execute('''
+                    DELETE FROM channels 
+                    WHERE name IN ('I3lani Business', 'I3lani Tech', 'Tech News Channel', 'Business Updates')
+                    OR telegram_channel_id NOT LIKE '@%'
+                ''')
+                await db.commit()
+                return result.rowcount
+        except Exception as e:
+            logger.error(f"Error cleaning invalid channels: {e}")
+            return 0
+
     async def get_bot_admin_channels(self) -> List[Dict]:
         """Get channels where bot is admin (active channels only)"""
         async with aiosqlite.connect(self.db_path) as db:
