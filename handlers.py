@@ -107,24 +107,81 @@ def create_channel_selection_keyboard(language: str, selected_channels: List[str
 def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
     """Create duration selection keyboard"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=get_text(language, 'duration_1_month'), 
-            callback_data="duration_1"
-        )],
-        [InlineKeyboardButton(
-            text=get_text(language, 'duration_3_months'), 
-            callback_data="duration_3"
-        )],
-        [InlineKeyboardButton(
-            text=get_text(language, 'duration_6_months'), 
-            callback_data="duration_6"
-        )],
-        [InlineKeyboardButton(
-            text=get_text(language, 'back'), 
-            callback_data="back_to_channels"
-        )]
+        [
+            InlineKeyboardButton(text="1 Day - $0.17/channel", callback_data="duration_1_day"),
+            InlineKeyboardButton(text="3 Days - $0.50/channel", callback_data="duration_3_days")
+        ],
+        [
+            InlineKeyboardButton(text="1 Week - $1.17/channel", callback_data="duration_7_days"),
+            InlineKeyboardButton(text="2 Weeks - $2.33/channel", callback_data="duration_14_days")
+        ],
+        [
+            InlineKeyboardButton(text="1 Month - $5.00/channel", callback_data="duration_30_days"),
+            InlineKeyboardButton(text="3 Months - $15.00/channel", callback_data="duration_90_days")
+        ],
+        [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="back_to_channels")]
     ])
     return keyboard
+
+
+async def show_duration_selection(callback_query: CallbackQuery, state: FSMContext):
+    """Show duration selection interface"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        duration_text = f"""
+⏰ **Select Advertisement Duration**
+
+📺 **Selected Channels:** {len(selected_channels)}
+
+Choose how long you want your advertisement to run:
+
+💡 **Pricing per channel per period**
+• Longer durations offer better value
+• Your ad will be visible for the entire duration
+        """.strip()
+        
+        keyboard = create_duration_keyboard(language)
+        
+        await callback_query.message.edit_text(
+            duration_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        await state.set_state(AdCreationStates.duration_selection)
+        
+    except Exception as e:
+        logger.error(f"Duration selection error: {e}")
+        await callback_query.answer("Error showing duration options.")
+        
+
+@router.callback_query(F.data.startswith("duration_"))
+async def duration_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle duration selection"""
+    try:
+        duration_data = callback_query.data.replace("duration_", "")
+        
+        # Parse duration
+        if duration_data.endswith("_day"):
+            duration_days = int(duration_data.replace("_day", ""))
+        elif duration_data.endswith("_days"):
+            duration_days = int(duration_data.replace("_days", ""))
+        else:
+            duration_days = 1  # Default
+        
+        # Store duration in state
+        await state.update_data(duration_days=duration_days)
+        
+        # Proceed to payment
+        await proceed_to_payment_handler(callback_query, state)
+        
+    except Exception as e:
+        logger.error(f"Duration handler error: {e}")
+        await callback_query.answer("Error processing duration selection.")
 
 
 def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
@@ -1442,12 +1499,16 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                     is_flexible=False
                 )
                 
+                duration_days = data.get('duration_days', 1)
+                duration_text = f"{duration_days} days" if duration_days < 30 else f"{duration_days // 30} month(s)"
+                
                 payment_summary = f"⭐ **Telegram Stars Payment**\n\n"
+                payment_summary += f"⏰ **Duration:** {duration_text}\n"
                 payment_summary += f"💰 **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
                 payment_summary += f"📺 **Channels:** {len(selected_channels)}\n\n"
                 
                 for detail in channel_pricing_details:
-                    payment_summary += f"• {detail['name']}: {detail['price_stars']} Stars\n"
+                    payment_summary += f"• {detail['name']}: {detail['total_price_stars']:,} Stars ({duration_text})\n"
                 
                 payment_summary += f"\n✅ **Invoice sent!** Please complete payment using the invoice above.\n\nYour ad will be published automatically after payment confirmation."
                 
@@ -2153,7 +2214,7 @@ async def continue_with_channels_handler(callback_query: CallbackQuery, state: F
         
         # Proceed to payment selection
         await state.set_state(AdCreationStates.payment_selection)
-        await show_payment_selection(callback_query, state)
+        await show_duration_selection(callback_query, state)
         await callback_query.answer(f"{len(selected_channels)} channels selected!")
         
     except Exception as e:
@@ -2204,23 +2265,34 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
             else:
                 package_details = {'price_usd': 0.0, 'name': 'Free Plan'}
         
-        # Calculate actual pricing based on selected channels
+        # Get duration from state (default to 1 day if not set)
+        duration_days = data.get('duration_days', 1)
+        duration_months = data.get('duration_months', 0)
+        
+        # Convert months to days if needed
+        if duration_months > 0:
+            duration_days = duration_months * 30
+        
+        # Calculate actual pricing based on selected channels and duration
         total_price_usd = 0
         total_price_stars = 0
         channel_pricing_details = []
         
-        # Get channel details and calculate pricing
+        # Get channel details and calculate pricing per day
         all_channels = await db.get_channels(active_only=True)
         for channel_id in selected_channels:
             for channel in all_channels:
                 if channel['channel_id'] == channel_id:
-                    base_price = channel.get('base_price_usd', 5.0)
-                    total_price_usd += base_price
-                    total_price_stars += int(base_price * 34)  # 1 USD ≈ 34 Stars
+                    base_price_per_day = channel.get('base_price_usd', 5.0) / 30  # Convert monthly to daily
+                    total_channel_price = base_price_per_day * duration_days
+                    total_price_usd += total_channel_price
+                    total_price_stars += int(total_channel_price * 34)  # 1 USD ≈ 34 Stars
                     channel_pricing_details.append({
                         'name': channel['name'],
-                        'price_usd': base_price,
-                        'price_stars': int(base_price * 34)
+                        'price_per_day': base_price_per_day,
+                        'total_price_usd': total_channel_price,
+                        'total_price_stars': int(total_channel_price * 34),
+                        'duration_days': duration_days
                     })
                     break
         
@@ -2230,25 +2302,30 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
             await handle_free_package_publishing(callback_query, state)
             return
         
-        # Show payment method selection with actual pricing
+        # Show payment method selection with duration-based pricing
         await state.update_data(
             selected_channels=selected_channels,
             package_details=package_details,
             total_price_usd=total_price_usd,
             total_price_stars=total_price_stars,
-            channel_pricing_details=channel_pricing_details
+            channel_pricing_details=channel_pricing_details,
+            duration_days=duration_days
         )
         await state.set_state(AdCreationStates.payment_method)
         
-        # Create detailed pricing text
+        # Create detailed pricing text with duration breakdown
+        duration_text = f"{duration_days} days" if duration_days < 30 else f"{duration_days // 30} month(s)"
+        
         pricing_breakdown = ""
         for detail in channel_pricing_details:
-            pricing_breakdown += f"• {detail['name']}: ${detail['price_usd']:.2f}\n"
+            pricing_breakdown += f"• {detail['name']}: ${detail['total_price_usd']:.2f} ({duration_text})\n"
         
         payment_text = f"""
 💳 **Payment Required**
 
 📺 **Selected Channels:** {len(selected_channels)}
+⏰ **Duration:** {duration_text}
+
 {pricing_breakdown}
 ━━━━━━━━━━━━━━━━━
 💰 **Total Price:** ${total_price_usd:.2f} USD
