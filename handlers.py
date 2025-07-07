@@ -631,36 +631,97 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
 
 @router.callback_query(F.data.startswith("confirm_payment_"))
 async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle payment confirmation and publish ad to I3lani channel"""
+    """Handle payment confirmation - check if payment was actually received"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
         
         payment_id = callback_query.data.replace("confirm_payment_", "")
         
+        # Show checking message
+        await callback_query.message.edit_text(
+            "🔍 **Checking Payment...**\n\nPlease wait while we verify your payment...",
+            parse_mode='Markdown'
+        )
+        
+        # Get payment details from database
+        async with aiosqlite.connect(db.db_path) as conn:
+            conn.row_factory = aiosqlite.Row
+            async with conn.execute('''
+                SELECT p.*, s.user_id, s.ad_id 
+                FROM payments p 
+                LEFT JOIN subscriptions s ON p.subscription_id = s.subscription_id
+                WHERE p.payment_id = ?
+            ''', (payment_id,)) as cursor:
+                payment_record = await cursor.fetchone()
+        
+        if not payment_record:
+            await callback_query.message.edit_text(
+                "❌ **Payment Not Found**\n\nPayment record not found. Please try again.",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Check if payment was actually received
+        payment_processor = PaymentProcessor()
+        payment_confirmed = await payment_processor._check_ton_transaction(
+            payment_record['memo'], 
+            payment_record['amount']
+        )
+        
+        if payment_confirmed:
+            # Payment found - confirm and publish ad
+            await handle_successful_payment(callback_query, state, payment_record)
+        else:
+            # Payment not found - inform user
+            await handle_payment_not_found(callback_query, payment_record)
+            
+    except Exception as e:
+        logger.error(f"Payment confirmation error: {e}")
+        await callback_query.message.edit_text(
+            "❌ **Error**\n\nUnable to verify payment. Please try again later.",
+            parse_mode='Markdown'
+        )
+
+
+async def handle_successful_payment(callback_query: CallbackQuery, state: FSMContext, payment_record):
+    """Handle successful payment confirmation"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Update payment status in database
+        async with aiosqlite.connect(db.db_path) as conn:
+            await conn.execute('''
+                UPDATE payments 
+                SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP
+                WHERE payment_id = ?
+            ''', (payment_record['payment_id'],))
+            await conn.commit()
+        
         # Get ad content from state AND database
         data = await state.get_data()
         ad_content = data.get('ad_content', '')
         ad_media = data.get('ad_media')
-        ad_id = data.get('ad_id')
+        ad_id = data.get('ad_id') or payment_record['ad_id']
         
         # If no content in state, try to get from database
         if not ad_content and ad_id:
             try:
-                # Get ad from database
-                async with db.get_connection() as conn:
-                    result = await conn.execute(
+                async with aiosqlite.connect(db.db_path) as conn:
+                    conn.row_factory = aiosqlite.Row
+                    async with conn.execute(
                         'SELECT content, media_url, content_type FROM ads WHERE ad_id = ?',
                         (ad_id,)
-                    )
-                    ad_record = await result.fetchone()
-                    if ad_record:
-                        ad_content = ad_record[0] or ''
-                        if ad_record[1]:  # media_url
-                            ad_media = {
-                                'file_id': ad_record[1],
-                                'type': ad_record[2]
-                            }
+                    ) as cursor:
+                        ad_record = await cursor.fetchone()
+                        if ad_record:
+                            ad_content = ad_record['content'] or ''
+                            if ad_record['media_url']:
+                                ad_media = {
+                                    'file_id': ad_record['media_url'],
+                                    'type': ad_record['content_type']
+                                }
             except Exception as e:
                 logger.error(f"Error fetching ad from database: {e}")
         
@@ -675,7 +736,7 @@ async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMConte
         
         try:
             # Format ad with proper branding
-            formatted_content = f"📢 **Advertisement**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+            formatted_content = f"📢 Advertisement\n\n{ad_content}\n\n✨ Advertise with @I3lani_bot"
             
             # Publish based on content type
             if ad_media and ad_media.get('file_id'):
@@ -781,6 +842,53 @@ Your payment has been confirmed. Your ad will be published to the I3lani channel
     except Exception as e:
         logger.error(f"Payment confirmation error: {e}")
         await callback_query.answer("Payment confirmation failed. Please contact support.")
+
+
+async def handle_payment_not_found(callback_query: CallbackQuery, payment_record):
+    """Handle payment not found scenario"""
+    try:
+        # Create retry payment keyboard
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="🔄 Try Again", 
+                callback_data=f"retry_payment_{payment_record['subscription_id']}"
+            )],
+            [InlineKeyboardButton(
+                text="🏠 Go Home", 
+                callback_data="go_home"
+            )]
+        ])
+        
+        payment_not_found_text = f"""
+❌ **Payment Not Found**
+
+We couldn't find your payment on the TON blockchain yet.
+
+📋 **Payment Details:**
+• Amount: {payment_record['amount']} TON
+• Memo: {payment_record['memo']}
+• Wallet: UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB
+
+⚠️ **Please ensure:**
+• You sent the exact amount
+• You included the correct memo
+• Payment was sent from your personal wallet (not exchange)
+
+🔍 **Check your transaction:**
+https://tonviewer.com/UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB
+
+Would you like to try again?
+        """.strip()
+        
+        await callback_query.message.edit_text(
+            payment_not_found_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Payment not found handler error: {e}")
+        await callback_query.answer("Error handling payment verification.")
 
 
 @router.callback_query(F.data == "my_ads")
