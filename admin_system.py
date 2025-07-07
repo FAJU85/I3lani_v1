@@ -81,32 +81,7 @@ class AdminSystem:
             }
         }
         
-        self.channels = {
-            'i3lani_main': {
-                'name': 'I3lani Main Channel',
-                'telegram_id': '@i3lani',
-                'url': 'https://t.me/i3lani',
-                'category': 'General',
-                'subscribers': 10000,
-                'active': True
-            },
-            'i3lani_tech': {
-                'name': 'I3lani Tech',
-                'telegram_id': '@i3lani_tech',
-                'url': 'https://t.me/i3lani_tech',
-                'category': 'Technology',
-                'subscribers': 5000,
-                'active': True
-            },
-            'i3lani_business': {
-                'name': 'I3lani Business',
-                'telegram_id': '@i3lani_business',
-                'url': 'https://t.me/i3lani_business',
-                'category': 'Business',
-                'subscribers': 7500,
-                'active': True
-            }
-        }
+        # Remove fake channels - use real data from database
         
         self.publishing_schedules = {
             'morning': {'time': '09:00', 'active': True},
@@ -422,37 +397,42 @@ Active Users: {active_users}
 
     async def show_statistics(self, callback_query: CallbackQuery):
         """Show detailed statistics"""
+        # Get real channel data from database
+        channels = await db.get_channels(active_only=False)
+        active_channels = [ch for ch in channels if ch.get('is_active', False)]
+        total_subscribers = sum(ch.get('subscribers', 0) for ch in channels)
+        
         text = f"""
-**Detailed Statistics**
+**STATS: Channel Statistics**
 
-**Revenue:**
-Today: ${await self.get_daily_revenue():.2f}
-This Week: ${await self.get_weekly_revenue():.2f}
-This Month: ${await self.get_monthly_revenue():.2f}
+**Total Channels:** {len(channels)}
+**Active Channels:** {len(active_channels)}
+**Total Subscribers:** {total_subscribers:,}
+**Average Subscribers:** {total_subscribers // len(channels) if channels else 0:,}
 
-**Users:**
-- Total: {await self.get_total_users()}
-- Active: {await self.get_active_users()}
-- Premium: {await self.get_paid_users()}
-
-**Campaigns:**
-- Active: {await self.get_active_campaigns()}
-- Completed: {await self.get_completed_campaigns()}
-- Success Rate: {await self.get_success_rate()}%
-
-**Channels:**
-- Total Posts: {await self.get_total_posts()}
-- Posts Today: {await self.get_posts_today()}
-- Engagement Rate: {await self.get_engagement_rate()}%
+**Channel Details:**
         """.strip()
+        
+        if not channels:
+            text += "\n\nNo channels found in database."
+            text += "\n\n**To add channels:**"
+            text += "\n1. Add the bot as administrator to your channel"
+            text += "\n2. Give the bot permission to post messages"
+            text += "\n3. The bot will automatically detect and add the channel"
+        else:
+            for channel in channels:
+                status = "SUCCESS:" if channel.get('is_active', False) else "INACTIVE:"
+                text += f"\n{status} **{channel['name']}**"
+                text += f"\n   - {channel.get('subscribers', 0):,} subscribers"
+                text += f"\n   - Category: {channel.get('category', 'general').title()}"
+                text += f"\n   - ID: `{channel.get('telegram_channel_id', 'N/A')}`"
         
         keyboard = [
             [
-                InlineKeyboardButton(text="📈 Detailed Report", callback_data="admin_detailed_report"),
-                InlineKeyboardButton(text="STATS: Export Data", callback_data="admin_export_data")
+                InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="admin_statistics"),
+                InlineKeyboardButton(text="📺 Channel Management", callback_data="admin_channels")
             ],
             [
-                InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="admin_refresh_stats"),
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
             ]
         ]
@@ -954,15 +934,15 @@ async def handle_add_channel_message(message: Message, state: FSMContext):
         import time
         channel_id = f"channel_{int(time.time())}"
         
-        # Add to admin system channels
-        admin_system.channels[channel_id] = {
-            'name': channel_name,
-            'telegram_id': telegram_id,
-            'url': f'https://t.me/{telegram_id.replace("@", "")}',
-            'category': category,
-            'subscribers': subscribers,
-            'active': True
-        }
+        # Add to database
+        await db.add_channel_automatically(
+            channel_id=channel_id,
+            channel_name=channel_name,
+            telegram_channel_id=telegram_id,
+            subscribers=subscribers,
+            category=category,
+            description=f"Manually added {category} channel"
+        )
         
         success_text = f"""
 **Channel Added Successfully!**
@@ -1002,10 +982,11 @@ async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMC
     text = "EDIT: **Edit Channel**\n\nSelect a channel to edit:"
     
     keyboard = []
-    for channel_id, channel in admin_system.channels.items():
+    channels = await db.get_channels(active_only=False)
+    for channel in channels:
         keyboard.append([InlineKeyboardButton(
-            text=f"{channel['name']} ({channel['telegram_id']})",
-            callback_data=f"edit_channel_{channel_id}"
+            text=f"{channel['name']} ({channel.get('telegram_channel_id', 'N/A')})",
+            callback_data=f"edit_channel_{channel.get('channel_id', 'unknown')}"
         )])
     
     keyboard.append([InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")])
@@ -1027,7 +1008,8 @@ async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMCo
         return
     
     channel_id = callback_query.data.replace("edit_channel_", "")
-    channel = admin_system.channels.get(channel_id)
+    channels = await db.get_channels(active_only=False)
+    channel = next((ch for ch in channels if ch.get('channel_id') == channel_id), None)
     
     if not channel:
         await callback_query.answer("ERROR: Channel not found.")
@@ -1081,7 +1063,8 @@ async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext
         return
     
     channel_id = callback_query.data.replace("toggle_channel_", "")
-    channel = admin_system.channels.get(channel_id)
+    channels = await db.get_channels(active_only=False)
+    channel = next((ch for ch in channels if ch.get('channel_id') == channel_id), None)
     
     if not channel:
         await callback_query.answer("ERROR: Channel not found.")
@@ -1108,10 +1091,11 @@ async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FS
     text = "🗑️ **Remove Channel**\n\n⚠️ Select a channel to remove (this action cannot be undone):"
     
     keyboard = []
-    for channel_id, channel in admin_system.channels.items():
+    channels = await db.get_channels(active_only=False)
+    for channel in channels:
         keyboard.append([InlineKeyboardButton(
-            text=f"🗑️ {channel['name']} ({channel['telegram_id']})",
-            callback_data=f"remove_channel_{channel_id}"
+            text=f"🗑️ {channel['name']} ({channel.get('telegram_channel_id', 'N/A')})",
+            callback_data=f"remove_channel_{channel.get('channel_id', 'unknown')}"
         )])
     
     keyboard.append([InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")])
@@ -1133,14 +1117,15 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
         return
     
     channel_id = callback_query.data.replace("remove_channel_", "")
-    channel = admin_system.channels.get(channel_id)
+    channels = await db.get_channels(active_only=False)
+    channel = next((ch for ch in channels if ch.get('channel_id') == channel_id), None)
     
     if not channel:
         await callback_query.answer("ERROR: Channel not found.")
         return
     
     # Remove channel
-    del admin_system.channels[channel_id]
+    await db.deactivate_channel(channel_id)
     
     await callback_query.answer("SUCCESS: Channel removed successfully!")
     
@@ -1427,25 +1412,34 @@ async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSM
         await callback_query.answer("ERROR: Access denied.")
         return
     
-    total_subscribers = sum(ch['subscribers'] for ch in admin_system.channels.values())
-    active_channels = len([ch for ch in admin_system.channels.values() if ch['active']])
+    # Get real channel data from database
+    channels = await db.get_channels(active_only=False)
+    active_channels = [ch for ch in channels if ch.get('is_active', False)]
+    total_subscribers = sum(ch.get('subscribers', 0) for ch in channels)
     
     text = f"""
 STATS: **Channel Statistics**
 
-**Total Channels:** {len(admin_system.channels)}
-**Active Channels:** {active_channels}
+**Total Channels:** {len(channels)}
+**Active Channels:** {len(active_channels)}
 **Total Subscribers:** {total_subscribers:,}
-**Average Subscribers:** {total_subscribers // len(admin_system.channels) if admin_system.channels else 0:,}
+**Average Subscribers:** {total_subscribers // len(channels) if channels else 0:,}
 
 **Channel Details:**
     """.strip()
     
-    for channel_id, channel in admin_system.channels.items():
-        status = "SUCCESS:" if channel['active'] else "ERROR:"
-        text += f"\n{status} **{channel['name']}**"
-        text += f"\n   - {channel['subscribers']:,} subscribers"
-        text += f"\n   - Category: {channel['category']}"
+    if not channels:
+        text += "\n\nNo channels found in database."
+        text += "\n\n**To add channels:**"
+        text += "\n1. Add the bot as administrator to your channel"
+        text += "\n2. Give the bot permission to post messages"
+        text += "\n3. The bot will automatically detect and add the channel"
+    else:
+        for channel in channels:
+            status = "SUCCESS:" if channel.get('is_active', False) else "INACTIVE:"
+            text += f"\n{status} **{channel['name']}**"
+            text += f"\n   - {channel.get('subscribers', 0):,} subscribers"
+            text += f"\n   - Category: {channel.get('category', 'general').title()}"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📺 Back to Channel Management", callback_data="admin_channels")]
