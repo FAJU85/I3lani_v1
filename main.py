@@ -60,12 +60,14 @@ async def main():
         dp.my_chat_member.register(handle_my_chat_member)
         
         # Clean up invalid channels first
-        logger.info("Syncing existing channels...")
+        logger.info("Syncing existing channels and auto-discovering...")
         cleaned_count = await db.clean_invalid_channels()
         if cleaned_count > 0:
             logger.info(f"🧹 Cleaned up {cleaned_count} invalid channels")
         
+        # Auto-discover existing channels where bot is admin
         await channel_manager.sync_existing_channels()
+        logger.info("✅ Automatic channel discovery completed at startup")
         
         logger.info("Handlers setup completed")
         

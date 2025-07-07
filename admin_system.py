@@ -875,30 +875,44 @@ Scanning for channels where the bot is already an administrator...
         await channel_manager.sync_existing_channels()
         
         # Get updated channel list
-        channels = await db.get_channels(active_only=True)
+        channels = await db.get_channels(active_only=False)
+        active_channels = [ch for ch in channels if ch.get('is_active', False)]
         
         result_text = f"""
-**Channel Discovery Complete**
+**🔍 Channel Discovery Complete**
 
-Found {len(channels)} active channels:
+Total channels: {len(channels)}
+Active channels: {len(active_channels)}
 
 """
         
-        for i, channel in enumerate(channels, 1):
-            result_text += f"{i}. **{channel['name']}** - {channel['subscribers']:,} subscribers\n"
+        if active_channels:
+            result_text += "**✅ Active Channels:**\n"
+            for i, channel in enumerate(active_channels, 1):
+                result_text += f"{i}. **{channel['name']}** - {channel['subscribers']:,} subscribers\n"
+        
+        if len(channels) > len(active_channels):
+            inactive_channels = [ch for ch in channels if not ch.get('is_active', False)]
+            result_text += f"\n**❌ Inactive Channels:** {len(inactive_channels)}\n"
+            for channel in inactive_channels[:3]:  # Show first 3
+                result_text += f"• {channel['name']} (not accessible)\n"
         
         if not channels:
-            result_text += "No channels found where bot is administrator.\n\n"
-            result_text += "**To add channels:**\n"
+            result_text += "**No channels found.**\n\n"
+            result_text += "**To add channels automatically:**\n"
             result_text += "1. Add the bot as administrator to your channel\n"
             result_text += "2. Give the bot permission to post messages\n"
-            result_text += "3. The bot will automatically detect and add the channel\n"
+            result_text += "3. Use 'Add Channel' or restart discovery\n"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
+                InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_discover_channels")
+            ],
             [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]
         ])
         
-        await callback_query.message.edit_text(result_text, reply_markup=keyboard)
+        await callback_query.message.edit_text(result_text, reply_markup=keyboard, parse_mode='Markdown')
     else:
         await callback_query.message.edit_text(
             "ERROR: Channel manager not initialized. Please restart the bot.",
@@ -921,48 +935,110 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     text = """
 📺 **Add New Channel**
 
-Please send the channel username (e.g., @channel_name) or channel ID:
+**Auto-Discovery Mode**
 
-**Note:** The bot must be added as an administrator to the channel first.
+Enter the channel username (e.g., @yourchannel) and the bot will automatically:
 
-**Auto-Discovery:** If the bot is already admin in existing channels, use the "Discover Existing Channels" button instead.
+✅ Check if bot is administrator
+✅ Get subscriber count and details  
+✅ Detect category and set pricing
+✅ Add to the advertising system
+
+**Requirements:**
+- Bot must be administrator in the channel
+- Bot must have permission to post messages
+- Channel must be public or accessible
+
+Enter the channel username:
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔍 Discover Existing Channels", callback_data="admin_discover_channels")],
-        [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_channels")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     await callback_query.answer()
 
 @router.message(AdminStates.add_channel)
 async def handle_add_channel_message(message: Message, state: FSMContext):
-    """Handle channel addition message"""
+    """Handle channel addition message using auto-discovery"""
     try:
-        lines = message.text.strip().split('\n')
-        if len(lines) < 4:
-            await message.reply("ERROR: Invalid format. Please provide all 4 fields: Name, Telegram ID, Category, Subscribers")
+        username = message.text.strip()
+        
+        # Validate username format
+        if not username.startswith('@'):
+            if not username.startswith('t.me/'):
+                username = f"@{username}"
+            else:
+                # Extract username from t.me link
+                username = f"@{username.split('/')[-1]}"
+        
+        # Show processing message
+        processing_msg = await message.reply(f"🔍 **Processing {username}...**\n\nChecking bot permissions and gathering channel info...")
+        
+        # Import channel manager
+        from channel_manager import channel_manager
+        
+        if not channel_manager:
+            await processing_msg.edit_text("❌ **Error**: Channel manager not available. Please restart the bot.")
+            await state.clear()
             return
         
-        channel_name = lines[0].strip()
-        telegram_id = lines[1].strip()
-        category = lines[2].strip()
-        subscribers = int(lines[3].strip())
+        # Try to discover and add the channel
+        success = await channel_manager.discover_channel_by_username(username)
         
-        # Generate unique channel ID
-        import time
-        channel_id = f"channel_{int(time.time())}"
+        if success:
+            # Get channel info from database
+            channels = await db.get_channels(active_only=False)
+            added_channel = None
+            for ch in channels:
+                if ch.get('telegram_channel_id') == username:
+                    added_channel = ch
+                    break
+            
+            if added_channel:
+                result_text = f"""
+✅ **Channel Added Successfully!**
+
+**{added_channel['name']}**
+
+📊 **Details:**
+• Username: {username}
+• Subscribers: {added_channel['subscribers']:,}
+• Category: {added_channel['category']}
+• Base Price: ${added_channel['base_price_usd']:.2f}
+• Status: {'Active' if added_channel.get('is_active', False) else 'Inactive'}
+
+The channel is now available for advertising!
+                """.strip()
+            else:
+                result_text = f"✅ **Channel {username} added successfully!**"
+        else:
+            result_text = f"""
+❌ **Failed to add {username}**
+
+**Possible reasons:**
+• Bot is not administrator in the channel
+• Bot doesn't have permission to post messages
+• Channel is private/inaccessible
+• Channel doesn't exist
+
+**To fix:**
+1. Add the bot as administrator to {username}
+2. Grant permission to post messages
+3. Try again
+            """.strip()
         
-        # Add to database
-        await db.add_channel_automatically(
-            channel_id=channel_id,
-            channel_name=channel_name,
-            telegram_channel_id=telegram_id,
-            subscribers=subscribers,
-            category=category,
-            description=f"Manually added {category} channel"
-        )
+        # Show result
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Add Another", callback_data="admin_add_channel"),
+                InlineKeyboardButton(text="🔍 Discover All", callback_data="admin_discover_channels")
+            ],
+            [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]
+        ])
+        
+        await processing_msg.edit_text(result_text, reply_markup=keyboard, parse_mode='Markdown')
         
         success_text = f"""
 **Channel Added Successfully!**

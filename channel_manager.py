@@ -226,18 +226,126 @@ Users can now select this channel when creating ads through the bot.
         try:
             logger.info("🔍 Scanning for existing channels where bot is administrator...")
             
-            # Unfortunately, Telegram Bot API doesn't provide a direct way to get all chats
-            # where the bot is admin. We need to implement a different approach:
-            
-            # Option 1: Check channels we know about in database
+            # Check channels we know about in database
             await self._verify_database_channels()
             
-            # Option 2: Provide admin command to manually add channels
+            # Try to discover new channels through common methods
+            discovered_count = await self._discover_channels_by_patterns()
+            
+            if discovered_count > 0:
+                logger.info(f"✅ Discovered and added {discovered_count} new channels")
+            
             logger.info("💡 Use /admin command and 'Add Channel' to manually register existing channels")
             logger.info("💡 Or have channel admins re-add the bot to trigger auto-detection")
             
         except Exception as e:
             logger.error(f"Error syncing existing channels: {e}")
+    
+    async def _discover_channels_by_patterns(self) -> int:
+        """Attempt to discover channels using common patterns and known usernames"""
+        discovered_count = 0
+        
+        # Common channel patterns to check (these are examples - add real channels)
+        potential_channels = [
+            "@smshco",  # Already confirmed
+            # Add more channels here as they become known
+        ]
+        
+        for channel_username in potential_channels:
+            try:
+                # Check if channel already exists in database
+                channels = await self.db.get_channels(active_only=False)
+                if any(ch.get('telegram_channel_id') == channel_username for ch in channels):
+                    continue
+                
+                # Try to get channel info
+                chat = await self.bot.get_chat(channel_username)
+                bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
+                
+                if bot_member.status == 'administrator' and bot_member.can_post_messages:
+                    # Get subscriber count
+                    member_count = await self.bot.get_chat_member_count(chat.id)
+                    
+                    # Auto-detect category based on channel info
+                    category = self._detect_channel_category(chat.title or "", chat.description or "")
+                    
+                    # Calculate pricing
+                    base_price = self._calculate_base_price(member_count, category)
+                    
+                    # Add to database
+                    success = await self.db.add_channel_automatically(
+                        channel_id=channel_username.replace("@", ""),
+                        channel_name=chat.title or channel_username,
+                        telegram_channel_id=channel_username,
+                        subscribers=member_count,
+                        active_subscribers=int(member_count * 0.45),
+                        total_posts=await self._estimate_post_count(chat.id),
+                        category=category,
+                        description=chat.description or f"Auto-discovered {category} channel",
+                        base_price_usd=base_price
+                    )
+                    
+                    if success:
+                        logger.info(f"✅ Auto-discovered and added channel: {chat.title} ({channel_username})")
+                        logger.info(f"   Subscribers: {member_count:,}, Category: {category}, Price: ${base_price}")
+                        discovered_count += 1
+                
+            except Exception as e:
+                logger.debug(f"Channel {channel_username} not accessible or not admin: {e}")
+                continue
+        
+        return discovered_count
+    
+    async def discover_channel_by_username(self, username: str) -> bool:
+        """Manually discover and add a channel by username"""
+        try:
+            if not username.startswith("@"):
+                username = f"@{username}"
+            
+            # Check if already exists
+            channels = await self.db.get_channels(active_only=False)
+            if any(ch.get('telegram_channel_id') == username for ch in channels):
+                logger.info(f"Channel {username} already exists in database")
+                return False
+            
+            # Get channel info
+            chat = await self.bot.get_chat(username)
+            bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
+            
+            if bot_member.status != 'administrator':
+                logger.warning(f"Bot is not administrator in {username}")
+                return False
+            
+            if not bot_member.can_post_messages:
+                logger.warning(f"Bot cannot post messages in {username}")
+                return False
+            
+            # Get detailed info
+            member_count = await self.bot.get_chat_member_count(chat.id)
+            category = self._detect_channel_category(chat.title or "", chat.description or "")
+            base_price = self._calculate_base_price(member_count, category)
+            
+            # Add to database
+            success = await self.db.add_channel_automatically(
+                channel_id=username.replace("@", ""),
+                channel_name=chat.title or username,
+                telegram_channel_id=username,
+                subscribers=member_count,
+                active_subscribers=int(member_count * 0.45),
+                total_posts=await self._estimate_post_count(chat.id),
+                category=category,
+                description=chat.description or f"Manually added {category} channel",
+                base_price_usd=base_price
+            )
+            
+            if success:
+                logger.info(f"✅ Successfully added channel: {chat.title} ({username})")
+                return True
+            
+        except Exception as e:
+            logger.error(f"Error discovering channel {username}: {e}")
+        
+        return False
     
     async def _verify_database_channels(self):
         """Verify channels in database are still valid"""
