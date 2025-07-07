@@ -253,14 +253,15 @@ Channels:
 
     async def show_pricing_management(self, callback_query: CallbackQuery):
         """Show pricing management interface"""
-        text = f"""
+        text = """
 💰 **Pricing Management**
 
 **Current Pricing:**
 
-**Starter Package:** ${self.subscription_packages['starter']['price_usd']}
-**Professional Package:** ${self.subscription_packages['professional']['price_usd']}
-**Enterprise Package:** ${self.subscription_packages['enterprise']['price_usd']}
+**Free Package:** $0 (3 days, 3 ads per month)
+**Bronze Package:** $10 (1 month)
+**Silver Package:** $29 (3 months)
+**Gold Package:** $47 (6 months)
 
 **Payment Methods:**
 • TON Cryptocurrency ✅
@@ -273,11 +274,11 @@ Channels:
         
         keyboard = [
             [
-                InlineKeyboardButton(text="💵 Update Starter Price", callback_data="admin_price_starter"),
-                InlineKeyboardButton(text="💸 Update Pro Price", callback_data="admin_price_professional")
+                InlineKeyboardButton(text="🟫 Update Bronze Price", callback_data="admin_price_bronze"),
+                InlineKeyboardButton(text="🥈 Update Silver Price", callback_data="admin_price_silver")
             ],
             [
-                InlineKeyboardButton(text="💰 Update Enterprise Price", callback_data="admin_price_enterprise"),
+                InlineKeyboardButton(text="🥇 Update Gold Price", callback_data="admin_price_gold"),
                 InlineKeyboardButton(text="🔄 Refresh Rates", callback_data="admin_refresh_rates")
             ],
             [
@@ -1142,16 +1143,31 @@ async def admin_edit_subscription_callback(callback_query: CallbackQuery, state:
         await callback_query.answer("❌ Access denied.")
         return
     
-    text = "📝 **Edit Subscription Package**\n\nSelect a package to edit:"
+    text = """
+📝 **Edit Subscription Package**
+
+Select a package to edit:
+
+**Available Packages:**
+• Free Package: $0 (3 days, 3 ads per month)
+• Bronze Package: $10 (1 month)
+• Silver Package: $29 (3 months)  
+• Gold Package: $47 (6 months)
+
+Choose a package to modify:
+    """.strip()
     
-    keyboard = []
-    for package_id, package in admin_system.subscription_packages.items():
-        keyboard.append([InlineKeyboardButton(
-            text=f"{package['name']} (${package['price_usd']})",
-            callback_data=f"edit_package_{package_id}"
-        )])
-    
-    keyboard.append([InlineKeyboardButton(text="⬅️ Back to Subscriptions", callback_data="admin_subscriptions")])
+    keyboard = [
+        [
+            InlineKeyboardButton(text="🟫 Edit Bronze ($10)", callback_data="edit_package_bronze"),
+            InlineKeyboardButton(text="🥈 Edit Silver ($29)", callback_data="edit_package_silver")
+        ],
+        [
+            InlineKeyboardButton(text="🥇 Edit Gold ($47)", callback_data="edit_package_gold"),
+            InlineKeyboardButton(text="🎁 Edit Free Package", callback_data="edit_package_free")
+        ],
+        [InlineKeyboardButton(text="⬅️ Back to Subscriptions", callback_data="admin_subscriptions")]
+    ]
     
     await callback_query.message.edit_text(
         text, 

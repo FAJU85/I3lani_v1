@@ -587,16 +587,64 @@ async def handle_photo_upload(message: Message, state: FSMContext):
         })
         
         await state.update_data(uploaded_photos=uploaded_photos)
-        await message.reply(f"Photo {len(uploaded_photos)}/5 uploaded. Send more photos or /done to continue.")
+        # Create button interface to replace /done command
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Continue", callback_data="continue_from_photos"),
+                InlineKeyboardButton(text="📸 Add More", callback_data="add_more_photos")
+            ],
+            [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_ad_details")]
+        ])
+        
+        await message.reply(f"📸 Photo {len(uploaded_photos)}/5 uploaded.", reply_markup=keyboard)
         
     except Exception as e:
         logger.error(f"Photo upload error: {e}")
         await message.reply("Error uploading photo. Please try again.")
 
 
+@router.callback_query(F.data == "continue_from_photos")
+async def continue_from_photos(callback_query: CallbackQuery, state: FSMContext):
+    """Continue from photo upload step"""
+    await state.set_state(AdCreationStates.contact_info)
+    
+    contact_text = """
+📞 **Provide Contact Information**
+
+How should customers reach you?
+
+Examples:
+• Phone: +966501234567
+• WhatsApp: +966501234567
+• Email: user@email.com
+• Telegram: @username
+
+Send your contact information:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Back to Photos", callback_data="back_to_photos")]
+    ])
+    
+    await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "add_more_photos") 
+async def add_more_photos(callback_query: CallbackQuery, state: FSMContext):
+    """Allow user to add more photos"""
+    await callback_query.message.edit_text(
+        "📸 **Add More Photos**\n\nSend additional photos (max 5 total):",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Done with Photos", callback_data="continue_from_photos")]
+        ])
+    )
+    await callback_query.answer("Send more photos")
+
+
 @router.message(AdCreationStates.upload_photos, F.text.in_(["/skip", "/done"]))
 async def handle_photo_completion(message: Message, state: FSMContext):
-    """Handle photo upload completion"""
+    """Handle photo upload completion - fallback for /done command"""
     try:
         # Ask for contact information
         contact_text = """
@@ -793,13 +841,26 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
 Choose which channels to advertise on:
     """.strip()
     
+    # Get selected channels from state
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
     keyboard_rows = []
     for channel in channels:
+        # Check if channel is selected
+        is_selected = channel['channel_id'] in selected_channels
+        emoji = "✅" if is_selected else "☐"
+        
         keyboard_rows.append([InlineKeyboardButton(
-            text=f"{channel['name']} ({channel['subscribers']:,} subscribers)",
-            callback_data=f"enhanced_channel_{channel['channel_id']}"
+            text=f"{emoji} {channel['name']} ({channel['subscribers']:,} subscribers)",
+            callback_data=f"toggle_channel_{channel['channel_id']}"
         )])
     
+    # Add select all and continue buttons
+    keyboard_rows.append([
+        InlineKeyboardButton(text="✅ Select All", callback_data="select_all_channels"),
+        InlineKeyboardButton(text="❌ Deselect All", callback_data="deselect_all_channels")
+    ])
     keyboard_rows.append([InlineKeyboardButton(
         text="➡️ Continue to Payment",
         callback_data="proceed_to_payment"
@@ -1093,6 +1154,111 @@ async def select_gold_package(callback_query: CallbackQuery, state: FSMContext):
     await state.set_state(AdCreationStates.category_selection)
     await show_category_selection(callback_query, state)
     await callback_query.answer("Gold package selected!")
+
+
+@router.callback_query(F.data.startswith("toggle_channel_"))
+async def toggle_channel_selection(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel selection toggle"""
+    try:
+        channel_id = callback_query.data.replace("toggle_channel_", "")
+        user_id = callback_query.from_user.id
+        
+        # Get current selected channels
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        # Toggle channel selection
+        if channel_id in selected_channels:
+            selected_channels.remove(channel_id)
+        else:
+            selected_channels.append(channel_id)
+        
+        # Update state
+        await state.update_data(selected_channels=selected_channels)
+        
+        # Refresh the channel selection interface
+        await show_enhanced_channel_selection(callback_query, state)
+        await callback_query.answer(f"Channel {'selected' if channel_id in selected_channels else 'deselected'}")
+        
+    except Exception as e:
+        logger.error(f"Channel toggle error: {e}")
+        await callback_query.answer("Error updating selection")
+
+
+@router.callback_query(F.data == "select_all_channels")
+async def select_all_channels(callback_query: CallbackQuery, state: FSMContext):
+    """Select all available channels"""
+    try:
+        channels = await db.get_channels(active_only=True)
+        selected_channels = [channel['channel_id'] for channel in channels]
+        await state.update_data(selected_channels=selected_channels)
+        
+        await show_enhanced_channel_selection(callback_query, state)
+        await callback_query.answer("All channels selected")
+        
+    except Exception as e:
+        logger.error(f"Select all channels error: {e}")
+        await callback_query.answer("Error selecting channels")
+
+
+@router.callback_query(F.data == "deselect_all_channels")
+async def deselect_all_channels(callback_query: CallbackQuery, state: FSMContext):
+    """Deselect all channels"""
+    try:
+        await state.update_data(selected_channels=[])
+        await show_enhanced_channel_selection(callback_query, state)
+        await callback_query.answer("All channels deselected")
+        
+    except Exception as e:
+        logger.error(f"Deselect all channels error: {e}")
+        await callback_query.answer("Error deselecting channels")
+
+
+@router.callback_query(F.data.startswith("edit_package_"))
+async def edit_package_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle package editing"""
+    try:
+        package_type = callback_query.data.replace("edit_package_", "")
+        user_id = callback_query.from_user.id
+        
+        if user_id not in ADMIN_IDS:
+            await callback_query.answer("Access denied")
+            return
+            
+        await state.set_state(AdminStates.edit_subscription)
+        await state.update_data(editing_package=package_type)
+        
+        package_prices = {'bronze': 10, 'silver': 29, 'gold': 47, 'free': 0}
+        current_price = package_prices.get(package_type, 0)
+        
+        text = f"""
+✏️ **Edit {package_type.title()} Package**
+
+Current settings:
+• Package: {package_type.title()}
+• Current price: ${current_price}
+
+What would you like to edit?
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💰 Change Price", callback_data=f"change_price_{package_type}"),
+                InlineKeyboardButton(text="⏰ Change Duration", callback_data=f"change_duration_{package_type}")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Change Description", callback_data=f"change_desc_{package_type}"),
+                InlineKeyboardButton(text="🎯 Change Features", callback_data=f"change_features_{package_type}")
+            ],
+            [InlineKeyboardButton(text="⬅️ Back", callback_data="admin_edit_subscription")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Edit package error: {e}")
+        await callback_query.answer("Error editing package")
 
 
 @router.message(AdCreationStates.ad_content)
