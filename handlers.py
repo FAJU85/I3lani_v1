@@ -616,11 +616,18 @@ async def handle_ad_details(message: Message, state: FSMContext):
 You can upload up to 5 photos for your ad.
 
 • Send photos one by one
-• Send /skip to skip photo upload
-• Send /done when finished uploading
+• Use the buttons below to continue
         """.strip()
         
-        await message.reply(photo_text, parse_mode='Markdown')
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📸 Skip Photos", callback_data="skip_photos"),
+                InlineKeyboardButton(text="✅ Done with Photos", callback_data="done_photos")
+            ],
+            [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_details")]
+        ])
+        
+        await message.reply(photo_text, reply_markup=keyboard, parse_mode='Markdown')
         await state.set_state(AdCreationStates.upload_photos)
         await state.update_data(uploaded_photos=[])
         
@@ -637,7 +644,10 @@ async def handle_photo_upload(message: Message, state: FSMContext):
         uploaded_photos = data.get('uploaded_photos', [])
         
         if len(uploaded_photos) >= 5:
-            await message.reply("Maximum 5 photos allowed. Send /done to continue.")
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Done with Photos", callback_data="done_photos")]
+            ])
+            await message.reply("Maximum 5 photos allowed. Click Done to continue.", reply_markup=keyboard)
             return
         
         # Store photo file_id
@@ -651,10 +661,10 @@ async def handle_photo_upload(message: Message, state: FSMContext):
         # Create button interface to replace /done command
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Continue", callback_data="continue_from_photos"),
+                InlineKeyboardButton(text="✅ Done with Photos", callback_data="done_photos"),
                 InlineKeyboardButton(text="📸 Add More", callback_data="add_more_photos")
             ],
-            [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_ad_details")]
+            [InlineKeyboardButton(text="📸 Skip Photos", callback_data="skip_photos")]
         ])
         
         await message.reply(f"📸 Photo {len(uploaded_photos)}/5 uploaded.", reply_markup=keyboard)
@@ -701,6 +711,60 @@ async def add_more_photos(callback_query: CallbackQuery, state: FSMContext):
         ])
     )
     await callback_query.answer("Send more photos")
+
+
+@router.callback_query(F.data == "skip_photos")
+async def skip_photos_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Skip photo upload step"""
+    await state.set_state(AdCreationStates.provide_contact_info)
+    
+    contact_text = """
+📞 **Provide Contact Information**
+
+How should customers reach you?
+
+Examples:
+• Phone: +966501234567
+• WhatsApp: +966501234567
+• Email: user@email.com
+• Telegram: @username
+
+Send your contact information:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Back to Photos", callback_data="back_to_photos")]
+    ])
+    
+    await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
+    await callback_query.answer("Photos skipped")
+
+
+@router.callback_query(F.data == "done_photos")
+async def done_photos_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Complete photo upload step"""
+    await state.set_state(AdCreationStates.provide_contact_info)
+    
+    contact_text = """
+📞 **Provide Contact Information**
+
+How should customers reach you?
+
+Examples:
+• Phone: +966501234567
+• WhatsApp: +966501234567
+• Email: user@email.com
+• Telegram: @username
+
+Send your contact information:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Back to Photos", callback_data="back_to_photos")]
+    ])
+    
+    await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
+    await callback_query.answer("Photos completed")
 
 
 @router.message(AdCreationStates.upload_photos, F.text.in_(["/skip", "/done"]))
