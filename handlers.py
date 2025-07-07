@@ -2288,6 +2288,78 @@ async def continue_with_channels_handler(callback_query: CallbackQuery, state: F
         logger.error(f"Continue with channels error: {e}")
         await callback_query.answer("Error proceeding with channels.")
 
+@router.callback_query(F.data == "proceed_to_payment")
+async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle proceed to payment button from channel selection"""
+    try:
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        if not selected_channels:
+            await callback_query.answer("Please select at least one channel first!")
+            return
+        
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Get package details to determine if payment is needed
+        package = data.get('package', 'free')
+        
+        # Get package details from database or defaults
+        packages = await db.get_packages(active_only=True)
+        package_details = None
+        
+        # Find matching package
+        for pkg in packages:
+            if pkg['package_id'] == package:
+                package_details = pkg
+                break
+        
+        # If no package found, check if it's a default package
+        if not package_details:
+            if package == 'bronze':
+                package_details = {'price_usd': 10.0, 'name': 'Bronze Plan'}
+            elif package == 'silver':
+                package_details = {'price_usd': 29.0, 'name': 'Silver Plan'}
+            elif package == 'gold':
+                package_details = {'price_usd': 47.0, 'name': 'Gold Plan'}
+            else:
+                package_details = {'price_usd': 0.0, 'name': 'Free Plan'}
+        
+        # Check if payment is needed
+        if package_details.get('price_usd', 0) == 0:
+            await callback_query.answer("Free package doesn't require payment!")
+            return
+        
+        # Show payment method selection
+        await state.update_data(
+            selected_channels=selected_channels,
+            package_details=package_details
+        )
+        await state.set_state(AdCreationStates.payment_method)
+        
+        payment_text = f"""
+💳 **Payment Required**
+
+📦 **Package:** {package_details['name']}
+📺 **Channels:** {len(selected_channels)} selected
+💰 **Price:** ${package_details['price_usd']}/month
+
+Choose your payment method:
+        """.strip()
+        
+        await callback_query.message.edit_text(
+            payment_text,
+            reply_markup=create_payment_method_keyboard(language),
+            parse_mode='Markdown'
+        )
+        await callback_query.answer(f"Proceeding to payment for {len(selected_channels)} channels!")
+        
+    except Exception as e:
+        logger.error(f"Proceed to payment error: {e}")
+        await callback_query.answer("Error proceeding to payment")
+
+
 @router.callback_query(F.data.startswith("select_package_"))
 async def dynamic_package_selection_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle dynamic package selection"""
