@@ -127,14 +127,14 @@ class AdminSystem:
             ],
             [
                 InlineKeyboardButton(text="👥 User Management", callback_data="admin_users"),
-                InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics")
+                InlineKeyboardButton(text="STATS: Statistics", callback_data="admin_statistics")
             ],
             [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="👥 User Management", callback_data="admin_users")
             ],
             [
-                InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics"),
+                InlineKeyboardButton(text="STATS: Statistics", callback_data="admin_statistics"),
                 InlineKeyboardButton(text="🔄 Refresh Data", callback_data="admin_refresh")
             ],
             [
@@ -148,7 +148,7 @@ class AdminSystem:
         text = f"""
 **I3lani Bot Admin Panel**
 
-**System Status:** ✅ Online
+**System Status:** SUCCESS: Online
 **Total Users:** {await self.get_total_users()}
 **Active Channels:** {len([c for c in self.channels.values() if c['active']])}
 **Revenue Today:** ${await self.get_daily_revenue():.2f}
@@ -181,7 +181,7 @@ Channels:
         """.strip()
         
         for channel_id, channel in self.channels.items():
-            status = "✅" if channel['active'] else "❌"
+            status = "SUCCESS:" if channel['active'] else "ERROR:"
             text += f"\n{status} {channel['name']}"
             text += f"\n   - ID: {channel['telegram_id']}"
             text += f"\n   - Subscribers: {channel['subscribers']:,}"
@@ -190,11 +190,11 @@ Channels:
         keyboard = [
             [
                 InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
-                InlineKeyboardButton(text="✏️ Edit Channel", callback_data="admin_edit_channel")
+                InlineKeyboardButton(text="EDIT: Edit Channel", callback_data="admin_edit_channel")
             ],
             [
                 InlineKeyboardButton(text="🗑️ Remove Channel", callback_data="admin_remove_channel"),
-                InlineKeyboardButton(text="📊 Channel Stats", callback_data="admin_channel_stats")
+                InlineKeyboardButton(text="STATS: Channel Stats", callback_data="admin_channel_stats")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
@@ -234,11 +234,11 @@ Channels:
         keyboard = [
             [
                 InlineKeyboardButton(text="➕ Create Package", callback_data="admin_create_subscription"),
-                InlineKeyboardButton(text="✏️ Edit Package", callback_data="admin_edit_subscription")
+                InlineKeyboardButton(text="EDIT: Edit Package", callback_data="admin_edit_subscription")
             ],
             [
                 InlineKeyboardButton(text="🗑️ Remove Package", callback_data="admin_remove_subscription"),
-                InlineKeyboardButton(text="📊 Package Stats", callback_data="admin_subscription_stats")
+                InlineKeyboardButton(text="STATS: Package Stats", callback_data="admin_subscription_stats")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
@@ -263,7 +263,7 @@ Channels:
         if packages:
             text += "**Current Packages:**\n"
             for package in packages:
-                status = "✅ Active" if package.get('active', True) else "❌ Inactive"
+                status = "SUCCESS: Active" if package.get('active', True) else "ERROR: Inactive"
                 text += f"- {package['name']}: ${package['price_usd']} ({status})\n"
         else:
             text += "**No packages found in database.**\n"
@@ -274,11 +274,11 @@ Channels:
         keyboard = [
             [
                 InlineKeyboardButton(text="➕ Create Price", callback_data="admin_create_price"),
-                InlineKeyboardButton(text="✏️ Edit Price", callback_data="admin_edit_price")
+                InlineKeyboardButton(text="EDIT: Edit Price", callback_data="admin_edit_price")
             ],
             [
                 InlineKeyboardButton(text="🗑️ Remove Price", callback_data="admin_remove_price"),
-                InlineKeyboardButton(text="📊 Price Stats", callback_data="admin_price_stats")
+                InlineKeyboardButton(text="STATS: Price Stats", callback_data="admin_price_stats")
             ],
             [
                 InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_refresh")
@@ -303,22 +303,22 @@ Channels:
         """.strip()
         
         for schedule_id, schedule in self.publishing_schedules.items():
-            status = "✅" if schedule['active'] else "❌"
+            status = "SUCCESS:" if schedule['active'] else "ERROR:"
             text += f"\n{status} **{schedule_id.title()}:** {schedule['time']}"
         
         text += f"""
 
 **Schedule Settings:**
-- Auto-publish: ✅ Enabled
+- Auto-publish: SUCCESS: Enabled
 - Timezone: UTC
-- Retry failed posts: ✅ Enabled
+- Retry failed posts: SUCCESS: Enabled
 - Max posts per hour: 10
         """.strip()
         
         keyboard = [
             [
                 InlineKeyboardButton(text="➕ Add Schedule", callback_data="admin_create_schedule"),
-                InlineKeyboardButton(text="✏️ Edit Schedule", callback_data="admin_edit_schedule")
+                InlineKeyboardButton(text="EDIT: Edit Schedule", callback_data="admin_edit_schedule")
             ],
             [
                 InlineKeyboardButton(text="🗑️ Remove Schedule", callback_data="admin_remove_schedule"),
@@ -340,17 +340,17 @@ Channels:
         text = f"""
 🤖 **Bot Control Panel**
 
-**Bot Status:** ✅ Online and Running
+**Bot Status:** SUCCESS: Online and Running
 **Uptime:** {await self.get_bot_uptime()}
 **Memory Usage:** {await self.get_memory_usage()}
 **Active Sessions:** {await self.get_active_sessions()}
 
 **Bot Features:**
-- Multi-language support (EN/AR/RU) ✅
-- Payment processing (TON/Stars) ✅
-- Auto-publishing ✅
-- Referral system ✅
-- Debug system ✅
+- Multi-language support (EN/AR/RU) SUCCESS:
+- Payment processing (TON/Stars) SUCCESS:
+- Auto-publishing SUCCESS:
+- Referral system SUCCESS:
+- Debug system SUCCESS:
 
 **Control Options:**
         """.strip()
@@ -366,7 +366,7 @@ Channels:
             ],
             [
                 InlineKeyboardButton(text="🔧 Maintenance Mode", callback_data="admin_maintenance"),
-                InlineKeyboardButton(text="📊 System Logs", callback_data="admin_system_logs")
+                InlineKeyboardButton(text="STATS: System Logs", callback_data="admin_system_logs")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
@@ -403,10 +403,10 @@ Active Users: {active_users}
             ],
             [
                 InlineKeyboardButton(text="🚫 Ban User", callback_data="admin_ban_user"),
-                InlineKeyboardButton(text="✅ Unban User", callback_data="admin_unban_user")
+                InlineKeyboardButton(text="SUCCESS: Unban User", callback_data="admin_unban_user")
             ],
             [
-                InlineKeyboardButton(text="📊 User Analytics", callback_data="admin_user_analytics"),
+                InlineKeyboardButton(text="STATS: User Analytics", callback_data="admin_user_analytics"),
                 InlineKeyboardButton(text="💰 Payment History", callback_data="admin_payment_history")
             ],
             [
@@ -449,7 +449,7 @@ This Month: ${await self.get_monthly_revenue():.2f}
         keyboard = [
             [
                 InlineKeyboardButton(text="📈 Detailed Report", callback_data="admin_detailed_report"),
-                InlineKeyboardButton(text="📊 Export Data", callback_data="admin_export_data")
+                InlineKeyboardButton(text="STATS: Export Data", callback_data="admin_export_data")
             ],
             [
                 InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="admin_refresh_stats"),
@@ -591,7 +591,7 @@ async def admin_command(message: Message, state: FSMContext):
     user_id = message.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await message.answer("❌ Access denied. Admin privileges required.")
+        await message.answer("ERROR: Access denied. Admin privileges required.")
         return
     
     await state.set_state(AdminStates.main_menu)
@@ -603,7 +603,7 @@ async def admin_main_callback(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.main_menu)
@@ -616,7 +616,7 @@ async def admin_channels_callback(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.channel_management)
@@ -631,7 +631,7 @@ async def admin_create_price_callback(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied!")
+        await callback_query.answer("ERROR: Access denied!")
         return
     
     await state.set_state(AdminStates.create_subscription)
@@ -657,7 +657,7 @@ Type your package details:
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")]
+        [InlineKeyboardButton(text="ERROR: Cancel", callback_data="admin_packages")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -669,14 +669,14 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied!")
+        await callback_query.answer("ERROR: Access denied!")
         return
     
     from database import db
     packages = await db.get_packages(active_only=False)
     
     if not packages:
-        await callback_query.answer("❌ No packages found!")
+        await callback_query.answer("ERROR: No packages found!")
         return
     
     text = "**Edit Price Package**\n\nSelect a package to edit:"
@@ -691,7 +691,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
         ])
     
     keyboard_buttons.append([
-        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")
+        InlineKeyboardButton(text="ERROR: Cancel", callback_data="admin_packages")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -705,14 +705,14 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied!")
+        await callback_query.answer("ERROR: Access denied!")
         return
     
     from database import db
     packages = await db.get_packages(active_only=False)
     
     if not packages:
-        await callback_query.answer("❌ No packages found!")
+        await callback_query.answer("ERROR: No packages found!")
         return
     
     text = "**Remove Price Package**\n\nWarning: This will permanently delete the package!\n\nSelect a package to remove:"
@@ -727,7 +727,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
         ])
     
     keyboard_buttons.append([
-        InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")
+        InlineKeyboardButton(text="ERROR: Cancel", callback_data="admin_packages")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -741,7 +741,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied!")
+        await callback_query.answer("ERROR: Access denied!")
         return
     
     from database import db
@@ -762,7 +762,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
         
         text += "**Package Details:**\n"
         for package in packages:
-            status = "✅" if package.get('active', True) else "❌"
+            status = "SUCCESS:" if package.get('active', True) else "ERROR:"
             text += f"{status} {package['name']}: ${package['price_usd']} ({package['duration_days']} days)\n"
     else:
         text += "**No packages found in database.**\n"
@@ -781,7 +781,7 @@ async def admin_packages_callback(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.pricing_management)
@@ -794,7 +794,7 @@ async def admin_schedules_callback(callback_query: CallbackQuery, state: FSMCont
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.publishing_schedules)
@@ -807,7 +807,7 @@ async def admin_bot_control_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.bot_control)
@@ -820,7 +820,7 @@ async def admin_users_callback(callback_query: CallbackQuery, state: FSMContext)
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.user_management)
@@ -833,7 +833,7 @@ async def admin_statistics_callback(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.statistics)
@@ -846,7 +846,7 @@ async def admin_refresh_callback(callback_query: CallbackQuery, state: FSMContex
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await callback_query.answer("🔄 Data refreshed!")
@@ -901,7 +901,7 @@ Found {len(channels)} active channels:
         await callback_query.message.edit_text(result_text, reply_markup=keyboard)
     else:
         await callback_query.message.edit_text(
-            "❌ Channel manager not initialized. Please restart the bot.",
+            "ERROR: Channel manager not initialized. Please restart the bot.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
             ])
@@ -913,7 +913,7 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.add_channel)
@@ -935,17 +935,6 @@ Please send the channel username (e.g., @channel_name) or channel ID:
     
     await callback_query.message.edit_text(text, reply_markup=keyboard)
     await callback_query.answer()
-15000
-
-Send the channel information now:
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")]
-    ])
-    
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
 
 @router.message(AdminStates.add_channel)
 async def handle_add_channel_message(message: Message, state: FSMContext):
@@ -953,7 +942,7 @@ async def handle_add_channel_message(message: Message, state: FSMContext):
     try:
         lines = message.text.strip().split('\n')
         if len(lines) < 4:
-            await message.reply("❌ Invalid format. Please provide all 4 fields: Name, Telegram ID, Category, Subscribers")
+            await message.reply("ERROR: Invalid format. Please provide all 4 fields: Name, Telegram ID, Category, Subscribers")
             return
         
         channel_name = lines[0].strip()
@@ -996,10 +985,10 @@ The channel has been added to the system and is now available for advertising ca
         await state.clear()
         
     except ValueError:
-        await message.reply("❌ Invalid subscriber count. Please enter a valid number.")
+        await message.reply("ERROR: Invalid subscriber count. Please enter a valid number.")
     except Exception as e:
         logger.error(f"Error adding channel: {e}")
-        await message.reply("❌ Error adding channel. Please try again.")
+        await message.reply("ERROR: Error adding channel. Please try again.")
 
 @router.callback_query(F.data == "admin_edit_channel")
 async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1007,10 +996,10 @@ async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
-    text = "📝 **Edit Channel**\n\nSelect a channel to edit:"
+    text = "EDIT: **Edit Channel**\n\nSelect a channel to edit:"
     
     keyboard = []
     for channel_id, channel in admin_system.channels.items():
@@ -1034,14 +1023,14 @@ async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     channel_id = callback_query.data.replace("edit_channel_", "")
     channel = admin_system.channels.get(channel_id)
     
     if not channel:
-        await callback_query.answer("❌ Channel not found.")
+        await callback_query.answer("ERROR: Channel not found.")
         return
     
     text = f"""
@@ -1059,7 +1048,7 @@ What would you like to edit?
     
     keyboard = [
         [
-            InlineKeyboardButton(text="📝 Edit Name", callback_data=f"edit_name_{channel_id}"),
+            InlineKeyboardButton(text="EDIT: Edit Name", callback_data=f"edit_name_{channel_id}"),
             InlineKeyboardButton(text="🔗 Edit Telegram ID", callback_data=f"edit_telegram_{channel_id}")
         ],
         [
@@ -1088,14 +1077,14 @@ async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     channel_id = callback_query.data.replace("toggle_channel_", "")
     channel = admin_system.channels.get(channel_id)
     
     if not channel:
-        await callback_query.answer("❌ Channel not found.")
+        await callback_query.answer("ERROR: Channel not found.")
         return
     
     # Toggle channel status
@@ -1113,7 +1102,7 @@ async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FS
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     text = "🗑️ **Remove Channel**\n\n⚠️ Select a channel to remove (this action cannot be undone):"
@@ -1140,20 +1129,20 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     channel_id = callback_query.data.replace("remove_channel_", "")
     channel = admin_system.channels.get(channel_id)
     
     if not channel:
-        await callback_query.answer("❌ Channel not found.")
+        await callback_query.answer("ERROR: Channel not found.")
         return
     
     # Remove channel
     del admin_system.channels[channel_id]
     
-    await callback_query.answer("✅ Channel removed successfully!")
+    await callback_query.answer("SUCCESS: Channel removed successfully!")
     
     # Return to channel management
     await admin_system.show_channel_management(callback_query)
@@ -1165,21 +1154,21 @@ async def admin_price_callback(callback_query: CallbackQuery, state: FSMContext)
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     package_type = callback_query.data.replace("admin_price_", "")
     package = admin_system.subscription_packages.get(package_type)
     
     if not package:
-        await callback_query.answer("❌ Package not found.")
+        await callback_query.answer("ERROR: Package not found.")
         return
     
     await state.set_state(AdminStates.set_pricing)
     await state.update_data(package_type=package_type)
     
     text = f"""
-💰 **Update {package['name']} Price**
+$ **Update {package['name']} Price**
 
 **Current Price:** ${package['price_usd']} USD
 **Duration:** {package['duration_days']} days
@@ -1205,7 +1194,7 @@ async def handle_price_update_message(message: Message, state: FSMContext):
         new_price = float(message.text.strip())
         
         if new_price <= 0:
-            await message.reply("❌ Price must be greater than 0.")
+            await message.reply("ERROR: Price must be greater than 0.")
             return
         
         # Update package price
@@ -1213,7 +1202,7 @@ async def handle_price_update_message(message: Message, state: FSMContext):
         admin_system.subscription_packages[package_type]['price_usd'] = new_price
         
         success_text = f"""
-✅ **Price Updated Successfully!**
+SUCCESS: **Price Updated Successfully!**
 
 **Package:** {admin_system.subscription_packages[package_type]['name']}
 **Old Price:** ${old_price} USD
@@ -1231,10 +1220,10 @@ The pricing has been updated and will apply to all new orders.
         await state.clear()
         
     except ValueError:
-        await message.reply("❌ Invalid price format. Please enter a valid number.")
+        await message.reply("ERROR: Invalid price format. Please enter a valid number.")
     except Exception as e:
         logger.error(f"Error updating price: {e}")
-        await message.reply("❌ Error updating price. Please try again.")
+        await message.reply("ERROR: Error updating price. Please try again.")
 
 # Subscription Management Handlers
 @router.callback_query(F.data == "admin_create_subscription")
@@ -1243,13 +1232,13 @@ async def admin_create_subscription_callback(callback_query: CallbackQuery, stat
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.create_subscription)
     
     text = """
-➕ **Create New Subscription Package**
++ **Create New Subscription Package**
 
 Please provide the package information in this format:
 
@@ -1284,7 +1273,7 @@ async def handle_create_subscription_message(message: Message, state: FSMContext
     try:
         lines = message.text.strip().split('\n')
         if len(lines) < 5:
-            await message.reply("❌ Invalid format. Please provide all 5 fields: Name, Price, Duration, Posts/Day, Channels")
+            await message.reply("ERROR: Invalid format. Please provide all 5 fields: Name, Price, Duration, Posts/Day, Channels")
             return
         
         package_name = lines[0].strip()
@@ -1311,7 +1300,7 @@ async def handle_create_subscription_message(message: Message, state: FSMContext
         await db.create_package(package_id, package_name, price_usd, duration_days, posts_per_day, channels_included)
         
         success_text = f"""
-✅ **Subscription Package Created Successfully!**
+SUCCESS: **Subscription Package Created Successfully!**
 
 **Name:** {package_name}
 **Price:** ${price_usd} USD
@@ -1331,10 +1320,10 @@ The package has been added to the system and is now available for users.
         await state.clear()
         
     except ValueError:
-        await message.reply("❌ Invalid format. Please check that prices and numbers are valid.")
+        await message.reply("ERROR: Invalid format. Please check that prices and numbers are valid.")
     except Exception as e:
         logger.error(f"Error creating subscription: {e}")
-        await message.reply("❌ Error creating subscription. Please try again.")
+        await message.reply("ERROR: Error creating subscription. Please try again.")
 
 @router.callback_query(F.data == "admin_edit_subscription")
 async def admin_edit_subscription_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1342,11 +1331,11 @@ async def admin_edit_subscription_callback(callback_query: CallbackQuery, state:
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     text = """
-📝 **Edit Subscription Package**
+EDIT: **Edit Subscription Package**
 
 Select a package to edit:
 
@@ -1384,7 +1373,7 @@ async def admin_remove_subscription_callback(callback_query: CallbackQuery, stat
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     text = "🗑️ **Remove Subscription Package**\n\n⚠️ Select a package to remove (this action cannot be undone):"
@@ -1411,20 +1400,20 @@ async def handle_remove_package_confirm(callback_query: CallbackQuery, state: FS
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     package_id = callback_query.data.replace("remove_package_", "")
     package = admin_system.subscription_packages.get(package_id)
     
     if not package:
-        await callback_query.answer("❌ Package not found.")
+        await callback_query.answer("ERROR: Package not found.")
         return
     
     # Remove package
     del admin_system.subscription_packages[package_id]
     
-    await callback_query.answer("✅ Package removed successfully!")
+    await callback_query.answer("SUCCESS: Package removed successfully!")
     
     # Return to subscription management
     await admin_system.show_subscription_management(callback_query)
@@ -1435,14 +1424,14 @@ async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     total_subscribers = sum(ch['subscribers'] for ch in admin_system.channels.values())
     active_channels = len([ch for ch in admin_system.channels.values() if ch['active']])
     
     text = f"""
-📊 **Channel Statistics**
+STATS: **Channel Statistics**
 
 **Total Channels:** {len(admin_system.channels)}
 **Active Channels:** {active_channels}
@@ -1453,7 +1442,7 @@ async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSM
     """.strip()
     
     for channel_id, channel in admin_system.channels.items():
-        status = "✅" if channel['active'] else "❌"
+        status = "SUCCESS:" if channel['active'] else "ERROR:"
         text += f"\n{status} **{channel['name']}**"
         text += f"\n   - {channel['subscribers']:,} subscribers"
         text += f"\n   - Category: {channel['category']}"
@@ -1471,11 +1460,11 @@ async def admin_subscription_stats_callback(callback_query: CallbackQuery, state
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied.")
+        await callback_query.answer("ERROR: Access denied.")
         return
     
     text = f"""
-📊 **Subscription Package Statistics**
+STATS: **Subscription Package Statistics**
 
 **Total Packages:** {len(admin_system.subscription_packages)}
 
@@ -1502,14 +1491,14 @@ async def handle_create_price_message(message: Message, state: FSMContext):
     user_id = message.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await message.reply("❌ Access denied!")
+        await message.reply("ERROR: Access denied!")
         return
     
     try:
         # Parse package details: package_id|name|price_usd|duration_days|posts_per_day|channels_included
         parts = message.text.strip().split('|')
         if len(parts) != 6:
-            await message.reply("❌ Invalid format! Please use: `package_id|name|price_usd|duration_days|posts_per_day|channels_included`")
+            await message.reply("ERROR: Invalid format! Please use: `package_id|name|price_usd|duration_days|posts_per_day|channels_included`")
             return
         
         package_id, name, price_usd, duration_days, posts_per_day, channels_included = parts
@@ -1533,7 +1522,7 @@ async def handle_create_price_message(message: Message, state: FSMContext):
         
         if success:
             success_text = f"""
-✅ **Price Package Created Successfully!**
+SUCCESS: **Price Package Created Successfully!**
 
 **Package Details:**
 - ID: {package_id}
@@ -1552,12 +1541,12 @@ The package is now available in the pricing menu!
             
             await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
         else:
-            await message.reply("❌ Failed to create package. Package ID might already exist.")
+            await message.reply("ERROR: Failed to create package. Package ID might already exist.")
         
     except ValueError:
-        await message.reply("❌ Invalid number format! Please check price, duration, posts per day, and channels values.")
+        await message.reply("ERROR: Invalid number format! Please check price, duration, posts per day, and channels values.")
     except Exception as e:
-        await message.reply(f"❌ Error creating package: {str(e)}")
+        await message.reply(f"ERROR: Error creating package: {str(e)}")
     
     await state.clear()
 
@@ -1567,7 +1556,7 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied!")
+        await callback_query.answer("ERROR: Access denied!")
         return
     
     package_id = callback_query.data.replace("admin_remove_pkg_", "")
@@ -1578,7 +1567,7 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
         package = next((p for p in packages if p['package_id'] == package_id), None)
         
         if not package:
-            await callback_query.answer("❌ Package not found!")
+            await callback_query.answer("ERROR: Package not found!")
             return
         
         # Remove package from database
@@ -1587,7 +1576,7 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
             await conn.commit()
         
         success_text = f"""
-✅ **Package Removed Successfully!**
+SUCCESS: **Package Removed Successfully!**
 
 **Removed Package:**
 - Name: {package['name']}
@@ -1602,10 +1591,10 @@ The package has been permanently deleted and is no longer available in the prici
         ])
         
         await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='Markdown')
-        await callback_query.answer(f"✅ Package '{package['name']}' removed!")
+        await callback_query.answer(f"SUCCESS: Package '{package['name']}' removed!")
         
     except Exception as e:
-        await callback_query.answer(f"❌ Error removing package: {str(e)}")
+        await callback_query.answer(f"ERROR: Error removing package: {str(e)}")
 
 @router.callback_query(F.data.startswith("admin_edit_pkg_"))
 async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -1613,7 +1602,7 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied!")
+        await callback_query.answer("ERROR: Access denied!")
         return
     
     package_id = callback_query.data.replace("admin_edit_pkg_", "")
@@ -1624,14 +1613,14 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
         package = next((p for p in packages if p['package_id'] == package_id), None)
         
         if not package:
-            await callback_query.answer("❌ Package not found!")
+            await callback_query.answer("ERROR: Package not found!")
             return
         
         await state.update_data(edit_package_id=package_id)
         await state.set_state(AdminStates.edit_subscription)
         
         text = f"""
-✏️ **Edit Package: {package['name']}**
+EDIT: **Edit Package: {package['name']}**
 
 **Current Details:**
 - ID: {package['package_id']}
@@ -1651,14 +1640,14 @@ Type your updated package details:
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_packages")]
+            [InlineKeyboardButton(text="ERROR: Cancel", callback_data="admin_packages")]
         ])
         
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
         await callback_query.answer()
         
     except Exception as e:
-        await callback_query.answer(f"❌ Error loading package: {str(e)}")
+        await callback_query.answer(f"ERROR: Error loading package: {str(e)}")
 
 @router.message(AdminStates.edit_subscription)
 async def handle_edit_package_message(message: Message, state: FSMContext):
@@ -1666,7 +1655,7 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
     user_id = message.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await message.reply("❌ Access denied!")
+        await message.reply("ERROR: Access denied!")
         return
     
     try:
@@ -1674,13 +1663,13 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
         package_id = data.get('edit_package_id')
         
         if not package_id:
-            await message.reply("❌ Package ID not found!")
+            await message.reply("ERROR: Package ID not found!")
             return
         
         # Parse package details: name|price_usd|duration_days|posts_per_day|channels_included
         parts = message.text.strip().split('|')
         if len(parts) != 5:
-            await message.reply("❌ Invalid format! Please use: `name|price_usd|duration_days|posts_per_day|channels_included`")
+            await message.reply("ERROR: Invalid format! Please use: `name|price_usd|duration_days|posts_per_day|channels_included`")
             return
         
         name, price_usd, duration_days, posts_per_day, channels_included = parts
@@ -1702,7 +1691,7 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
             await conn.commit()
         
         success_text = f"""
-✅ **Package Updated Successfully!**
+SUCCESS: **Package Updated Successfully!**
 
 **Updated Package Details:**
 - ID: {package_id}
@@ -1722,9 +1711,9 @@ The changes are now live in the pricing menu!
         await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
         
     except ValueError:
-        await message.reply("❌ Invalid number format! Please check price, duration, posts per day, and channels values.")
+        await message.reply("ERROR: Invalid number format! Please check price, duration, posts per day, and channels values.")
     except Exception as e:
-        await message.reply(f"❌ Error updating package: {str(e)}")
+        await message.reply(f"ERROR: Error updating package: {str(e)}")
     
     await state.clear()
 
@@ -1741,10 +1730,10 @@ async def admin_channel_details_handler(message: Message):
             await message.reply("No channels found in database.")
             return
         
-        response = "📊 **Detailed Channel Information**\n\n"
+        response = "STATS: **Detailed Channel Information**\n\n"
         
         for channel in channels:
-            status = "✅ Active" if channel.get('is_active') else "❌ Inactive"
+            status = "SUCCESS: Active" if channel.get('is_active') else "ERROR: Inactive"
             category = channel.get('category', 'general').title()
             active_subs = channel.get('active_subscribers', 0)
             total_posts = channel.get('total_posts', 0)
