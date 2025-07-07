@@ -120,13 +120,17 @@ class AdminSystem:
 
     async def show_main_menu(self, message_or_query, edit: bool = False):
         """Show main admin menu"""
+        # Get real channel data from database
+        channels = await db.get_channels(active_only=False)
+        active_channels = [ch for ch in channels if ch.get('is_active', False)]
+        
         text = f"""
 **I3lani Bot Admin Panel**
 
 **System Status:** SUCCESS: Online
 **Total Users:** {await self.get_total_users()}
-**Active Channels:** {len([c for c in self.channels.values() if c['active']])}
-**Revenue Today:** ${await self.get_daily_revenue():.2f}
+**Active Channels:** {len(active_channels)}
+**Total Channels:** {len(channels)}
 
 **Quick Actions:**
 - Manage channels and subscriptions
