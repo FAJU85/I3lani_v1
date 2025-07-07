@@ -292,15 +292,50 @@ async def show_pricing_handler(callback_query: CallbackQuery):
     pricing_text += "✅ Admins can edit all prices and posting rules via control panel.\n\n"
     pricing_text += "📞 **Need help?** Contact /support"
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")],
-        [
-            InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze"),
-            InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")
-        ],
-        [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")],
-        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
-    ])
+    # Build keyboard dynamically based on available packages
+    keyboard_buttons = []
+    
+    # Add free plan button
+    keyboard_buttons.append([InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")])
+    
+    # Add package buttons
+    if packages:
+        package_row = []
+        for package in packages:
+            emoji = "💰"
+            if "bronze" in package['name'].lower():
+                emoji = "🟫"
+            elif "silver" in package['name'].lower():
+                emoji = "🥈"
+            elif "gold" in package['name'].lower():
+                emoji = "🥇"
+                
+            package_row.append(InlineKeyboardButton(
+                text=f"{emoji} {package['name']} ${package['price_usd']}",
+                callback_data=f"select_package_{package['package_id']}"
+            ))
+            
+            # Add two buttons per row
+            if len(package_row) == 2:
+                keyboard_buttons.append(package_row)
+                package_row = []
+        
+        # Add remaining buttons if any
+        if package_row:
+            keyboard_buttons.append(package_row)
+    else:
+        # Fallback to default buttons if no packages in database
+        keyboard_buttons.extend([
+            [
+                InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze"),
+                InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")
+            ],
+            [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")]
+        ])
+    
+    keyboard_buttons.append([InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback_query.message.edit_text(
         pricing_text,
