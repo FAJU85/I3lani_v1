@@ -17,6 +17,7 @@ from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
 from pricing_system import get_pricing_system
+from dynamic_pricing import get_dynamic_pricing
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -1459,35 +1460,46 @@ async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContex
 
 @router.callback_query(F.data == "continue_to_duration")
 async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Continue to plan selection"""
+    """Continue to dynamic pricing calculator"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
     await state.set_state(AdCreationStates.duration_selection)
     
-    # Get pricing system
-    pricing = get_pricing_system()
-    
-    text = f"""
-🎯 **Select Your Advertising Plan**
+    text = """
+🧾 **Let's calculate your posting plan!**
 
-Choose from our progressive frequency plans:
+I'll help you find the perfect advertising package like a food delivery assistant!
 
-**Plan Benefits:**
-• More posts per day with longer plans
-• Bigger discounts for longer commitments
-• No per-channel fees - covers all selected channels
-• Progressive posting frequency increases
+**Step 1: How many days** do you want your ad to run?
+(Examples: 3 days, 7 days, 30 days)
 
-**Available Plans:**
+**Step 2: How many posts per day?**
+(Choose 1 to 24 posts per day)
+
+**Step 3: Which channels?**
+All channels currently cost $0 — extra toppings coming soon! 😋
+
+💡 **Volume Discounts Available:**
+• 2+ posts/day → Get discounts up to 30% off!
+• More posts = bigger savings
+
+Choose your plan duration:
     """.strip()
     
-    # Create keyboard using pricing system
-    keyboard_data = pricing.create_pricing_keyboard(language)
+    # Create duration selection keyboard
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=btn['text'], callback_data=btn['callback_data']) 
-         for btn in row]
-        for row in keyboard_data
+        [
+            InlineKeyboardButton(text="1 Day", callback_data="dynamic_days_1"),
+            InlineKeyboardButton(text="3 Days", callback_data="dynamic_days_3"),
+            InlineKeyboardButton(text="7 Days", callback_data="dynamic_days_7")
+        ],
+        [
+            InlineKeyboardButton(text="14 Days", callback_data="dynamic_days_14"),
+            InlineKeyboardButton(text="30 Days", callback_data="dynamic_days_30"),
+            InlineKeyboardButton(text="Custom", callback_data="dynamic_days_custom")
+        ],
+        [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_start")]
     ])
     
     try:
@@ -3172,3 +3184,183 @@ async def cancel_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     )
     await state.clear()
     await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("dynamic_days_"))
+async def dynamic_days_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle dynamic days selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    days_data = callback_query.data.replace("dynamic_days_", "")
+    
+    if days_data == "custom":
+        await state.set_state(AdCreationStates.custom_input)
+        text = """
+📅 **Custom Duration**
+
+Please enter the number of days you want your ad to run:
+
+Examples: 5, 12, 45, 90
+
+Type the number of days:
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Duration", callback_data="continue_to_duration")]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+        except (AttributeError, Exception):
+            await callback_query.message.answer(text, reply_markup=keyboard)
+    else:
+        days = int(days_data)
+        await state.update_data(selected_days=days)
+        
+        # Show posts per day selection
+        text = f"""
+📅 **Duration Selected: {days} days**
+
+🎯 **Step 2: How many posts per day?**
+
+Choose your posting frequency to see volume discounts:
+
+💡 **Volume Discount Tips:**
+• 1 post/day = No discount
+• 2 posts/day = 5% off
+• 4 posts/day = 10% off
+• 8 posts/day = 20% off
+• 24 posts/day = 30% off (maximum!)
+
+Select posts per day:
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1/day (No discount)", callback_data="dynamic_posts_1"),
+                InlineKeyboardButton(text="2/day (5% off)", callback_data="dynamic_posts_2")
+            ],
+            [
+                InlineKeyboardButton(text="3/day (7% off)", callback_data="dynamic_posts_3"),
+                InlineKeyboardButton(text="4/day (10% off)", callback_data="dynamic_posts_4")
+            ],
+            [
+                InlineKeyboardButton(text="6/day (15% off)", callback_data="dynamic_posts_6"),
+                InlineKeyboardButton(text="8/day (20% off)", callback_data="dynamic_posts_8")
+            ],
+            [
+                InlineKeyboardButton(text="12/day (27% off)", callback_data="dynamic_posts_12"),
+                InlineKeyboardButton(text="24/day (30% off)", callback_data="dynamic_posts_24")
+            ],
+            [
+                InlineKeyboardButton(text="Custom Amount", callback_data="dynamic_posts_custom"),
+                InlineKeyboardButton(text="⬅️ Back", callback_data="continue_to_duration")
+            ]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        except (AttributeError, Exception):
+            await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    
+    await callback_query.answer()
+
+
+@router.callback_query(F.data.startswith("dynamic_posts_"))
+async def dynamic_posts_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle posts per day selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    posts_data = callback_query.data.replace("dynamic_posts_", "")
+    
+    if posts_data == "custom":
+        await state.set_state(AdCreationStates.custom_input)
+        text = """
+🎯 **Custom Posts Per Day**
+
+Please enter how many posts per day you want:
+
+Examples: 5, 15, 20
+
+💡 **Discount Reference:**
+• 1-1 posts/day = 0% discount
+• 2-2 posts/day = 5% discount
+• 3-3 posts/day = 7% discount
+• 4-4 posts/day = 10% discount
+• 8-8 posts/day = 20% discount
+• 24+ posts/day = 30% discount (maximum)
+
+Type the number of posts per day:
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Posts", callback_data="dynamic_back_to_posts")]
+        ])
+        
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard)
+        except (AttributeError, Exception):
+            await callback_query.message.answer(text, reply_markup=keyboard)
+    else:
+        posts_per_day = int(posts_data)
+        
+        # Get stored data
+        data = await state.get_data()
+        days = data.get('selected_days', 1)
+        selected_channels = data.get('selected_channels', [])
+        
+        # Get channel data for display
+        channels = await db.get_channels()
+        selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
+        
+        # Calculate pricing using dynamic system
+        pricing = get_dynamic_pricing()
+        calculation = pricing.calculate_total_cost(days, posts_per_day, selected_channel_data)
+        
+        # Store calculation in state
+        await state.update_data(
+            selected_days=days,
+            posts_per_day=posts_per_day,
+            pricing_calculation=calculation
+        )
+        
+        # Format the summary
+        summary = pricing.format_pricing_summary(calculation)
+        discount_explanation = pricing.get_discount_explanation(posts_per_day)
+        
+        # Create channel list
+        channel_list = "\n".join([f"• {ch['channel_name']}" for ch in selected_channel_data])
+        
+        text = f"""
+{summary}
+
+**Selected Channels ({len(selected_channel_data)}):**
+{channel_list}
+
+{discount_explanation}
+
+💳 **Choose your payment method:**
+        """.strip()
+        
+        # Create payment keyboard
+        keyboard_data = pricing.create_payment_keyboard_data(calculation)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=btn['text'], callback_data=btn['callback_data']) 
+             for btn in row]
+            for row in keyboard_data
+        ])
+        
+        try:
+            await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        except (AttributeError, Exception):
+            await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "recalculate_dynamic")
+async def recalculate_dynamic_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle recalculate request"""
+    await continue_to_duration_handler(callback_query, state)
