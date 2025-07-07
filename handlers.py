@@ -836,13 +836,14 @@ Thank you for using I3lani Bot!
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
     """Show channel selection for enhanced flow"""
+    # Get user language first
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
     # Get only active channels where bot is admin
     channels = await db.get_bot_admin_channels()
     
     if not channels:
-        user_id = callback_query.from_user.id
-        language = await get_user_language(user_id)
-        
         no_channels_text = {
             'en': get_text('en', 'no_channels'),
             'ar': get_text('ar', 'no_channels'),
