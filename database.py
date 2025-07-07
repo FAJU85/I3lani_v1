@@ -94,6 +94,7 @@ class Database:
                     status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     confirmed_at TIMESTAMP,
+                    failed_at TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
                     FOREIGN KEY (subscription_id) REFERENCES subscriptions (subscription_id)
                 )

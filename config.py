@@ -69,6 +69,47 @@ CURRENCY_RATES = {
     'RUB': 92.0
 }
 
+# Package definitions - Updated pricing structure
+PACKAGES = {
+    'free': {
+        'name': 'Free Plan',
+        'duration_days': 3,
+        'posts_per_day': 1,
+        'price_usd': 0.0,
+        'price_ton': 0.0,
+        'description': '🎁 Free for @i3lani members',
+        'restriction': 'Once every 2 months',
+        'emoji': '🎁'
+    },
+    'bronze': {
+        'name': 'Bronze Plan',
+        'duration_days': 30,
+        'posts_per_day': 0.33,  # 1 post every 3 days
+        'price_usd': 10.0,
+        'price_ton': 1.0,
+        'description': '🟫 1 post every 3 days',
+        'emoji': '🟫'
+    },
+    'silver': {
+        'name': 'Silver Plan', 
+        'duration_days': 90,  # 3 months
+        'posts_per_day': 3,
+        'price_usd': 29.0,
+        'price_ton': 2.9,
+        'description': '🥈 3 posts per day for 3 months',
+        'emoji': '🥈'
+    },
+    'gold': {
+        'name': 'Gold Plan',
+        'duration_days': 180,  # 6 months
+        'posts_per_day': 6,
+        'price_usd': 47.0,
+        'price_ton': 4.7,
+        'description': '🥇 6 posts per day for 6 months',
+        'emoji': '🥇'
+    }
+}
+
 # Referral configuration
 REFERRAL_FRIEND_DISCOUNT = 0.05  # 5% discount for friends
 REFERRAL_REWARD_DAYS = 3  # 3 free posting days per referral

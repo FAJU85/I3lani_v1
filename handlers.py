@@ -223,38 +223,123 @@ async def show_pricing_handler(callback_query: CallbackQuery):
     language = await get_user_language(user_id)
     
     pricing_text = f"""
-💰 **{get_text(language, 'pricing_title', default='Pricing & Packages')}**
+💸 **Telegram Ad Bot – Pricing Plans (Per Channel)**
 
-📊 **Available Channels:**
-• Tech Channel (156K subscribers) - 15 TON/month
-• Gaming Hub (89K subscribers) - 12 TON/month
-• Crypto News (234K subscribers) - 20 TON/month
-• Business Hub (178K subscribers) - 18 TON/month
+All plans are per channel and can be managed via the Admin Control Panel.
 
-🎯 **Package Options:**
-• **Basic** - 1 channel, 1 month: 10 TON
-• **Pro** - 3 channels, 1 month: 25 TON
-• **Premium** - 5 channels, 1 month: 40 TON
-• **Enterprise** - All channels, 1 month: 60 TON
+---
 
-💳 **Payment Methods:**
-• TON Cryptocurrency
-• Telegram Stars (⭐)
+🎁 **Free Plan**
+• Duration: 3 days
+• 1 post per day
+• Price: **Free**
+• 🔁 1 use every 2 months (for @i3lani members only)
 
-📞 **Need custom pricing?** Contact /support
+---
+
+🟫 **Bronze Plan**
+• Duration: 1 month
+• 1 post every 3 days
+• Price: **$10**
+
+---
+
+🥈 **Silver Plan**
+• Duration: 3 months
+• 3 posts per day
+• Daily posting
+• Price: **$29**
+
+---
+
+🥇 **Gold Plan**
+• Duration: 6 months
+• 6 posts per day
+• Daily posting
+• Price: **$47**
+
+---
+
+✅ Admins can edit all prices and posting rules via control panel.
+
+📞 **Need help?** Contact /support
     """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎁 Start Free Trial", callback_data="select_package_free")],
+        [
+            InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze"),
+            InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")
+        ],
+        [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")],
+        [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
+    ])
     
     await callback_query.message.edit_text(
         pricing_text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text=get_text(language, 'back'), 
-                callback_data="back_to_main"
-            )]
-        ]),
+        reply_markup=keyboard,
         parse_mode='Markdown'
     )
     await callback_query.answer()
+
+
+# Package selection handlers
+@router.callback_query(F.data.startswith("select_package_"))
+async def package_selection_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle package selection from pricing page"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        package_type = callback_query.data.replace("select_package_", "")
+        
+        # Import packages configuration
+        from config import PACKAGES
+        
+        if package_type not in PACKAGES:
+            await callback_query.answer("Invalid package selected", show_alert=True)
+            return
+        
+        package = PACKAGES[package_type]
+        
+        # Check if user is eligible for free plan
+        if package_type == 'free':
+            # Check if user has used free plan in last 2 months
+            # For now, allow all users to use free plan
+            pass
+        
+        # Store package selection in state
+        await state.update_data(
+            selected_package=package_type,
+            package_details=package,
+            price_usd=package['price_usd'],
+            price_ton=package['price_ton'],
+            duration_days=package['duration_days']
+        )
+        
+        # Show package confirmation and ask for ad content
+        confirmation_text = f"""
+{package['emoji']} **{package['name']} Selected**
+
+📋 **Package Details:**
+• Duration: {package['duration_days']} days
+• Posts per day: {package['posts_per_day']:.1f}
+• Price: ${package['price_usd']:.0f}
+
+💡 **Next Step:** Please send your advertisement content (text, photo, or video)
+        """.strip()
+        
+        await callback_query.message.edit_text(
+            confirmation_text,
+            parse_mode='Markdown'
+        )
+        
+        await state.set_state(AdCreationStates.waiting_for_content)
+        await callback_query.answer(f"{package['name']} selected!")
+        
+    except Exception as e:
+        logger.error(f"Package selection error: {e}")
+        await callback_query.answer("Error selecting package. Please try again.")
 
 
 @router.callback_query(F.data == "settings")
@@ -645,6 +730,7 @@ async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMConte
         )
         
         # Get payment details from database
+        import aiosqlite
         async with aiosqlite.connect(db.db_path) as conn:
             conn.row_factory = aiosqlite.Row
             async with conn.execute('''
@@ -691,6 +777,7 @@ async def handle_successful_payment(callback_query: CallbackQuery, state: FSMCon
         language = await get_user_language(user_id)
         
         # Update payment status in database
+        import aiosqlite
         async with aiosqlite.connect(db.db_path) as conn:
             await conn.execute('''
                 UPDATE payments 
