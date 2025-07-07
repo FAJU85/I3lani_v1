@@ -2170,7 +2170,7 @@ async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContex
         await state.update_data(selected_channels=selected_channels)
         
         # Refresh the channel selection interface
-        await show_channel_selection(callback_query, state)
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
         await callback_query.answer(f"Channel {'selected' if channel_id in selected_channels else 'deselected'}!")
         
     except Exception as e:
@@ -2185,7 +2185,7 @@ async def select_all_channels_handler(callback_query: CallbackQuery, state: FSMC
         selected_channels = [channel['channel_id'] for channel in channels]
         
         await state.update_data(selected_channels=selected_channels)
-        await show_channel_selection(callback_query, state)
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
         await callback_query.answer("All channels selected!")
         
     except Exception as e:
@@ -2197,7 +2197,7 @@ async def deselect_all_channels_handler(callback_query: CallbackQuery, state: FS
     """Deselect all channels"""
     try:
         await state.update_data(selected_channels=[])
-        await show_channel_selection(callback_query, state)
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
         await callback_query.answer("All channels deselected!")
         
     except Exception as e:
@@ -2215,9 +2215,9 @@ async def continue_with_channels_handler(callback_query: CallbackQuery, state: F
             await callback_query.answer("Please select at least one channel!")
             return
         
-        # Proceed to duration selection
-        await state.set_state(AdCreationStates.duration_selection)
-        await show_duration_selection(callback_query, state)
+        # Proceed to payment selection
+        await state.set_state(AdCreationStates.payment_selection)
+        await show_payment_selection(callback_query, state)
         await callback_query.answer(f"{len(selected_channels)} channels selected!")
         
     except Exception as e:
