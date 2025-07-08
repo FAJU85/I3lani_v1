@@ -34,14 +34,33 @@ LOCK_FILE = "/tmp/i3lani_bot.lock"
 def acquire_lock():
     """Acquire lock to prevent multiple bot instances"""
     try:
+        # Clean up stale lock file if process doesn't exist
+        if os.path.exists(LOCK_FILE):
+            try:
+                with open(LOCK_FILE, 'r') as f:
+                    old_pid = int(f.read().strip())
+                try:
+                    os.kill(old_pid, 0)  # Check if process exists
+                    logger.error("❌ Another bot instance is already running!")
+                    sys.exit(1)
+                except OSError:
+                    # Process doesn't exist, remove stale lock
+                    os.remove(LOCK_FILE)
+                    logger.info("🧹 Removed stale lock file")
+            except (ValueError, FileNotFoundError):
+                # Invalid or missing lock file, remove it
+                try:
+                    os.remove(LOCK_FILE)
+                except FileNotFoundError:
+                    pass
+        
         lock_fd = open(LOCK_FILE, 'w')
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_fd.write(str(os.getpid()))
         lock_fd.flush()
         return lock_fd
     except IOError:
-        logger.error("❌ Another bot instance is already running!")
-        logger.error("💡 Please stop the existing instance before starting a new one")
+        logger.error("❌ Failed to acquire bot instance lock!")
         sys.exit(1)
 
 async def main():
@@ -177,6 +196,17 @@ async def main():
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
         raise
+    finally:
+        # Clean up lock file
+        try:
+            if 'lock_fd' in locals():
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                lock_fd.close()
+            if os.path.exists(LOCK_FILE):
+                os.remove(LOCK_FILE)
+                logger.info("🧹 Cleaned up lock file")
+        except Exception as e:
+            logger.error(f"Error cleaning up lock: {e}")
 
 
 if __name__ == "__main__":
