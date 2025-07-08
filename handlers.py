@@ -439,6 +439,55 @@ Tip Tip: Make your ad engaging and clear!
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
+# Content Upload Handler for Streamlined Flow
+
+@router.message(AdCreationStates.upload_content)
+async def upload_content_handler(message: Message, state: FSMContext):
+    """Handle content upload in streamlined flow"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Determine content type and extract content
+    content_type = message.content_type
+    content = ""
+    media_url = None
+    
+    if content_type == "text":
+        content = message.text
+    elif content_type == "photo":
+        content = message.caption or ""
+        media_url = message.photo[-1].file_id
+    elif content_type == "video":
+        content = message.caption or ""
+        media_url = message.video.file_id
+    else:
+        await message.answer("Unsupported content type. Please send text, photo, or video.")
+        return
+    
+    # Store content in state
+    await state.update_data(
+        content=content,
+        media_url=media_url,
+        content_type=content_type
+    )
+    
+    # Create ad in database
+    ad_id = await db.create_ad(user_id, content, media_url, content_type)
+    await state.update_data(ad_id=ad_id)
+    
+    # Move to channel selection
+    await state.set_state(AdCreationStates.channel_selection)
+    
+    # Show channel selection - convert message to callback for existing function
+    # Create a dummy callback query to work with existing function
+    from types import SimpleNamespace
+    fake_callback = SimpleNamespace()
+    fake_callback.message = message
+    fake_callback.answer = lambda text="": None
+    
+    await show_channel_selection_for_enhanced_flow(fake_callback, state)
+
+
 # Category selection handler removed - going directly to content upload
 
 

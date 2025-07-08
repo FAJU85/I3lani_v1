@@ -16,6 +16,11 @@ class AdCreationStates(StatesGroup):
     preview_ad = State()
     confirm_or_edit = State()
     
+    # Streamlined flow states
+    upload_content = State()
+    select_channels = State()
+    calculate_pricing = State()
+    
     # Legacy states (kept for compatibility)
     language_selection = State()
     ad_content = State()
