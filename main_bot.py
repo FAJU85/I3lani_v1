@@ -10,6 +10,7 @@ import fcntl
 import sys
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from bot_lock_manager import lock_manager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,15 @@ logger = logging.getLogger(__name__)
 async def start_bot():
     """Start the Telegram bot"""
     try:
+        # Clean up any existing bot processes first
+        logger.info("Cleaning up existing bot processes...")
+        lock_manager.cleanup_all_bot_processes()
+        
+        # Acquire lock to ensure single instance
+        if not lock_manager.acquire_lock():
+            logger.error("Failed to acquire bot lock - another instance may be running")
+            return
+        
         # Import all required modules
         from config import BOT_TOKEN
         from database import init_db, db
@@ -161,11 +171,15 @@ async def start_bot():
         traceback.print_exc()
         raise
     finally:
-        # Clean up
+        # Clean up and release lock
         try:
             await bot.close()
         except:
             pass
+        
+        # Release the lock
+        lock_manager.release_lock()
+        logger.info("Bot lock released")
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
