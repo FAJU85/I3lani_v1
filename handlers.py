@@ -1654,10 +1654,11 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     text += f"3. Payment will be verified automatically\n\n"
     text += f"**Monitor your payment:** [TonViewer]({tonviewer_link})\n\n"
     text += f"⚠️ Payment automatically confirmed when detected on blockchain\n\n"
-    text += f"With your payment, you agree to the [Usage Agreement](https://t.me/{(await bot.get_me()).username}?start=agreement)🔗"
+    text += f"With your payment, you agree to the Usage Agreement🔗"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
+        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")],
+        [InlineKeyboardButton(text="🔄 Try Different Payment", callback_data="show_payment_options")]
     ])
     
     try:
@@ -1687,27 +1688,165 @@ async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMCon
     stars_price = calculation['total_stars']
     total_usd = calculation['total_usd']
     
+    # Show payment confirmation message with cancellation option
+    text = f"""
+⭐ **Telegram Stars Payment**
+
+**Amount:** {stars_price} ⭐ (${total_usd:.2f})
+**Campaign Details:** {calculation.get('days', 1)} days, {calculation.get('posts_per_day', 1)} posts/day
+**Channels:** {len(calculation.get('selected_channels', []))} selected
+
+**Payment Options:**
+• Click 'Pay Now' to send Stars invoice
+• Click 'Cancel' to return to pricing
+
+With your payment, you agree to the Usage Agreement🔗
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⭐ Pay Now", callback_data="confirm_stars_payment")],
+        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")],
+        [InlineKeyboardButton(text="🔄 Recalculate", callback_data="recalculate_dynamic")]
+    ])
+    
+    # Store Stars payment data for later confirmation
+    await state.update_data(
+        stars_payment_amount=stars_price,
+        stars_payment_usd=total_usd,
+        payment_ready=True
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Stars payment ready - confirm to proceed")
+
+
+@router.callback_query(F.data == "confirm_stars_payment")
+async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Actually send the Stars invoice after confirmation"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    data = await state.get_data()
+    stars_amount = data.get('stars_payment_amount')
+    total_usd = data.get('stars_payment_usd')
+    calculation = data.get('pricing_calculation', {})
+    
+    if not stars_amount:
+        await callback_query.answer("Payment data not found", show_alert=True)
+        return
+    
     # Create Stars payment using Bot's send_invoice method
     try:
         await callback_query.message.bot.send_invoice(
             chat_id=callback_query.message.chat.id,
-            title=f"I3lani Bot - Dynamic Ad Package",
-            description=f"Ad campaign package worth ${total_usd:.2f}",
+            title=f"I3lani Bot - Dynamic Ad Campaign",
+            description=f"Ad campaign package worth ${total_usd:.2f} for {calculation.get('days', 1)} days",
             payload=f"dynamic_ad_{user_id}_{int(datetime.now().timestamp())}",
             provider_token="",
             currency="XTR",
-            prices=[{"label": "Dynamic Ad Package", "amount": stars_price}],
+            prices=[{"label": "Dynamic Ad Package", "amount": stars_amount}],
             need_name=False,
             need_phone_number=False,
             need_email=False,
             need_shipping_address=False,
             is_flexible=False
         )
+        
+        # Update message to show invoice sent
+        text = f"""
+✅ **Stars Invoice Sent**
+
+**Amount:** {stars_amount} ⭐ (${total_usd:.2f})
+
+Please complete the payment using the invoice above.
+Your ad campaign will start immediately after payment confirmation.
+
+If you change your mind, you can cancel at any time before paying.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("✅ Stars invoice sent!")
+        
     except Exception as e:
         logger.error(f"Error creating Stars payment: {e}")
-        await callback_query.message.answer("Error creating Stars payment. Please try again.")
+        await callback_query.answer("❌ Error creating Stars payment. Please try again.", show_alert=True)
+
+
+@router.callback_query(F.data == "cancel_payment")
+async def cancel_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Cancel payment and return to pricing"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    await callback_query.answer("Stars payment created!")
+    # Clear payment data
+    data = await state.get_data()
+    pricing_calculation = data.get('pricing_calculation', {})
+    
+    text = """
+❌ **Payment Cancelled**
+
+Your payment has been cancelled. You can:
+• Recalculate pricing with different options
+• Return to main menu
+• Try payment again
+
+No charges have been made to your account.
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Recalculate Pricing", callback_data="recalculate_dynamic")],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+        [InlineKeyboardButton(text="🔙 Back to Payment", callback_data="show_payment_options")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Payment cancelled successfully")
+
+
+@router.callback_query(F.data == "show_payment_options")
+async def show_payment_options_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Show payment options again"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    data = await state.get_data()
+    calculation = data.get('pricing_calculation', {})
+    
+    if not calculation:
+        await callback_query.answer("No pricing data found. Please recalculate.", show_alert=True)
+        return
+    
+    from dynamic_pricing import get_dynamic_pricing
+    pricing = get_dynamic_pricing()
+    
+    text = f"""
+💰 **Payment Summary**
+
+**Campaign:** {calculation['days']} days × {calculation['posts_per_day']} posts/day
+**Channels:** {len(calculation.get('selected_channels', []))} selected
+**Total Posts:** {calculation['total_posts']}
+
+**Pricing:**
+• Base: ${calculation['base_cost']:.2f}
+• Discount: -{calculation['discount_percent']}% (${calculation['discount_amount']:.2f})
+• **Final Price:** ${calculation['total_usd']:.2f}
+
+**Choose your payment method:**
+    """.strip()
+    
+    keyboard_data = pricing.create_payment_keyboard_data(calculation)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=btn['text'], callback_data=btn['callback_data']) 
+         for btn in row]
+        for row in keyboard_data
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Payment options shown")
 
 
 # TonViewer monitoring and payment verification functions
