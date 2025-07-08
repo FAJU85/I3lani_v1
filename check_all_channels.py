@@ -1,78 +1,88 @@
 #!/usr/bin/env python3
 """
-Check all channels where bot is administrator
+Check all channels and clean up duplicates
 """
 import asyncio
 import logging
 from aiogram import Bot
 from config import BOT_TOKEN
+from database import Database
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def check_all_channels():
-    """Find all channels where bot is admin"""
+async def check_and_clean_channels():
+    """Check all channels and remove duplicates"""
     bot = Bot(token=BOT_TOKEN)
+    db = Database()
     
     try:
-        # Get bot info
-        bot_info = await bot.get_me()
-        logger.info(f"Bot: @{bot_info.username} (ID: {bot_info.id})")
+        logger.info("=" * 60)
+        logger.info("CHECKING ALL CHANNELS")
+        logger.info("=" * 60)
         
-        # Check common channel patterns
-        test_channels = [
-            "@i3lani", "@smshco", "@i3lani_main", "@i3lani_news",
-            "@i3lani_ads", "@i3lani_channel", "@i3lani_market",
-            "@i3lani_offers", "@i3lani_deals", "@i3lani_shop",
-            "@i3lani_store", "@i3lani_business", "@i3lani_tech",
-            "@i3lani_promo", "@i3lani_sale", "@i3lani_buy",
-            "@i3lani_sell", "@i3lani_trade", "@i3lani_commerce"
-        ]
+        # Get all channels
+        channels = await db.get_channels(active_only=False)
+        logger.info(f"Total channels in database: {len(channels)}")
         
-        found_channels = []
+        # Check for duplicates
+        seen = {}
+        duplicates = []
         
-        for channel in test_channels:
+        for ch in channels:
+            key = ch['telegram_channel_id'].lower().replace('@', '')
+            if key in seen:
+                duplicates.append(ch)
+                logger.warning(f"Duplicate found: {ch['name']} ({ch['telegram_channel_id']})")
+            else:
+                seen[key] = ch
+        
+        if duplicates:
+            logger.info(f"\nFound {len(duplicates)} duplicates to remove")
+            
+        # Check each unique channel
+        logger.info("\n" + "=" * 60)
+        logger.info("VERIFYING CHANNELS")
+        logger.info("=" * 60)
+        
+        active_channels = []
+        
+        for channel_id, channel in seen.items():
             try:
-                chat = await bot.get_chat(channel)
-                # Check if bot is admin
-                bot_member = await bot.get_chat_member(chat.id, bot_info.id)
+                username = channel['telegram_channel_id']
+                if not username.startswith('@'):
+                    username = f"@{username}"
                 
-                if bot_member.status == "administrator":
-                    subscribers = await bot.get_chat_member_count(chat.id)
-                    logger.info(f"✅ FOUND: {chat.title} ({channel}) - {subscribers} subscribers")
-                    logger.info(f"   Can post: {bot_member.can_post_messages}")
-                    found_channels.append({
-                        'username': channel,
-                        'title': chat.title,
+                chat = await bot.get_chat(username)
+                bot_member = await bot.get_chat_member(chat.id, bot.id)
+                member_count = await bot.get_chat_member_count(chat.id)
+                
+                if bot_member.status == 'administrator' and bot_member.can_post_messages:
+                    logger.info(f"✅ {chat.title} (@{chat.username}) - {member_count} subscribers - ACTIVE")
+                    active_channels.append({
+                        'name': chat.title,
+                        'username': chat.username,
                         'id': chat.id,
-                        'subscribers': subscribers,
-                        'can_post': bot_member.can_post_messages
+                        'members': member_count
                     })
+                else:
+                    logger.warning(f"❌ {chat.title} - Bot is not admin or can't post")
+                    
             except Exception as e:
-                # Channel doesn't exist or bot not member
-                pass
+                logger.error(f"❌ {channel['name']} ({channel['telegram_channel_id']}) - Error: {e}")
         
-        logger.info(f"\n📊 Summary: Found {len(found_channels)} channels where bot is admin")
+        logger.info("\n" + "=" * 60)
+        logger.info("SUMMARY")
+        logger.info("=" * 60)
+        logger.info(f"Active channels where bot can post: {len(active_channels)}")
         
-        # Also check if there are any channels in bot's updates
-        logger.info("\n🔍 Checking recent updates for channel memberships...")
-        updates = await bot.get_updates(limit=100)
-        
-        channel_updates = set()
-        for update in updates:
-            if update.my_chat_member and update.my_chat_member.chat.type in ['channel', 'supergroup']:
-                chat = update.my_chat_member.chat
-                channel_updates.add((chat.id, chat.title, chat.username))
-        
-        if channel_updates:
-            logger.info(f"Found {len(channel_updates)} channels in recent updates:")
-            for chat_id, title, username in channel_updates:
-                logger.info(f"  - {title} (@{username or 'private'})")
-        
+        for i, ch in enumerate(active_channels, 1):
+            logger.info(f"{i}. {ch['name']} (@{ch['username']}) - {ch['members']} members")
+            
     except Exception as e:
         logger.error(f"Error: {e}")
     finally:
-        await bot.close()
+        await bot.session.close()
 
 if __name__ == "__main__":
-    asyncio.run(check_all_channels())
+    asyncio.run(check_and_clean_channels())

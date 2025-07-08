@@ -250,6 +250,8 @@ Users can now select this channel when creating ads through the bot.
         known_channels = [
             "@smshco",  # Already confirmed
             "@i3lani",  # Main channel
+            "@Five_SAR",  # Five SAR channel
+            # Add more channels here where bot is admin
         ]
         
         for channel_username in known_channels:
