@@ -23,6 +23,7 @@ from payments import payment_processor
 from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
+from callback_error_handler import safe_callback_answer, safe_callback_edit
 from frequency_pricing import FrequencyPricingSystem
 from ui_effects import ui_effects
 # Flow validator removed for cleanup
@@ -1526,16 +1527,16 @@ Stats **Account Info:**
             ]
         ])
         
-        await callback_query.message.edit_text(
-            settings_text,
+        await safe_callback_edit(
+            callback_query,
+            text=settings_text,
             reply_markup=keyboard,
             parse_mode='Markdown'
         )
-        await callback_query.answer()
         
     except Exception as e:
         logger.error(f"Settings handler error: {e}")
-        await callback_query.answer("Settings temporarily unavailable. Please try again.")
+        await safe_callback_answer(callback_query, "Settings temporarily unavailable. Please try again.")
 
 
 @router.callback_query(F.data == "help")
