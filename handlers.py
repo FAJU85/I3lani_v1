@@ -1771,15 +1771,37 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
             content_type=data.get('content_type', 'text')
         )
         
+        # Get pricing data for subscription
+        calculation = data.get('pricing_calculation', {})
+        days = calculation.get('days', 1)
+        posts_per_day = calculation.get('posts_per_day', 1)
+        
         # Create subscription for each selected channel
-        for channel in selected_channels:
-            await db.create_subscription(
+        subscription_ids = []
+        for channel_id in selected_channels:
+            subscription_id = await db.create_subscription(
                 user_id=user_id,
                 ad_id=ad_id,
-                channel_id=channel['id'],
-                duration_months=data.get('days', 1),
+                channel_id=channel_id,
+                duration_months=days,  # Using days as duration
                 total_price=data.get('payment_amount_usd', 0),
-                currency='TON'
+                currency='TON',
+                posts_per_day=posts_per_day,
+                total_posts=days * posts_per_day
+            )
+            subscription_ids.append(subscription_id)
+            
+        # Activate subscriptions
+        await db.activate_subscriptions(subscription_ids, days)
+        
+        # Publish immediately to all selected channels
+        from publishing_scheduler import scheduler
+        if scheduler:
+            await scheduler.publish_immediately_after_payment(
+                user_id=user_id,
+                ad_id=ad_id,
+                selected_channels=selected_channels,
+                subscription_data=data
             )
         
         # Send success notification to user

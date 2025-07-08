@@ -92,6 +92,7 @@ class Database:
                     total_posts INTEGER DEFAULT 30,
                     discount_percent INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'pending',
+                    last_published TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
                     FOREIGN KEY (ad_id) REFERENCES ads (ad_id),

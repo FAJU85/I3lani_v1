@@ -14,6 +14,7 @@ from handlers import setup_handlers
 from admin_system import setup_admin_handlers
 from stars_handler import init_stars_handler, setup_stars_handlers
 from channel_manager import init_channel_manager, handle_my_chat_member
+from publishing_scheduler import init_scheduler
 
 # Configure logging
 logging.basicConfig(
