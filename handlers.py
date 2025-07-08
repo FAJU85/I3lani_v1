@@ -52,35 +52,8 @@ async def create_neural_main_menu_text(language: str, user_id: int) -> str:
     user_stats = await db.get_user_stats(user_id)
     total_ads = user_stats.get('total_ads', 0) if user_stats else 0
     
-    # Neural network ASCII art and dynamic status
-    neural_text = f"""
-<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>
-<b>⚡ I3LANI QUANTUM ADVERTISING MATRIX ⚡</b>
-<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>
-
-<pre>    ▲▲▲ NEURAL NETWORK ACTIVE ▲▲▲    </pre>
-<b>🔮 System Status:</b> <b><i>🟢 ONLINE & OPTIMIZED</i></b>
-<b>🧠 AI Engine:</b> <b><i>🟢 FULLY OPERATIONAL</i></b>
-<b>⚡ Quantum Core:</b> <b><i>🟢 SYNCHRONIZED</i></b>
-
-<b>━━━━ NEURAL BROADCAST STATISTICS ━━━━</b>
-<b>📡 Your Broadcasts:</b> <code>{total_ads}</code>
-<b>🌐 Network Reach:</b> <code>∞ UNLIMITED</code>
-<b>💫 Success Rate:</b> <code>98.7%</code>
-
-<b>━━━━━━━━ QUANTUM FEATURES ━━━━━━━━</b>
-<b>🚀</b> <i>Ultra-Fast Neural Broadcasting</i>
-<b>💎</b> <i>Multi-Channel Quantum Distribution</i>
-<b>🔗</b> <i>Blockchain-Powered Rewards</i>
-<b>🎮</b> <i>Gamified Achievement System</i>
-<b>🏆</b> <i>Real-Time Competition Rankings</i>
-
-<b>═══════════════════════════════════</b>
-<b>🎯 SELECT YOUR QUANTUM OPERATION 🎯</b>
-<b>═══════════════════════════════════</b>
-"""
-    
-    return neural_text.strip()
+    # Use translation system for main menu text
+    return get_text(language, 'main_menu')
 
 async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
     """Create enhanced neural network main menu keyboard with visual effects"""
@@ -101,18 +74,18 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
     # Primary Neural Actions Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text="🚀 ▶ LAUNCH NEURAL BROADCAST", 
+            text=get_text(language, 'create_ad'), 
             callback_data="create_ad"
         )
     ])
     
     keyboard_rows.append([
         InlineKeyboardButton(
-            text="📊 ◆ My Quantum Matrix", 
+            text=get_text(language, 'my_ads'), 
             callback_data="my_ads"
         ),
         InlineKeyboardButton(
-            text="💎 ◆ Earnings Portal", 
+            text=get_text(language, 'share_earn'), 
             callback_data="share_earn"
         )
     ])
@@ -120,11 +93,11 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
     # Advanced Operations Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text="🔗 ◇ Partner Network", 
+            text=get_text(language, 'channel_partners'), 
             callback_data="join_partner_program"
         ),
         InlineKeyboardButton(
-            text="🎮 ◇ Neural Gaming Hub", 
+            text=get_text(language, 'gaming_hub'), 
             callback_data="gamification_hub"
         )
     ])
@@ -132,7 +105,7 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
     # Competition & Leaderboard Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text="🏆 ▲ QUANTUM LEADERBOARD ▲", 
+            text=get_text(language, 'leaderboard'), 
             callback_data="gamification_leaderboard"
         )
     ])
@@ -140,11 +113,11 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
     # System Controls Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text="⚙️ ◈ Neural Settings", 
+            text=get_text(language, 'settings'), 
             callback_data="settings"
         ),
         InlineKeyboardButton(
-            text="🆘 ◈ Quantum Support", 
+            text=get_text(language, 'help'), 
             callback_data="help"
         )
     ])
@@ -442,12 +415,15 @@ Contact: @I3lani_support
     user = await db.get_user(user_id)
     if user and user.get('language'):
         # User has language, show main menu
-        await show_main_menu(message, user['language'])
+        user_language = user['language']
+        logger.info(f"👤 Existing user {user_id} has language: {user_language}")
+        await show_main_menu(message, user_language)
     else:
         # New user, show language selection
+        logger.info(f"🆕 New user {user_id}, showing language selection")
         await state.set_state(AdCreationStates.language_selection)
         await message.answer(
-            "World Welcome to I3lani Bot!\n\nChoose your language:",
+            get_text('en', 'choose_language'),
             reply_markup=create_language_keyboard()
         )
     
@@ -464,9 +440,13 @@ async def show_main_menu(message_or_query, language: str):
     else:
         user_id = message_or_query.from_user.id
     
+    logger.info(f"🎯 Showing main menu for user {user_id} in language: {language}")
+    
     # Create enhanced neural network main menu
     text = await create_neural_main_menu_text(language, user_id)
     keyboard = await create_main_menu_keyboard(language, user_id)
+    
+    logger.info(f"📝 Main menu text preview: {text[:50]}...")
     
     if isinstance(message_or_query, Message):
         # Send typing action for better UX
@@ -490,17 +470,23 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         language_code = callback_query.data.replace("lang_", "")
         user_id = callback_query.from_user.id
         
+        logger.info(f"🌍 Language selection: User {user_id} selected {language_code}")
+        
         # Update user language in database
-        await db.set_user_language(user_id, language_code)
+        success = await db.set_user_language(user_id, language_code)
+        if success:
+            logger.info(f"✅ Language {language_code} saved for user {user_id}")
+        else:
+            logger.error(f"❌ Failed to save language {language_code} for user {user_id}")
         
         # Clear state and show main menu
         await state.clear()
         await show_main_menu(callback_query, language_code)
-        await callback_query.answer(get_text(language_code, 'language_updated'))
+        await callback_query.answer(get_text(language_code, 'language_changed'))
         
     except Exception as e:
         logger.error(f"Language selection error: {e}")
-        await callback_query.answer(get_text(language_code, 'error_updating_language'))
+        await callback_query.answer("Error updating language")
 
 
 
