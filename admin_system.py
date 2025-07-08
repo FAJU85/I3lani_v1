@@ -71,14 +71,14 @@ class AdminSystem:
             ],
             [
                 InlineKeyboardButton(text="👥 User Management", callback_data="admin_users"),
-                InlineKeyboardButton(text="STATS: Statistics", callback_data="admin_statistics")
+                InlineKeyboardButton(text="💸 Payout Management", callback_data="admin_payouts")
             ],
             [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement")
             ],
             [
-                InlineKeyboardButton(text="STATS: Statistics", callback_data="admin_statistics"),
+                InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics"),
                 InlineKeyboardButton(text="🔄 Refresh Data", callback_data="admin_refresh")
             ],
             [

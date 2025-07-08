@@ -197,6 +197,23 @@ class Database:
                 )
             ''')
             
+            # Payout requests table for reward transfers
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS payout_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    payout_id TEXT UNIQUE NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    wallet_address TEXT,
+                    transaction_hash TEXT,
+                    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    processed_at TIMESTAMP,
+                    notes TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id)
+                )
+            ''')
+            
             await db.commit()
             
         # Initialize default channels
@@ -609,6 +626,7 @@ Last updated: July 2025"""
         """Get partner status and statistics"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
                 cursor = await db.execute('''
                     SELECT * FROM partner_status WHERE user_id = ?
                 ''', (user_id,))
@@ -663,6 +681,7 @@ Last updated: July 2025"""
         """Get partner rewards history"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
                 cursor = await db.execute('''
                     SELECT * FROM partner_rewards 
                     WHERE user_id = ? 
@@ -893,6 +912,83 @@ Last updated: July 2025"""
                 }
                 for row in rows
             ]
+    
+    # Payout system methods for reward transfers from bot wallet
+    async def create_payout_request(self, user_id: int, amount: float, payout_id: str, status: str = 'pending'):
+        """Create a new payout request for reward transfer"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    INSERT INTO payout_requests (user_id, amount, payout_id, status)
+                    VALUES (?, ?, ?, ?)
+                ''', (user_id, amount, payout_id, status))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating payout request: {e}")
+            return False
+    
+    async def get_payout_requests(self, status: str = None) -> List[Dict]:
+        """Get payout requests for admin processing"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                if status:
+                    cursor = await db.execute('''
+                        SELECT pr.*, u.username 
+                        FROM payout_requests pr
+                        LEFT JOIN users u ON pr.user_id = u.user_id
+                        WHERE pr.status = ?
+                        ORDER BY pr.requested_at DESC
+                    ''', (status,))
+                else:
+                    cursor = await db.execute('''
+                        SELECT pr.*, u.username 
+                        FROM payout_requests pr
+                        LEFT JOIN users u ON pr.user_id = u.user_id
+                        ORDER BY pr.requested_at DESC
+                    ''')
+                
+                requests = await cursor.fetchall()
+                return [dict(row) for row in requests]
+        except Exception as e:
+            print(f"Error getting payout requests: {e}")
+            return []
+    
+    async def update_payout_status(self, payout_id: str, status: str, wallet_address: str = None, 
+                                  transaction_hash: str = None, notes: str = None):
+        """Update payout request status after bot wallet transfer"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                if status == 'completed':
+                    await db.execute('''
+                        UPDATE payout_requests 
+                        SET status = ?, wallet_address = ?, transaction_hash = ?, 
+                            notes = ?, processed_at = CURRENT_TIMESTAMP
+                        WHERE payout_id = ?
+                    ''', (status, wallet_address, transaction_hash, notes, payout_id))
+                    
+                    # Reset user's pending rewards to 0 after successful transfer
+                    cursor = await db.execute('SELECT user_id, amount FROM payout_requests WHERE payout_id = ?', (payout_id,))
+                    row = await cursor.fetchone()
+                    if row:
+                        user_id, amount = row
+                        await db.execute('''
+                            UPDATE partner_status 
+                            SET pending_rewards = 0, last_updated = CURRENT_TIMESTAMP
+                            WHERE user_id = ?
+                        ''', (user_id,))
+                else:
+                    await db.execute('''
+                        UPDATE payout_requests 
+                        SET status = ?, notes = ?
+                        WHERE payout_id = ?
+                    ''', (status, notes, payout_id))
+                
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error updating payout status: {e}")
+            return False
 
 
 # Global database instance

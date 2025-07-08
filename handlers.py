@@ -3136,41 +3136,117 @@ async def view_earnings_handler(callback_query: CallbackQuery):
     language = await get_user_language(user_id)
     
     try:
-        from atomic_rewards import atomic_rewards
-        if atomic_rewards is None:
-            from atomic_rewards import init_atomic_rewards
-            init_atomic_rewards(db, bot)
-        
-        # Get comprehensive reward board
-        reward_board = await atomic_rewards.create_comprehensive_reward_board(user_id, language)
-        
-        # Get partner status for payout button
+        # Get partner status and rewards
         partner_status = await db.get_partner_status(user_id)
+        partner_rewards = await db.get_partner_rewards(user_id)
+        referral_count = await db.get_referral_count(user_id)
+        
+        # Initialize partner status if not exists
         if not partner_status:
             await db.create_partner_status(user_id)
             partner_status = await db.get_partner_status(user_id)
         
-        # Create keyboard with conditional payout button
+        # Calculate totals
+        total_earnings = partner_status.get('total_earnings', 0) if partner_status else 0
+        pending_rewards = partner_status.get('pending_rewards', 0) if partner_status else 0
+        tier = partner_status.get('tier', 'Basic') if partner_status else 'Basic'
+        
+        # Determine tier colors and rates
+        tier_info = {
+            'Basic': {'color': '🥉', 'rate': 0.5},
+            'Silver': {'color': '🥈', 'rate': 0.8},
+            'Gold': {'color': '🥇', 'rate': 1.2},
+            'Premium': {'color': '💎', 'rate': 2.0}
+        }
+        
+        tier_color = tier_info.get(tier, {}).get('color', '🥉')
+        tier_rate = tier_info.get(tier, {}).get('rate', 0.5)
+        
+        # Calculate progress toward payout threshold
+        payout_threshold = 25.0
+        progress_percentage = min((pending_rewards / payout_threshold) * 100, 100)
+        progress_bar = "█" * int(progress_percentage // 10) + "▓" * (10 - int(progress_percentage // 10))
+        
+        # Recent rewards breakdown
+        recent_rewards_text = ""
+        if partner_rewards:
+            for reward in partner_rewards[:5]:  # Show latest 5
+                reward_type = reward.get('reward_type', 'Unknown')
+                amount = reward.get('amount', 0)
+                description = reward.get('description', 'No description')
+                recent_rewards_text += f"• {reward_type}: +{amount:.2f} TON\n"
+        else:
+            recent_rewards_text = "No recent rewards"
+        
+        # Next tier requirements
+        next_tier_text = ""
+        if tier == 'Basic' and referral_count < 5:
+            next_tier_text = f"Silver tier: {5 - referral_count} more referrals needed"
+        elif tier == 'Silver' and referral_count < 15:
+            next_tier_text = f"Gold tier: {15 - referral_count} more referrals needed"
+        elif tier == 'Gold' and referral_count < 25:
+            next_tier_text = f"Premium tier: {25 - referral_count} more referrals needed"
+        else:
+            next_tier_text = "Maximum tier reached!"
+        
+        earnings_text = f"""
+💰 **COMPREHENSIVE REWARD BOARD**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{tier_color} **Partner Status:** {tier}
+💎 **Referral Rate:** {tier_rate} TON per referral
+👥 **Total Referrals:** {referral_count}
+
+💰 **EARNINGS OVERVIEW**
+├─ Total Earned: {total_earnings:.2f} TON
+├─ Pending Balance: {pending_rewards:.2f} TON
+├─ Payout Threshold: {payout_threshold:.2f} TON
+└─ Progress: {progress_percentage:.1f}%
+
+📊 **PAYOUT PROGRESS**
+{progress_bar} {progress_percentage:.1f}%
+
+🎯 **TIER ADVANCEMENT**
+{next_tier_text}
+
+💸 **RECENT REWARDS**
+{recent_rewards_text}
+
+🎁 **MILESTONE BONUSES**
+• 5 referrals: +2.5 TON
+• 10 referrals: +6.0 TON  
+• 25 referrals: +20.0 TON
+• 50 referrals: +50.0 TON
+
+💡 **QUICK ACTIONS**
+Share your referral link to earn instant TON rewards!
+        """.strip()
+        
         keyboard_buttons = [
-            [InlineKeyboardButton(text="🔄 Refresh Board", callback_data="view_earnings")],
-            [InlineKeyboardButton(text="📊 Referral Stats", callback_data="referral_stats")],
-            [InlineKeyboardButton(text="🔗 Share & Earn", callback_data="share_earn")]
+            [
+                InlineKeyboardButton(text="📈 Referral Stats", callback_data="referral_stats"),
+                InlineKeyboardButton(text="🔗 Share Link", callback_data="share_earn")
+            ]
         ]
         
-        # Add payout button if threshold is met
-        if partner_status and partner_status.get('pending_rewards', 0) >= 25.0:
-            keyboard_buttons.insert(1, [InlineKeyboardButton(text="💰 Request Payout", callback_data="request_payout")])
+        # Add payout request button if threshold is met
+        if pending_rewards >= payout_threshold:
+            keyboard_buttons.append([
+                InlineKeyboardButton(text="💸 Request Payout", callback_data="request_payout")
+            ])
         
-        keyboard_buttons.append([InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")])
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=get_text(language, 'back'), callback_data="share_earn")
+        ])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
         
-        await callback_query.message.edit_text(reward_board, reply_markup=keyboard)
+        await callback_query.message.edit_text(earnings_text, reply_markup=keyboard)
         await callback_query.answer()
         
     except Exception as e:
         logger.error(f"Error in view_earnings_handler: {e}")
-        await callback_query.answer("Error loading reward board. Please try again.", show_alert=True)
+        await callback_query.answer("Error loading earnings. Please try again.", show_alert=True)
 
 @router.callback_query(lambda c: c.data == "referral_stats")
 async def referral_stats_handler(callback_query: CallbackQuery):
@@ -3234,54 +3310,308 @@ https://t.me/I3lani_bot?start=ref_{user_id}
     except Exception as e:
         logger.error(f"Error in referral_stats_handler: {e}")
         await callback_query.answer("Error loading referral stats. Please try again.", show_alert=True)
-        next_tier = "Maximum Tier"
-        needed = 0
-    elif referral_count >= 25:
-        tier = "Gold"
-        rate = 1.2
-        next_tier = "Premium"
-        needed = 50 - referral_count
-    elif referral_count >= 10:
-        tier = "Silver"
-        rate = 0.8
-        next_tier = "Gold"
-        needed = 25 - referral_count
-    else:
-        tier = "Basic"
-        rate = 0.5
-        next_tier = "Silver"
-        needed = 10 - referral_count
+
+# Payout system handlers
+@router.callback_query(lambda c: c.data == "request_payout")
+async def request_payout_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payout request submission"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    stats_text = f"""
-📊 **Referral Statistics**
+    try:
+        # Get partner status
+        partner_status = await db.get_partner_status(user_id)
+        if not partner_status:
+            await callback_query.answer("Error: Partner status not found.", show_alert=True)
+            return
+        
+        current_balance = partner_status.get('pending_rewards', 0.0)
+        
+        # Check minimum threshold
+        if current_balance < 25.0:
+            await callback_query.message.edit_text(
+                f"""
+❌ **Insufficient Balance for Payout**
 
-🎯 **Current Tier: {tier}**
-- Reward Rate: {rate} TON per referral
-- Total Referrals: {referral_count}
-- Next Tier: {next_tier}
-- Referrals Needed: {needed if needed > 0 else "Max Reached"}
+💰 **Current Balance:** {current_balance:.2f} TON
+💎 **Minimum Required:** 25.0 TON
+📈 **Still Need:** {25.0 - current_balance:.2f} TON
 
-💎 **Tier Benefits:**
-- Basic: 0.5 TON per referral
-- Silver: 0.8 TON per referral (10+ refs)
-- Gold: 1.2 TON per referral (25+ refs)
-- Premium: 2.0 TON per referral (50+ refs)
+🚀 **How to Earn More:**
+• Share your referral link
+• Invite friends to join I3lani
+• Add channels to your account
+• Participate in milestone bonuses
 
-🎁 **Milestone Bonuses:**
-- 5 Referrals: 2.5 TON bonus
-- 10 Referrals: 6.0 TON bonus
-- 25 Referrals: 20.0 TON bonus
-- 50 Referrals: 50.0 TON bonus
+Keep building your balance to reach the payout threshold!
+                """.strip(),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🔗 Share & Earn", callback_data="share_earn")],
+                    [InlineKeyboardButton(text="📊 View Progress", callback_data="view_earnings")]
+                ])
+            )
+            return
+        
+        # Show payout confirmation
+        payout_text = f"""
+💰 **Payout Request Confirmation**
+
+✅ **Congratulations! You qualify for payout.**
+
+📊 **Payout Details:**
+├─ Amount: {current_balance:.2f} TON
+├─ Processing Time: 24-48 hours
+├─ Method: Direct TON transfer
+└─ Status: Ready for processing
+
+📝 **What Happens Next:**
+1. Confirm your payout request below
+2. Support team will contact you for wallet details
+3. TON transfer processed within 48 hours
+4. Balance reset and confirmation sent
+
+⚠️ **Important Notice:**
+• Ensure you have a valid TON wallet ready
+• Check your Telegram messages for updates
+• Payout cannot be cancelled once confirmed
+• Minimum future payouts remain at 25 TON
+
+Ready to proceed with your {current_balance:.2f} TON payout?
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Confirm Payout", callback_data="confirm_payout")],
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="view_earnings")],
+            [InlineKeyboardButton(text="📞 Contact Support", callback_data="support_contact")]
+        ])
+        
+        await callback_query.message.edit_text(payout_text, reply_markup=keyboard)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in payout request: {e}")
+        await callback_query.answer("Error processing payout request.", show_alert=True)
+
+@router.callback_query(lambda c: c.data == "confirm_payout")
+async def confirm_payout_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Process confirmed payout request"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Get partner status
+        partner_status = await db.get_partner_status(user_id)
+        current_balance = partner_status.get('pending_rewards', 0.0)
+        
+        # Generate payout request ID
+        payout_id = f"PO{user_id}{int(datetime.now().timestamp())}"
+        
+        # Create payout record in database
+        await db.create_payout_request(
+            user_id=user_id,
+            amount=current_balance,
+            payout_id=payout_id,
+            status='pending'
+        )
+        
+        # Notify admins
+        admin_message = f"""
+🚨 **NEW PAYOUT REQUEST**
+
+👤 **User ID:** {user_id}
+👤 **Username:** @{callback_query.from_user.username or 'N/A'}
+💰 **Amount:** {current_balance:.2f} TON
+🆔 **Request ID:** {payout_id}
+⏰ **Requested:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+📋 **Action Required:**
+1. Contact user for TON wallet address
+2. Process TON transfer: {current_balance:.2f} TON
+3. Confirm transfer completion
+4. Update payout status to 'completed'
+
+💬 **Contact:** @{callback_query.from_user.username or 'Direct message required'}
+🔗 **Profile:** tg://user?id={user_id}
+
+⚡ Use admin panel to mark as completed once transferred.
+        """.strip()
+        
+        # Send to all admins
+        ADMIN_IDS = [6422889085, 773007556]
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, admin_message)
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
+        
+        # Confirmation message to user
+        confirmation_text = f"""
+✅ **Payout Request Submitted Successfully!**
+
+🎯 **Request Details:**
+├─ Request ID: `{payout_id}`
+├─ Amount: {current_balance:.2f} TON
+├─ Status: Submitted for processing
+└─ Expected: 24-48 hours
+
+📞 **Next Steps:**
+1. **Support Contact**: Our team will message you within 24 hours
+2. **Wallet Verification**: Provide your TON wallet address when requested
+3. **Transfer Processing**: TON will be sent to your wallet
+4. **Confirmation**: You'll receive notification when completed
+
+🔔 **Stay Available:**
+Please check your Telegram messages regularly for updates from our support team.
+
+Thank you for being a valued I3lani partner! 🚀
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 View Dashboard", callback_data="view_earnings")],
+            [InlineKeyboardButton(text="📞 Contact Support", callback_data="support_contact")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+        ])
+        
+        await callback_query.message.edit_text(confirmation_text, reply_markup=keyboard)
+        await callback_query.answer("Payout request submitted! Support will contact you soon.", show_alert=True)
+        
+    except Exception as e:
+        logger.error(f"Error confirming payout: {e}")
+        await callback_query.answer("Error submitting payout request. Please contact support.", show_alert=True)
+
+@router.callback_query(lambda c: c.data.startswith("confirm_payout_"))
+async def confirm_payout_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Process confirmed payout request"""
+    payout_id = callback_query.data.replace("confirm_payout_", "")
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        data = await state.get_data()
+        payout_amount = data.get('payout_amount', 0)
+        
+        # Create payout request in database
+        success = await db.create_payout_request(user_id, payout_amount, payout_id)
+        
+        if success:
+            confirmation_text = f"""
+🎉 **Payout Request Submitted Successfully!**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ **Request Details:**
+• Payout ID: {payout_id}
+• Amount: {payout_amount:.2f} TON
+• Status: Pending Review
+
+📋 **What Happens Next:**
+1. Our team will review your request (usually within 4 hours)
+2. You'll receive confirmation via bot message
+3. TON will be transferred from bot wallet within 24-48 hours
+4. Your balance will be reset to 0 TON after transfer
+
+📞 **Need Help?**
+Contact our support team if you have any questions about your payout request.
+
+Thank you for being a valued I3lani partner! 🚀
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 View Dashboard", callback_data="view_earnings")],
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+        else:
+            confirmation_text = "❌ Error creating payout request. Please contact support."
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Try Again", callback_data="request_payout")],
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+        
+        await callback_query.message.edit_text(confirmation_text, reply_markup=keyboard)
+        await callback_query.answer("Payout request submitted! Support will contact you soon.", show_alert=True)
+        
+    except Exception as e:
+        logger.error(f"Error confirming payout: {e}")
+        await callback_query.answer("Error submitting payout request. Please contact support.", show_alert=True)
+
+@router.callback_query(lambda c: c.data == "referral_stats")
+async def referral_stats_handler(callback_query: CallbackQuery):
+    """Show referral statistics"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Get referral count and partner status
+        referral_count = await db.get_referral_count(user_id)
+        partner_status = await db.get_partner_status(user_id)
+        
+        # Get tier information
+        if referral_count >= 25:
+            tier = "Premium"
+            rate = 2.0
+            next_tier = "Maximum tier reached!"
+        elif referral_count >= 15:
+            tier = "Gold"
+            rate = 1.2
+            next_tier = f"Premium tier: {25 - referral_count} more referrals needed"
+        elif referral_count >= 5:
+            tier = "Silver"
+            rate = 0.8
+            next_tier = f"Gold tier: {15 - referral_count} more referrals needed"
+        else:
+            tier = "Basic"
+            rate = 0.5
+            next_tier = f"Silver tier: {5 - referral_count} more referrals needed"
+    
+        # Get recent referrals
+        referrals = await db.get_user_referrals(user_id)
+        
+        stats_text = f"""
+📊 **REFERRAL STATISTICS**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 **Current Tier:** {tier}
+💎 **Reward Rate:** {rate} TON per referral
+👥 **Total Referrals:** {referral_count}
+📈 **Next Tier:** {next_tier}
+
+💎 **TIER BENEFITS:**
+• Basic: 0.5 TON per referral
+• Silver: 0.8 TON per referral (5+ refs)
+• Gold: 1.2 TON per referral (15+ refs)
+• Premium: 2.0 TON per referral (25+ refs)
+
+🎁 **MILESTONE BONUSES:**
+• 5 Referrals: +2.5 TON bonus
+• 10 Referrals: +6.0 TON bonus
+• 25 Referrals: +20.0 TON bonus
+• 50 Referrals: +50.0 TON bonus
 
 🔗 **Your Referral Link:**
 https://t.me/I3lani_bot?start=ref_{user_id}
 
 📈 **Recent Referrals:**
-"""
+        """.strip()
     
-    for referral in referrals[:5]:
-        username = referral.get('referred_username', 'Unknown')
-        stats_text += f"- @{username} ({referral['created_at'][:10]})\n"
+        if referrals:
+            for referral in referrals[:5]:
+                username = referral.get('referred_username', 'Unknown')
+                created_date = referral.get('created_at', '')[:10] if referral.get('created_at') else 'Unknown'
+                stats_text += f"\n• @{username} ({created_date})"
+        else:
+            stats_text += "\nNo referrals yet. Share your link to start earning!"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📱 Share Link", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join I3lani and earn TON!")],
+            [InlineKeyboardButton(text="💰 View Earnings", callback_data="view_earnings")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+        ])
+    
+        await callback_query.message.edit_text(stats_text, reply_markup=keyboard)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in referral_stats_handler: {e}")
+        await callback_query.answer("Error loading referral statistics. Please try again.", show_alert=True)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📱 Share Link", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join I3lani and earn TON!")],
