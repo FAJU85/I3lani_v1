@@ -89,13 +89,25 @@ The application follows a modular architecture with clear separation of concerns
 - Webhook SSL/TLS configuration
 - Auto-scaling for high user volumes
 
-### Cloud Run Deployment Configuration
-- **deployment_server.py**: Flask server for Cloud Run HTTP requirements
+### Cloud Deployment Configuration
+- **deployment_server.py**: Flask server for cloud deployment HTTP requirements
 - **main_bot.py**: Core bot functionality separated from web server
-- **Port Configuration**: Listens on 0.0.0.0:5001 for deployment compatibility
+- **Port Configuration**: Listens on 0.0.0.0:$PORT (default 5001) for deployment compatibility
 - **Health Endpoints**: `/`, `/health`, `/status` for monitoring
 - **Webhook Support**: `/webhook` endpoint for Telegram integration
 - **Background Processing**: Bot runs in daemon thread while Flask serves HTTP
+
+### Deployment Options
+1. **Render (Recommended)**: Free tier with PostgreSQL database, easy deployment
+   - render.yaml configuration included
+   - Automatic port assignment
+   - Free PostgreSQL database
+   - Simple environment variable management
+   
+2. **Google Cloud Run**: Enterprise-grade deployment
+   - Dockerfile and cloudbuild.yaml included
+   - Requires external PostgreSQL database
+   - More complex setup but highly scalable
 
 ## Changelog
 
@@ -171,6 +183,7 @@ The application follows a modular architecture with clear separation of concerns
 - July 08, 2025. Applied final deployment fixes to resolve Cloud Run entry point issues - Fixed deployment crash looping by applying all suggested fixes: 1) Changed workflow run command from main.py to deployment_server.py as the correct entry point for Cloud Run deployment, 2) Updated main.py to prevent web server startup when used for deployment by removing Flask server initialization code, 3) Verified deployment_server.py properly binds Flask server to 0.0.0.0:5001, 4) Confirmed DISABLE_STARS_FLASK environment variable prevents duplicate Flask servers. All health check endpoints (/, /health, /status) now respond immediately with proper JSON format. Flask server starts in main thread while bot runs in background daemon thread. Bot initializes successfully with all 3 channels active (I3lani Main, Shop Smart, Five_SAR) and all core features operational including multi-language support, TON/Stars payments, and admin panel. Deployment architecture is now 100% Cloud Run compatible with immediate port binding and instant health check responses.
 - July 08, 2025. Successfully resolved all Cloud Run deployment issues with comprehensive architecture fixes - Applied all deployment fixes as suggested: 1) Changed workflow run command from main.py to deployment_server.py as primary entry point for Cloud Run, 2) Updated main.py to completely prevent Flask server startup during deployment, removing all Flask routes and initialization code, 3) Verified deployment_server.py properly starts Flask server immediately on 0.0.0.0:5001 in main thread, 4) Confirmed DISABLE_STARS_FLASK environment variable prevents duplicate Flask servers, 5) Bot runs in background daemon thread with handle_signals=False for threading compatibility. All health check endpoints (/, /health, /status) respond within 100ms with proper JSON format. Created comprehensive test suite (test_deployment_fixes.py) that verifies all fixes work correctly. Bot initializes successfully with all features operational: 3 active channels, multi-language support, TON/Stars payments, gamification system, content moderation, and admin panel. Deployment architecture is now 100% Cloud Run compatible with immediate port binding, instant health check responses, and stable bot operation.
 - July 08, 2025. Applied final deployment fixes to resolve Cloud Run entry point and port binding issues - Successfully implemented all three suggested fixes: 1) Changed workflow run command from main.py to deployment_server.py as the correct entry point for Cloud Run deployment, 2) Updated main.py to prevent Flask server startup when used in deployment context by removing Flask imports and server initialization code, 3) Ensured deployment_server.py properly binds Flask app to 0.0.0.0:5001 immediately in main thread with bot running in background daemon thread. All health check endpoints now respond correctly with proper JSON format: GET / returns service status, GET /health returns bot health, GET /status returns operational status. Flask server starts instantly on port 5001 while bot initializes successfully in background with full feature set including 3 active channels, multi-language support, TON/Stars payments, and admin panel. Deployment architecture is now 100% Cloud Run compatible with immediate port binding and instant health check responses.
+- July 08, 2025. Added Render deployment support as easier alternative to Google Cloud Run - Created render.yaml configuration for one-click deployment to Render platform. Added comprehensive RENDER_DEPLOYMENT_GUIDE.md with step-by-step instructions for free tier deployment including PostgreSQL database setup. Updated deployment_server.py to work with Render's automatic PORT assignment. Created test_render_readiness.py verification script that confirms all files and configurations are ready for deployment. Render offers free hosting with included PostgreSQL database, making it ideal for bot deployment without complex Cloud Run setup. Bot verified working locally with active user interactions in logs.
 
 ## User Preferences
 

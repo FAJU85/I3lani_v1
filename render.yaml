@@ -1,0 +1,28 @@
+services:
+  # Web service for the bot
+  - type: web
+    name: i3lani-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python deployment_server.py
+    envVars:
+      - key: DISABLE_STARS_FLASK
+        value: 1
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: BOT_TOKEN
+        sync: false  # You'll set this in Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: i3lani-db
+          property: connectionString
+      - key: ADMIN_IDS
+        sync: false  # You'll set this in Render dashboard
+      - key: TON_WALLET_ADDRESS
+        sync: false  # You'll set this in Render dashboard
+
+databases:
+  - name: i3lani-db
+    databaseName: i3lani
+    user: i3lani_user
+    plan: free  # or 'starter' for production

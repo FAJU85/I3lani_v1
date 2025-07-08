@@ -90,7 +90,7 @@ def main():
     try:
         logger.info("Starting I3lani Bot deployment server...")
         
-        # Get port from environment
+        # Get port from environment (Render sets PORT automatically)
         port = int(os.environ.get('PORT', 5001))
         logger.info(f"Configuring Flask server on 0.0.0.0:{port}")
         
