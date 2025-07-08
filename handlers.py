@@ -1445,7 +1445,7 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     # Calculate pricing with current settings (1 post per day default)
     from dynamic_pricing import DynamicPricing
     pricing = DynamicPricing()
-    calculation = pricing.calculate_pricing(
+    calculation = pricing.calculate_total_cost(
         days=days,
         posts_per_day=1,  # Default to 1 post per day for preview
         channels=[]  # Channel pricing will be calculated later
