@@ -73,6 +73,13 @@ async def main():
         content_moderation = init_content_moderation(db, bot)
         logger.info("Content moderation system initialized successfully")
         
+        # Initialize gamification system
+        logger.info("Initializing gamification system...")
+        from gamification import init_gamification
+        gamification = init_gamification(db, bot)
+        await gamification.initialize_gamification_tables()
+        logger.info("Gamification system initialized successfully")
+        
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         

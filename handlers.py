@@ -86,6 +86,17 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
     
     keyboard_rows.append([
         InlineKeyboardButton(
+            text="🎮 Gaming Hub", 
+            callback_data="gamification_hub"
+        ),
+        InlineKeyboardButton(
+            text="🏅 Leaderboard", 
+            callback_data="gamification_leaderboard"
+        )
+    ])
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
             text=get_text(language, 'settings'), 
             callback_data="settings"
         ),
@@ -5005,6 +5016,324 @@ Contact @I3lani_support for assistance.
             ])
         )
     
+    # Gamification handlers
+    @router.callback_query(F.data == "gamification_hub")
+    async def gamification_hub_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle gamification hub callback"""
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(db, callback_query.message.bot)
+            
+            # Initialize tables if needed
+            await gamification.initialize_gamification_tables()
+            
+            # Get dashboard
+            dashboard = await gamification.create_gamification_dashboard(user_id, language)
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏆 Achievements", callback_data="gamification_achievements"),
+                    InlineKeyboardButton(text="🎯 Daily Check-in", callback_data="gamification_checkin")
+                ],
+                [
+                    InlineKeyboardButton(text="🏅 Leaderboard", callback_data="gamification_leaderboard"),
+                    InlineKeyboardButton(text="🎮 Challenges", callback_data="gamification_challenges")
+                ],
+                [
+                    InlineKeyboardButton(text="📊 My Stats", callback_data="gamification_stats"),
+                    InlineKeyboardButton(text="🎲 Level Up Guide", callback_data="gamification_guide")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Main", callback_data="back_to_main")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(
+                dashboard,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Gamification hub error: {e}")
+            await callback_query.answer("Error loading gaming hub")
+
+    @router.callback_query(F.data == "gamification_checkin")
+    async def gamification_checkin_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle daily check-in callback"""
+        user_id = callback_query.from_user.id
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(db, callback_query.message.bot)
+            
+            result = await gamification.process_daily_checkin(user_id)
+            
+            if result.get('already_checked_in'):
+                message = f"""
+🎯 **Daily Check-in Status**
+
+You've already checked in today!
+
+Current Streak: {result['streak']} days 🔥
+
+Come back tomorrow to continue your streak!
+                """.strip()
+                
+            elif result.get('success'):
+                message = f"""
+✅ **Daily Check-in Complete!**
+
+🔥 Streak: {result['streak']} days
+⭐ XP Earned: +{result['xp_reward']}
+💰 TON Earned: +{result['ton_reward']:.3f}
+🚀 Streak Multiplier: {result['streak_multiplier']:.1f}x
+
+{"🎉 New streak record!" if result['streak'] > 1 else "Great start!"}
+
+Keep coming back daily to build your streak! 🎯
+                """.strip()
+                
+            else:
+                message = "❌ Check-in failed. Please try again later."
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🎮 Gaming Hub", callback_data="gamification_hub")],
+                [InlineKeyboardButton(text="⬅️ Back to Main", callback_data="back_to_main")]
+            ])
+            
+            await callback_query.message.edit_text(
+                message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Check-in error: {e}")
+            await callback_query.answer("Error processing check-in")
+
+    @router.callback_query(F.data == "gamification_leaderboard")
+    async def gamification_leaderboard_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle leaderboard callback"""
+        user_id = callback_query.from_user.id
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(db, callback_query.message.bot)
+            
+            # Get different leaderboards
+            xp_leaderboard = await gamification.get_leaderboard('xp', 10)
+            earnings_leaderboard = await gamification.get_leaderboard('earnings', 10)
+            achievements_leaderboard = await gamification.get_leaderboard('achievements', 10)
+            
+            # Format leaderboard display
+            def format_leaderboard(leaderboard, metric):
+                if not leaderboard:
+                    return "No data available"
+                
+                lines = []
+                for i, entry in enumerate(leaderboard):
+                    pos = entry['position']
+                    name = entry['display_name'][:15] + "..." if len(entry['display_name']) > 15 else entry['display_name']
+                    level_badge = entry['level_info']['badge']
+                    
+                    if metric == 'xp':
+                        value = f"{entry['xp']:,} XP"
+                    elif metric == 'earnings':
+                        value = f"{entry['total_ton_earned']:.2f} TON"
+                    elif metric == 'achievements':
+                        value = f"{entry['total_achievements']} 🏆"
+                    
+                    medal = ["🥇", "🥈", "🥉"][i] if i < 3 else f"{pos}."
+                    lines.append(f"{medal} {level_badge} {name} - {value}")
+                
+                return "\n".join(lines)
+            
+            leaderboard_text = f"""
+🏅 **GLOBAL LEADERBOARD** 🏅
+
+**🌟 Top XP Leaders:**
+{format_leaderboard(xp_leaderboard, 'xp')}
+
+**💰 Top Earners:**
+{format_leaderboard(earnings_leaderboard, 'earnings')}
+
+**🏆 Achievement Masters:**
+{format_leaderboard(achievements_leaderboard, 'achievements')}
+
+*Leaderboard updates every hour*
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🎮 Gaming Hub", callback_data="gamification_hub"),
+                    InlineKeyboardButton(text="📊 My Rank", callback_data="gamification_my_rank")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Main", callback_data="back_to_main")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(
+                leaderboard_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Leaderboard error: {e}")
+            await callback_query.answer("Error loading leaderboard")
+
+    @router.callback_query(F.data == "gamification_achievements")
+    async def gamification_achievements_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle achievements callback"""
+        user_id = callback_query.from_user.id
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(db, callback_query.message.bot)
+            
+            profile = await gamification.get_user_profile(user_id)
+            user_achievements = [ach['achievement_id'] for ach in profile['achievements']]
+            
+            # Group achievements by category
+            partner_achievements = []
+            referral_achievements = []
+            earning_achievements = []
+            activity_achievements = []
+            special_achievements = []
+            
+            for achievement_id, achievement in gamification.achievements.items():
+                unlocked = achievement_id in user_achievements
+                status = "✅" if unlocked else "🔒"
+                
+                line = f"{status} {achievement['badge']} {achievement['name']}"
+                if not unlocked:
+                    line += f" - {achievement['description']}"
+                
+                if achievement['type'] == 'channels_added':
+                    partner_achievements.append(line)
+                elif achievement['type'] == 'referrals_made':
+                    referral_achievements.append(line)
+                elif achievement['type'] in ['total_earned', 'payouts_received']:
+                    earning_achievements.append(line)
+                elif achievement['type'] == 'daily_checkins':
+                    activity_achievements.append(line)
+                else:
+                    special_achievements.append(line)
+            
+            achievements_text = f"""
+🏆 **ACHIEVEMENTS** 🏆
+
+**🤝 Partner Achievements:**
+{chr(10).join(partner_achievements)}
+
+**📢 Referral Achievements:**
+{chr(10).join(referral_achievements)}
+
+**💰 Earning Achievements:**
+{chr(10).join(earning_achievements)}
+
+**⚡ Activity Achievements:**
+{chr(10).join(activity_achievements)}
+
+**🌟 Special Achievements:**
+{chr(10).join(special_achievements)}
+
+**Progress: {len(user_achievements)}/{len(gamification.achievements)} Unlocked**
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🎮 Gaming Hub", callback_data="gamification_hub"),
+                    InlineKeyboardButton(text="🏅 Leaderboard", callback_data="gamification_leaderboard")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Main", callback_data="back_to_main")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(
+                achievements_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Achievements error: {e}")
+            await callback_query.answer("Error loading achievements")
+
+    @router.callback_query(F.data == "gamification_guide")
+    async def gamification_guide_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle level up guide callback"""
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(db, callback_query.message.bot)
+            
+            guide_text = """
+🎲 **LEVEL UP GUIDE** 🎲
+
+**How to Earn XP:**
+• Daily Check-in: +10 XP (streak bonus up to 2x)
+• Unlock Achievement: +50 XP
+• Refer Partner: +25 XP
+• Add Channel: +30 XP
+• Complete Challenge: +15-100 XP
+
+**Level Benefits:**
+🟢 Lv1 Rookie: Basic dashboard
+🔵 Lv2 Explorer: Advanced analytics
+🟡 Lv3 Specialist: Priority support
+🟠 Lv4 Expert: Custom dashboard
+🔴 Lv5 Master: Beta features
+🟣 Lv6 Champion: VIP support
+⚫ Lv7 Legend: Exclusive rewards
+⚪ Lv8 Mythic: All features unlocked
+
+**Level Up Rewards:**
+Each level up gives you TON bonus equal to your new level!
+
+**Achievement Categories:**
+🤝 Partner: Add channels to network
+📢 Referral: Invite new partners
+💰 Earning: Reach payout milestones
+⚡ Activity: Daily engagement
+🌟 Special: Unique accomplishments
+
+**Tips for Success:**
+• Check in daily to build streaks
+• Share your referral link actively
+• Add multiple channels for bonuses
+• Complete daily challenges
+• Stay engaged with the community
+
+Ready to level up? 🚀
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🎮 Gaming Hub", callback_data="gamification_hub"),
+                    InlineKeyboardButton(text="🎯 Daily Check-in", callback_data="gamification_checkin")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Main", callback_data="back_to_main")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(
+                guide_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Guide error: {e}")
+            await callback_query.answer("Error loading guide")
+
     logger.info("Handlers setup completed")
 
 

@@ -155,11 +155,27 @@ class AtomicRewardSystem:
                 SET registration_bonus_paid = TRUE
                 WHERE user_id = ?
             ''', (user_id,))
+            
+            # Gamification integration
+            try:
+                from gamification import GamificationSystem
+                gamification = GamificationSystem(self.database, self.bot)
+                
+                # Award XP for registration
+                await gamification.award_xp(user_id, 50, "Partner registration")
+                
+                # Check special achievements (early adopter, first partner, etc.)
+                await gamification.check_achievement(user_id, 'special', 1)
+                
+                logger.info(f"Gamification reward processed for new partner {user_id}")
+                
+            except Exception as e:
+                logger.error(f"Error processing gamification reward for registration: {e}")
         
         return result
     
     async def process_referral_reward(self, referrer_id: int, referred_id: int) -> Dict:
-        """Process atomic referral reward"""
+        """Process atomic referral reward with gamification"""
         
         # Check if referral already exists
         existing = await self.database.get_referral_by_ids(referrer_id, referred_id)
@@ -176,17 +192,53 @@ class AtomicRewardSystem:
             description=f'Referral reward for user {referred_id}'
         )
         
+        # Gamification integration
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(self.database, self.bot)
+            
+            # Award XP for referral
+            await gamification.award_xp(referrer_id, 25, "Successful referral")
+            
+            # Check referral achievements
+            referral_count = await self.database.get_referral_count(referrer_id)
+            await gamification.check_achievement(referrer_id, 'referrals_made', referral_count)
+            
+            logger.info(f"Gamification reward processed for referrer {referrer_id}")
+            
+        except Exception as e:
+            logger.error(f"Error processing gamification reward: {e}")
+        
         return result
     
     async def process_channel_reward(self, user_id: int, channel_id: str) -> Dict:
-        """Process reward for adding new channel"""
+        """Process reward for adding new channel with gamification"""
         
-        return await self.process_atomic_reward(
+        result = await self.process_atomic_reward(
             user_id=user_id,
             reward_type='channel_add',
             channel_id=channel_id,
             description=f'Channel addition reward for {channel_id}'
         )
+        
+        # Gamification integration
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(self.database, self.bot)
+            
+            # Award XP for channel addition
+            await gamification.award_xp(user_id, 30, "Channel addition")
+            
+            # Check channel achievements
+            channel_count = await self.database.get_user_channel_count(user_id)
+            await gamification.check_achievement(user_id, 'channels_added', channel_count)
+            
+            logger.info(f"Gamification reward processed for channel addition by user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Error processing gamification reward for channel: {e}")
+        
+        return result
     
     async def send_atomic_notification(self, user_id: int, reward_type: str, 
                                      amount: float, instant_payout: bool = False):

@@ -82,6 +82,10 @@ class AdminSystem:
                 InlineKeyboardButton(text="📋 Violation Reports", callback_data="admin_violations")
             ],
             [
+                InlineKeyboardButton(text="🎮 Gamification Management", callback_data="admin_gamification"),
+                InlineKeyboardButton(text="🏅 Achievement Analytics", callback_data="admin_achievements")
+            ],
+            [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement")
             ],
@@ -2110,6 +2114,153 @@ async def admin_channel_details_handler(message: Message):
 def setup_admin_handlers(dp):
     """Setup admin handlers"""
     dp.include_router(router)
+    
+    @router.callback_query(F.data == "admin_gamification")
+    async def admin_gamification_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle gamification management callback"""
+        user_id = callback_query.from_user.id
+        
+        if not admin_system.is_admin(user_id):
+            await callback_query.answer("Access denied")
+            return
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(admin_system.db, callback_query.message.bot)
+            
+            # Get gamification statistics
+            total_users = await admin_system.get_total_users()
+            active_users = await admin_system.get_active_users()
+            
+            # Get level distribution
+            xp_leaderboard = await gamification.get_leaderboard('xp', 50)
+            level_distribution = {}
+            for user in xp_leaderboard:
+                level = user['level']
+                level_distribution[level] = level_distribution.get(level, 0) + 1
+            
+            # Get achievement statistics  
+            total_achievements = len(gamification.achievements)
+            avg_achievements = sum(user.get('total_achievements', 0) for user in xp_leaderboard) / len(xp_leaderboard) if xp_leaderboard else 0
+            
+            stats_text = f"""
+🎮 **GAMIFICATION MANAGEMENT** 🎮
+
+**System Statistics:**
+👥 Total Users: {total_users:,}
+⚡ Active Users: {active_users:,}
+🏆 Total Achievements: {total_achievements}
+📊 Avg Achievements per User: {avg_achievements:.1f}
+
+**Level Distribution:**
+{chr(10).join(f"Level {level}: {count} users" for level, count in sorted(level_distribution.items())) if level_distribution else "No data available"}
+
+**Top Performers:**
+{chr(10).join(f"{i+1}. {user['display_name']} - Level {user['level']} ({user['xp']:,} XP)" for i, user in enumerate(xp_leaderboard[:5])) if xp_leaderboard else "No users yet"}
+
+**System Health:** ✅ Operational
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏆 View All Achievements", callback_data="admin_view_achievements"),
+                    InlineKeyboardButton(text="📊 User Analytics", callback_data="admin_gamification_analytics")
+                ],
+                [
+                    InlineKeyboardButton(text="🎯 Award Manual Achievement", callback_data="admin_manual_achievement"),
+                    InlineKeyboardButton(text="⚡ Award Manual XP", callback_data="admin_manual_xp")
+                ],
+                [
+                    InlineKeyboardButton(text="🔄 System Settings", callback_data="admin_gamification_settings"),
+                    InlineKeyboardButton(text="📈 Export Data", callback_data="admin_export_gamification")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(
+                stats_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Admin gamification error: {e}")
+            await callback_query.answer("Error loading gamification management")
+
+    @router.callback_query(F.data == "admin_achievements")
+    async def admin_achievements_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle achievement analytics callback"""
+        user_id = callback_query.from_user.id
+        
+        if not admin_system.is_admin(user_id):
+            await callback_query.answer("Access denied")
+            return
+        
+        try:
+            from gamification import GamificationSystem
+            gamification = GamificationSystem(admin_system.db, callback_query.message.bot)
+            
+            # Get achievement statistics
+            achievement_stats = {}
+            for achievement_id, achievement in gamification.achievements.items():
+                # Count users who have this achievement
+                async with admin_system.db.get_connection() as conn:
+                    async with conn.execute("""
+                        SELECT COUNT(*) as count FROM user_achievements 
+                        WHERE achievement_id = ?
+                    """, (achievement_id,)) as cursor:
+                        result = await cursor.fetchone()
+                        count = result[0] if result else 0
+                
+                achievement_stats[achievement_id] = {
+                    'name': achievement['name'],
+                    'type': achievement['type'],
+                    'unlocked_count': count,
+                    'reward_ton': achievement['reward_ton']
+                }
+            
+            # Sort by most unlocked
+            sorted_achievements = sorted(achievement_stats.items(), 
+                                       key=lambda x: x[1]['unlocked_count'], 
+                                       reverse=True)
+            
+            analytics_text = f"""
+🏆 **ACHIEVEMENT ANALYTICS** 🏆
+
+**Most Popular Achievements:**
+{chr(10).join(f"{i+1}. {data['name']} - {data['unlocked_count']} users" for i, (_, data) in enumerate(sorted_achievements[:10])) if sorted_achievements else "No achievements unlocked yet"}
+
+**Achievement Categories:**
+{chr(10).join(f"• {category}: {len([a for _, a in achievement_stats.items() if a['type'] == category])} achievements" for category in set(a['type'] for a in achievement_stats.values())) if achievement_stats else "No categories available"}
+
+**Total TON Distributed:** {sum(a['unlocked_count'] * a['reward_ton'] for a in achievement_stats.values()):.2f} TON
+
+**Rarest Achievements:**
+{chr(10).join(f"🔥 {data['name']} - {data['unlocked_count']} users" for _, data in sorted(achievement_stats.items(), key=lambda x: x[1]['unlocked_count'])[:5]) if achievement_stats else "No rare achievements yet"}
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🎮 Gamification Main", callback_data="admin_gamification"),
+                    InlineKeyboardButton(text="📊 User Leaderboard", callback_data="admin_user_leaderboard")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+                ]
+            ])
+            
+            await callback_query.message.edit_text(
+                analytics_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Achievement analytics error: {e}")
+            await callback_query.answer("Error loading achievement analytics")
+    
     logger.info("Admin system handlers setup completed")
 
 # Usage Agreement Handlers
