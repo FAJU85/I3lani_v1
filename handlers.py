@@ -2427,6 +2427,10 @@ async def show_frequency_payment_summary(callback_query: CallbackQuery, state: F
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
+    # Check if user is admin
+    from config import ADMIN_IDS
+    is_admin = user_id in ADMIN_IDS
+    
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
@@ -2542,6 +2546,15 @@ async def frequency_change_duration_handler(callback_query: CallbackQuery, state
 @router.callback_query(F.data == "pay_freq_ton")
 async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle TON payment for frequency pricing"""
+    user_id = callback_query.from_user.id
+    
+    # Check if user is admin for free posting privilege
+    from config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        # Admin gets free posting!
+        await process_admin_free_posting(callback_query, state)
+        return
+    
     data = await state.get_data()
     pricing_data = data.get('pricing_data', {})
     
@@ -2555,6 +2568,15 @@ async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMCon
 @router.callback_query(F.data == "pay_freq_stars")
 async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle Stars payment for frequency pricing"""
+    user_id = callback_query.from_user.id
+    
+    # Check if user is admin for free posting privilege
+    from config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        # Admin gets free posting!
+        await process_admin_free_posting(callback_query, state)
+        return
+    
     data = await state.get_data()
     pricing_data = data.get('pricing_data', {})
     
@@ -3023,6 +3045,89 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
     except Exception as e:
         logger.error(f"Error processing successful TON payment: {e}")
 
+
+async def process_admin_free_posting(callback_query: CallbackQuery, state: FSMContext):
+    """Process free posting for admin users"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Get data from state
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        ad_content = data.get('ad_text', '')
+        photos = data.get('photos', [])
+        pricing_data = data.get('pricing_data', {})
+        
+        # Create ad in database
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=ad_content,
+            media_url=photos[0] if photos else None,
+            content_type='photo' if photos else 'text'
+        )
+        
+        # Create subscription for each selected channel
+        subscription_ids = []
+        for channel_id in selected_channels:
+            subscription_id = await db.create_subscription(
+                user_id=user_id,
+                ad_id=ad_id,
+                channel_id=channel_id,
+                duration_months=pricing_data.get('days', 1),
+                total_price=0,  # Free for admin
+                currency='ADMIN_FREE',
+                posts_per_day=pricing_data.get('posts_per_day', 1),
+                total_posts=pricing_data.get('total_posts', 1)
+            )
+            subscription_ids.append(subscription_id)
+        
+        # Activate subscriptions
+        await db.activate_subscriptions(subscription_ids, pricing_data.get('days', 1))
+        
+        # Publish immediately
+        from publishing_scheduler import scheduler
+        if scheduler:
+            await scheduler.publish_immediately_after_payment(
+                user_id=user_id,
+                ad_id=ad_id,
+                selected_channels=selected_channels,
+                subscription_data=data
+            )
+        
+        # Show success message
+        success_text = f"""✅ **Admin Free Posting Activated!**
+
+👑 **Admin Privilege Applied**
+💰 **Cost:** FREE (Admin testing privilege)
+
+📺 **Publishing to:**
+{chr(10).join(f"• {ch}" for ch in selected_channels)}
+
+📅 **Campaign Details:**
+• Duration: {pricing_data.get('days', 1)} days
+• Posts per day: {pricing_data.get('posts_per_day', 1)}
+• Total posts: {pricing_data.get('total_posts', 1)}
+
+🛠️ **Status:** Your ad is being published now!
+
+*Your admin privilege allows free posting for testing and demonstration purposes.*"""
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 View My Ads", callback_data="my_ads")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+        ])
+        
+        await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("✅ Admin free posting activated!")
+        
+        # Clear state
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Admin free posting error: {e}")
+        await callback_query.answer("❌ Error processing admin posting")
+        await show_main_menu(callback_query, await get_user_language(callback_query.from_user.id))
 
 async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext):
     """Handle expired TON payment"""

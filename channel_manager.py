@@ -31,7 +31,9 @@ class ChannelManager:
             
             # Check if bot became admin
             if old_status in ['left', 'member', 'restricted'] and new_status == 'administrator':
-                await self.add_channel_as_admin(chat, chat_member_updated.new_chat_member)
+                # Get who added the bot
+                added_by_user_id = chat_member_updated.from_user.id if chat_member_updated.from_user else None
+                await self.add_channel_as_admin(chat, chat_member_updated.new_chat_member, added_by_user_id)
             
             # Check if bot lost admin privileges
             elif old_status == 'administrator' and new_status in ['left', 'member', 'restricted']:
@@ -40,7 +42,7 @@ class ChannelManager:
         except Exception as e:
             logger.error(f"Error handling bot status change: {e}")
     
-    async def add_channel_as_admin(self, chat: Chat, chat_member: ChatMember):
+    async def add_channel_as_admin(self, chat: Chat, chat_member: ChatMember, added_by_user_id: int = None):
         """Add channel when bot becomes admin with detailed analysis"""
         try:
             # Check if bot can post messages
@@ -96,6 +98,9 @@ class ChannelManager:
             logger.info(f"✅ Channel '{channel_name}' added automatically")
             logger.info(f"📊 Stats: {subscribers:,} subscribers, {active_subscribers:,} active, {total_posts:,} posts, category: {category}")
             
+            # Notify admin about new channel
+            await self._notify_admin_new_channel(chat, subscribers, added_by_user_id)
+            
             # Send detailed welcome message to channel
             welcome_message = f"""
 🎉 **I3lani Bot is now active in this channel!**
@@ -121,6 +126,54 @@ Users can now select this channel when creating ads through the bot.
                 
         except Exception as e:
             logger.error(f"Error adding channel as admin: {e}")
+    
+    async def _notify_admin_new_channel(self, chat: Chat, subscribers: int, added_by_user_id: int = None):
+        """Notify admin when bot is added to a new channel"""
+        try:
+            from config import ADMIN_IDS
+            from datetime import datetime
+            
+            # Get who added the bot (if available)
+            added_by_username = "Unknown"
+            if added_by_user_id:
+                try:
+                    user = await self.bot.get_chat_member(chat.id, added_by_user_id)
+                    added_by_username = f"@{user.user.username}" if user.user.username else f"User ID: {added_by_user_id}"
+                except:
+                    added_by_username = f"User ID: {added_by_user_id}"
+            
+            # Format notification message
+            notification = f"""✅ **New Channel Detected!**
+
+The bot was added as admin in:
+📢 **Channel:** {chat.title}
+🔗 **Username:** @{chat.username if chat.username else 'Private'}
+🆔 **ID:** `{chat.id}`
+👥 **Subscribers:** {subscribers:,}
+👤 **Added by:** {added_by_username}
+🕒 **Time:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
+
+🛠️ **Status:** Ready for testing
+💰 **Your Access:** Free posting (Admin privilege)
+
+👑 **Admin Benefits:**
+• Post unlimited ads for FREE in this channel
+• Test all bot features without payment
+• Priority support and exclusive access"""
+            
+            # Send to all admins
+            for admin_id in ADMIN_IDS:
+                try:
+                    await self.bot.send_message(
+                        admin_id,
+                        notification,
+                        parse_mode='Markdown'
+                    )
+                except Exception as e:
+                    logger.error(f"Could not notify admin {admin_id}: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error notifying admin about new channel: {e}")
     
     def _detect_channel_category(self, channel_name: str, description: str) -> str:
         """Detect channel category based on name and description"""
