@@ -21,6 +21,21 @@ services:
         sync: false  # You'll set this in Render dashboard
       - key: TON_WALLET_ADDRESS
         sync: false  # You'll set this in Render dashboard
+  
+  # Background worker service
+  - type: worker
+    name: i3lani-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python worker.py
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: i3lani-db
+          property: connectionString
+      - key: BOT_TOKEN
+        sync: false
 
 databases:
   - name: i3lani-db

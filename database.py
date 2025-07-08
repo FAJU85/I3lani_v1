@@ -1438,3 +1438,115 @@ Database.log_user_interaction = log_user_interaction
 Database.log_user_action = log_user_action
 Database.is_user_blocked = is_user_blocked
 Database.is_user_banned = is_user_banned
+
+# Background worker methods
+async def get_pending_payments(self):
+    """Get pending TON payments for verification"""
+    async with aiosqlite.connect(self.db_path) as db:
+        cursor = await db.execute("""
+            SELECT * FROM orders 
+            WHERE currency = 'TON' 
+            AND status = 'pending' 
+            AND created_at > datetime('now', '-1 day')
+        """)
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+async def confirm_payment(self, payment_id):
+    """Confirm payment as verified"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            UPDATE orders 
+            SET status = 'confirmed', confirmed_at = datetime('now')
+            WHERE id = ?
+        """, (payment_id,))
+        await db.commit()
+
+async def activate_subscription(self, payment_id):
+    """Activate subscription after payment confirmation"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            UPDATE orders 
+            SET status = 'active', activated_at = datetime('now')
+            WHERE id = ?
+        """, (payment_id,))
+        await db.commit()
+
+async def get_pending_rewards(self):
+    """Get pending rewards for processing"""
+    async with aiosqlite.connect(self.db_path) as db:
+        cursor = await db.execute("""
+            SELECT * FROM partner_rewards 
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+        """)
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+async def add_reward_balance(self, user_id, amount):
+    """Add reward to user balance"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            INSERT OR REPLACE INTO partner_rewards (user_id, amount, reward_type, status)
+            VALUES (?, ?, 'processed', 'completed')
+        """, (user_id, amount))
+        await db.commit()
+
+async def mark_reward_processed(self, reward_id):
+    """Mark reward as processed"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            UPDATE partner_rewards 
+            SET status = 'processed', processed_at = datetime('now')
+            WHERE id = ?
+        """, (reward_id,))
+        await db.commit()
+
+async def cleanup_old_logs(self, cutoff_date):
+    """Clean up old log entries"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            DELETE FROM error_logs 
+            WHERE created_at < ?
+        """, (cutoff_date,))
+        await db.commit()
+
+async def cleanup_expired_sessions(self):
+    """Clean up expired user sessions"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            DELETE FROM user_sessions 
+            WHERE expires_at < datetime('now')
+        """)
+        await db.commit()
+
+async def check_connection(self):
+    """Check database connection health"""
+    try:
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("SELECT 1")
+            return True
+    except Exception:
+        return False
+
+async def update_channel_stats(self, channel_id, subscribers, active_subscribers, last_updated):
+    """Update channel statistics"""
+    async with aiosqlite.connect(self.db_path) as db:
+        await db.execute("""
+            UPDATE channels 
+            SET subscribers = ?, active_subscribers = ?, last_updated = ?
+            WHERE id = ?
+        """, (subscribers, active_subscribers, last_updated, channel_id))
+        await db.commit()
+
+# Bind background worker methods to Database class
+Database.get_pending_payments = get_pending_payments
+Database.confirm_payment = confirm_payment
+Database.activate_subscription = activate_subscription
+Database.get_pending_rewards = get_pending_rewards
+Database.add_reward_balance = add_reward_balance
+Database.mark_reward_processed = mark_reward_processed
+Database.cleanup_old_logs = cleanup_old_logs
+Database.cleanup_expired_sessions = cleanup_expired_sessions
+Database.check_connection = check_connection
+Database.update_channel_stats = update_channel_stats
