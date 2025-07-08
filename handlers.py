@@ -43,37 +43,53 @@ def create_language_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
-def create_main_menu_keyboard(language: str) -> InlineKeyboardMarkup:
-    """Create main menu keyboard"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
+async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
+    """Create main menu keyboard with free trial option if available"""
+    keyboard_rows = []
+    
+    # Check if user can use free trial
+    can_use_trial = await db.check_free_trial_available(user_id)
+    
+    # First row - main actions
+    if can_use_trial:
+        # Add free trial button for new users
+        keyboard_rows.append([
             InlineKeyboardButton(
-                text=get_text(language, 'create_ad'), 
-                callback_data="create_ad"
-            ),
-            InlineKeyboardButton(
-                text=get_text(language, 'my_ads'), 
-                callback_data="my_ads"
+                text="[Gift] Try Free (1 Day, 2 Posts/Day)", 
+                callback_data="free_trial"
             )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text(language, 'share_earn'), 
-                callback_data="share_earn"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text(language, 'settings'), 
-                callback_data="settings"
-            ),
-            InlineKeyboardButton(
-                text=get_text(language, 'help'), 
-                callback_data="help"
-            )
-        ]
+        ])
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=get_text(language, 'create_ad'), 
+            callback_data="create_ad"
+        ),
+        InlineKeyboardButton(
+            text=get_text(language, 'my_ads'), 
+            callback_data="my_ads"
+        )
     ])
-    return keyboard
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=get_text(language, 'share_earn'), 
+            callback_data="share_earn"
+        )
+    ])
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=get_text(language, 'settings'), 
+            callback_data="settings"
+        ),
+        InlineKeyboardButton(
+            text=get_text(language, 'help'), 
+            callback_data="help"
+        )
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
 
 
 async def create_channel_selection_keyboard(language: str, selected_channels: List[str] = None) -> InlineKeyboardMarkup:
@@ -304,8 +320,14 @@ async def start_command(message: Message, state: FSMContext):
 
 async def show_main_menu(message_or_query, language: str):
     """Show main menu with typing indicator"""
+    # Get user_id from message or callback query
+    if isinstance(message_or_query, Message):
+        user_id = message_or_query.from_user.id
+    else:
+        user_id = message_or_query.from_user.id
+    
     text = f"{get_text(language, 'welcome')}\n\n{get_text(language, 'main_menu')}"
-    keyboard = create_main_menu_keyboard(language)
+    keyboard = await create_main_menu_keyboard(language, user_id)
     
     if isinstance(message_or_query, Message):
         # Send typing action for better UX
@@ -1264,6 +1286,108 @@ Send photos now or click "Skip" to continue without photos
     await callback_query.answer()
 
 
+@router.callback_query(F.data == "free_trial")
+async def free_trial_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle free trial selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Check if user can still use free trial
+    can_use_trial = await db.check_free_trial_available(user_id)
+    
+    if not can_use_trial:
+        await callback_query.answer("You have already used your free trial!")
+        await show_main_menu(callback_query, language)
+        return
+    
+    # Set free trial parameters
+    await state.update_data(
+        is_free_trial=True,
+        days=1,
+        posts_per_day=2,
+        free_trial_mode=True
+    )
+    
+    # Show free trial information
+    trial_text = f"""
+[Gift] **Free Trial Offer**
+
+You're about to start your FREE trial:
+• Duration: 1 day
+• Posts per day: 2 posts
+• Total posts: 2 posts
+• Price: **FREE** (valued at $1.90)
+
+This is a one-time offer for new users to experience our multi-post scheduling feature!
+
+**How it works:**
+1. Create your ad content
+2. Select channels
+3. We'll publish 2 posts throughout the day
+4. Track performance in your dashboard
+
+Ready to create your free trial ad?
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="[Star] Start Free Trial", callback_data="start_free_trial")],
+        [InlineKeyboardButton(text="[Back] Back", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(trial_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "start_free_trial")
+async def start_free_trial_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Start the free trial ad creation"""
+    user_id = callback_query.from_user.id
+    
+    # Mark free trial as used
+    await db.use_free_trial(user_id)
+    
+    # Start with photo upload (same as regular ad creation)
+    await state.set_state(AdCreationStates.upload_photos)
+    
+    language = await get_user_language(user_id)
+    
+    if language == 'ar':
+        text = """
+[Photo] **إنشاء إعلان مجاني تجريبي**
+
+هل تريد إضافة صور لإعلانك التجريبي؟
+يمكنك إضافة حتى 5 صور
+
+أرسل الصور الآن أو اضغط "تخطي" للمتابعة بدون صور
+        """.strip()
+    elif language == 'ru':
+        text = """
+[Photo] **Создать пробное объявление**
+
+Хотите добавить фотографии в пробное объявление?
+Можно добавить до 5 фотографий
+
+Отправьте фото или нажмите "Пропустить"
+        """.strip()
+    else:
+        text = """
+[Photo] **Create Free Trial Ad**
+
+Would you like to add photos to your trial ad?
+You can add up to 5 photos
+
+Send photos now or click "Skip" to continue without photos
+        """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⏭ Skip Photos", callback_data="skip_photos_to_text")],
+        [InlineKeyboardButton(text=" Back", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+
 async def check_free_ads_limit(user_id: int) -> int:
     """Check how many free ads a user has remaining this month"""
     try:
@@ -1598,19 +1722,144 @@ async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
+    # Check if this is a free trial
+    data = await state.get_data()
+    is_free_trial = data.get('is_free_trial', False)
+    
+    if is_free_trial:
+        # Free trial - skip pricing and go to order confirmation
+        selected_channels = data.get('selected_channels', [])
+        
+        # Get channel details
+        channels = await db.get_channels()
+        selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
+        
+        # Create order confirmation text
+        channel_names = [ch['name'] for ch in selected_channel_data]
+        total_reach = sum(ch.get('subscribers', 0) for ch in selected_channel_data)
+        
+        confirmation_text = f"""
+[Check] **Free Trial Order Summary**
+
+[Gift] **FREE TRIAL** (One-time offer)
+
+[Date] **Duration:** 1 day
+[Chart] **Posts per day:** 2 posts
+[Note] **Total posts:** 2 posts
+[Money] **Price:** **FREE** (valued at $1.90)
+
+[TV] **Selected Channels ({len(selected_channels)}):**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+[Users] **Total Reach:** {total_reach:,} subscribers
+
+Your ad will be published 2 times throughout the day across all selected channels.
+
+Ready to confirm your free trial?
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="[Check] Confirm Free Trial", callback_data="confirm_free_trial")],
+            [InlineKeyboardButton(text="[Back] Back to Channels", callback_data="back_to_channel_selection")]
+        ])
+        
+        await callback_query.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("Free trial ready!")
+        return
+    
+    # Regular flow - continue to duration selection
     await state.set_state(AdCreationStates.duration_selection)
     
-    # Initialize default days if not set
-    data = await state.get_data()
-    current_days = data.get('selected_days', 1)
+    # Initialize days to 1 for dynamic selector
+    await state.update_data(selected_days=1)
+    await show_dynamic_days_selector(callback_query, state, 1)
+
+
+@router.callback_query(F.data == "confirm_free_trial")
+async def confirm_free_trial_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Confirm and create free trial order"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    # Store current days
-    await state.update_data(selected_days=current_days)
-    
-    # Show dynamic days selector with live pricing
-    await show_dynamic_days_selector(callback_query, state, current_days)
-    
-    await callback_query.answer()
+    try:
+        data = await state.get_data()
+        
+        # Create ad in database
+        ad_content = data.get('ad_text', '')
+        photos = data.get('photos', [])
+        selected_channels = data.get('selected_channels', [])
+        
+        # Create ad record
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=ad_content,
+            media_url=photos[0] if photos else None,
+            content_type='photo' if photos else 'text'
+        )
+        
+        # Create free trial subscription for each channel
+        for channel_id in selected_channels:
+            subscription_id = await db.create_subscription(
+                user_id=user_id,
+                ad_id=ad_id,
+                channel_id=channel_id,
+                duration_months=0,  # Free trial
+                total_price=0.0,
+                currency='USD',
+                posts_per_day=2,
+                total_posts=2,
+                discount_percent=100  # 100% discount for free trial
+            )
+            
+            # Create payment record for tracking
+            await db.create_payment(
+                user_id=user_id,
+                subscription_id=subscription_id,
+                amount=0.0,
+                currency='USD',
+                payment_method='free_trial',
+                memo=f'FREE_TRIAL_{ad_id}'
+            )
+        
+        # Success message
+        success_text = f"""
+[Check] **Free Trial Activated!**
+
+Your free trial ad has been created successfully!
+
+[Chart] **What happens next:**
+• Your ad will be published 2 times today
+• First post will be sent within the next hour
+• Second post will follow later in the day
+• You'll receive notifications for each publication
+
+[Phone] **Track your ad:**
+Use "My Ads" from the main menu to see:
+- Publication status
+- View count
+- Performance metrics
+
+Thank you for trying I3lani Bot! After your trial, you can create unlimited paid ads with our flexible pricing.
+
+Enjoy your free trial!
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="[Chart] View My Ads", callback_data="my_ads")],
+            [InlineKeyboardButton(text="[Home] Main Menu", callback_data="back_to_main")]
+        ])
+        
+        await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("Free trial activated!")
+        
+        # Clear state
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Free trial confirmation error: {e}")
+        await callback_query.answer("Error creating free trial. Please try again.")
+        await show_main_menu(callback_query, language)
+
 
 async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMContext, days: int = 1):
     """Show dynamic days selector with +/- buttons and live pricing"""

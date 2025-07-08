@@ -16,6 +16,15 @@ class Database:
     async def init_db(self):
         """Initialize database tables"""
         async with aiosqlite.connect(self.db_path) as db:
+            # First, check if we need to add free_trial columns
+            cursor = await db.execute("PRAGMA table_info(users)")
+            columns = await cursor.fetchall()
+            column_names = [col[1] for col in columns]
+            
+            if 'free_trial_used' not in column_names:
+                await db.execute('ALTER TABLE users ADD COLUMN free_trial_used BOOLEAN DEFAULT FALSE')
+                await db.execute('ALTER TABLE users ADD COLUMN free_trial_date TIMESTAMP')
+                await db.commit()
             # Users table
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS users (
@@ -536,6 +545,28 @@ Last updated: July 2025"""
             )
             await db.commit()
             return True
+    
+    async def check_free_trial_available(self, user_id: int) -> bool:
+        """Check if user can use free trial"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute('''
+                SELECT free_trial_used FROM users WHERE user_id = ?
+            ''', (user_id,))
+            result = await cursor.fetchone()
+            
+            if result:
+                return not result[0]  # Return True if free_trial_used is False
+            return True  # New users can use free trial
+    
+    async def use_free_trial(self, user_id: int):
+        """Mark free trial as used"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                UPDATE users 
+                SET free_trial_used = TRUE, free_trial_date = CURRENT_TIMESTAMP 
+                WHERE user_id = ?
+            ''', (user_id,))
+            await db.commit()
             
     async def create_package(self, package_id: str, name: str, price_usd: float,
                             duration_days: int, posts_per_day: int, channels_included: int) -> bool:
