@@ -158,7 +158,7 @@ async def show_duration_selection(callback_query: CallbackQuery, state: FSMConte
         duration_text = f"""
 Date **Full-Year Posting Plans (Progressive Frequency)**
 
-📺 **Selected Channels:** {len(selected_channels)} (No per-channel fee)
+ **Selected Channels:** {len(selected_channels)} (No per-channel fee)
 
 Target **Progressive Frequency System:**
 - Month 1: 1 post/day to Month 12: 12 posts/day
@@ -368,7 +368,7 @@ async def package_selection_handler(callback_query: CallbackQuery, state: FSMCon
         confirmation_text = f"""
 {package['emoji']} **{package['name']} Selected**
 
-📋 **Package Details:**
+ **Package Details:**
 - Duration: {package['duration_days']} days
 - Posts per day: {package['posts_per_day']:.1f}
 - Price: ${package['price_usd']:.0f}
@@ -447,59 +447,8 @@ Tip Tip: Make your ad engaging and clear!
 
 # Location selection removed - streamlined flow
 
-Where is your ad located?
-    """.strip()
-    
-    # Create location keyboard (2 columns)
-    keyboard_rows = []
-    locations = list(LOCATIONS.items())
-    
-    for i in range(0, len(locations), 2):
-        row = []
-        for j in range(2):
-            if i + j < len(locations):
-                loc_id, loc_name = locations[i + j]
-                row.append(InlineKeyboardButton(
-                    text=loc_name,
-                    callback_data=f"location_{loc_id}"
-                ))
-        keyboard_rows.append(row)
-    
-    keyboard_rows.append([InlineKeyboardButton(
-        text="Back Back to Subcategories",
-        callback_data="back_to_subcategories"
-    )])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
-    
-    await callback_query.message.edit_text(
-        location_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    
-    await state.set_state(AdCreationStates.select_location)
 
-
-@router.callback_query(F.data.startswith("location_"))
-async def location_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle location selection"""
-    try:
-        location_id = callback_query.data.replace("location_", "")
-            [
-                InlineKeyboardButton(text="📸 Skip Photos", callback_data="skip_photos"),
-                InlineKeyboardButton(text="Yes Done with Photos", callback_data="done_photos")
-            ],
-            [InlineKeyboardButton(text="Back Back", callback_data="back_to_details")]
-        ])
-        
-        await message.reply(photo_text, reply_markup=keyboard, parse_mode='Markdown')
-        await state.set_state(AdCreationStates.upload_photos)
-        await state.update_data(uploaded_photos=[])
-        
-    except Exception as e:
-        logger.error(f"Ad details error: {e}")
-        await message.reply(get_text(language, 'error_processing_ad'))
+# Location selection handler removed - streamlined flow
 
 
 @router.message(AdCreationStates.upload_photos, F.photo)
@@ -528,12 +477,12 @@ async def handle_photo_upload(message: Message, state: FSMContext):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="Yes Done with Photos", callback_data="done_photos"),
-                InlineKeyboardButton(text="📸 Add More", callback_data="add_more_photos")
+                InlineKeyboardButton(text=" Add More", callback_data="add_more_photos")
             ],
-            [InlineKeyboardButton(text="📸 Skip Photos", callback_data="skip_photos")]
+            [InlineKeyboardButton(text=" Skip Photos", callback_data="skip_photos")]
         ])
         
-        await message.reply(f"📸 Photo {len(uploaded_photos)}/5 uploaded.", reply_markup=keyboard)
+        await message.reply(f" Photo {len(uploaded_photos)}/5 uploaded.", reply_markup=keyboard)
         
     except Exception as e:
         logger.error(f"Photo upload error: {e}")
@@ -571,7 +520,7 @@ Send your contact information:
 async def add_more_photos(callback_query: CallbackQuery, state: FSMContext):
     """Allow user to add more photos"""
     await callback_query.message.edit_text(
-        "📸 **Add More Photos**\n\nSend additional photos (max 5 total):",
+        " **Add More Photos**\n\nSend additional photos (max 5 total):",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Yes Done with Photos", callback_data="continue_from_photos")]
         ])
@@ -701,7 +650,7 @@ Is this correct?
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="Yes Confirm & Continue", callback_data="confirm_ad"),
-                InlineKeyboardButton(text="Edit️ Edit Ad", callback_data="edit_ad")
+                InlineKeyboardButton(text="Edit Edit Ad", callback_data="edit_ad")
             ],
             [InlineKeyboardButton(text="No Cancel", callback_data="cancel_ad")]
         ])
@@ -768,7 +717,7 @@ async def handle_free_package_publishing(callback_query: CallbackQuery, state: F
         uploaded_photos = data.get('uploaded_photos', [])
         
         # Format ad with free package indicator
-        formatted_content = f"Gift **FREE AD**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+        formatted_content = f"Gift **FREE AD**\n\n{ad_content}\n\n *Advertise with @I3lani_bot*"
         
         try:
             if uploaded_photos:
@@ -845,7 +794,7 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
     for channel in channels:
         # Check if channel is selected
         is_selected = channel['channel_id'] in selected_channels
-        emoji = "Yes" if is_selected else "☐"
+        emoji = "Yes" if is_selected else ""
         
         keyboard_rows.append([InlineKeyboardButton(
             text=f"{emoji} {channel['name']} ({channel['subscribers']:,} subscribers)",
@@ -885,7 +834,7 @@ async def show_settings_handler(callback_query: CallbackQuery):
             language = 'en'
         
         settings_text = f"""
-Settings️ **Settings**
+Settings **Settings**
 
 World **Current Language:** {LANGUAGES[language]['name']} {LANGUAGES[language]['flag']}
 
@@ -900,11 +849,11 @@ Stats **Account Info:**
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="🇺🇸 English", callback_data="lang_en"),
-                InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang_ar")
+                InlineKeyboardButton(text=" English", callback_data="lang_en"),
+                InlineKeyboardButton(text=" العربية", callback_data="lang_ar")
             ],
             [
-                InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")
+                InlineKeyboardButton(text=" Русский", callback_data="lang_ru")
             ],
             [
                 InlineKeyboardButton(
@@ -1216,7 +1165,7 @@ async def edit_package_handler(callback_query: CallbackQuery, state: FSMContext)
         current_price = package_prices.get(package_type, 0)
         
         text = f"""
-Edit️ **Edit {package_type.title()} Package**
+Edit **Edit {package_type.title()} Package**
 
 Current settings:
 - Package: {package_type.title()}
@@ -1228,7 +1177,7 @@ What would you like to edit?
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="Price Change Price", callback_data=f"change_price_{package_type}"),
-                InlineKeyboardButton(text="⏰ Change Duration", callback_data=f"change_duration_{package_type}")
+                InlineKeyboardButton(text=" Change Duration", callback_data=f"change_duration_{package_type}")
             ],
             [
                 InlineKeyboardButton(text="Content Change Description", callback_data=f"change_desc_{package_type}"),
@@ -1320,26 +1269,20 @@ async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSM
     
     await state.set_state(AdCreationStates.duration_selection)
     
-    text = """
-Receipt **Let's calculate your posting plan!**
-
-I'll help you find the perfect advertising package like a food delivery assistant!
-
-**Step 1: How many days** do you want your ad to run?
-(Examples: 3 days, 7 days, 30 days)
-
-**Step 2: How many posts per day?**
-(Choose 1 to 24 posts per day)
-
-**Step 3: Which channels?**
-All channels currently cost $0 — extra toppings coming soon!
-
-Tip **Volume Discounts Available:**
-- 2+ posts/day to Get discounts up to 30% off!
-- More posts = bigger savings
-
-Choose your plan duration:
-    """.strip()
+    text = (
+        "**Let's calculate your posting plan!**\n\n"
+        "I'll help you find the perfect advertising package like a food delivery assistant!\n\n"
+        "**Step 1: How many days** do you want your ad to run?\n"
+        "(Examples: 3 days, 7 days, 30 days)\n\n"
+        "**Step 2: How many posts per day?**\n"
+        "(Choose 1 to 24 posts per day)\n\n"
+        "**Step 3: Which channels?**\n"
+        "All channels currently cost $0 — extra toppings coming soon!\n\n"
+        "**Volume Discounts Available:**\n"
+        "- 2+ posts/day to Get discounts up to 30% off!\n"
+        "- More posts = bigger savings\n\n"
+        "Choose your plan duration:"
+    )
     
     # Create duration selection keyboard
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1382,22 +1325,16 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     total_ton = calculation['total_ton']
     total_usd = calculation['total_usd']
     
-    text = f"""
-Price **TON Payment Instructions**
-
-**Amount to Pay:** {total_ton} TON
-**USD Equivalent:** ${total_usd:.2f}
-
-**Payment Address:**
-`UQC7VpEhRnW16_7FdTf_9QrF4AEqFRCVRJnSJZDKOLKSqxjE`
-
-**Important:**
-- Send exactly {total_ton} TON
-- Include memo: AB0102-{user_id}
-- Payment must be confirmed within 30 minutes
-
-After payment, your ad will be processed and published to all selected channels.
-    """.strip()
+    text = "**TON Payment Instructions**\n\n"
+    text += f"**Amount to Pay:** {total_ton} TON\n"
+    text += f"**USD Equivalent:** ${total_usd:.2f}\n\n"
+    text += "**Payment Address:**\n"
+    text += "`UQC7VpEhRnW16_7FdTf_9QrF4AEqFRCVRJnSJZDKOLKSqxjE`\n\n"
+    text += "**Important:**\n"
+    text += f"- Send exactly {total_ton} TON\n"
+    text += f"- Include memo: AB0102-{user_id}\n"
+    text += "- Payment must be confirmed within 30 minutes\n\n"
+    text += "After payment, your ad will be processed and published to all selected channels."
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Yes Payment Sent", callback_data="payment_sent")],
@@ -1511,13 +1448,13 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                 plan_text = f"{duration_months} month(s)" if duration_months == 1 else f"{duration_months} months"
                 
                 payment_summary = f"Star **Telegram Stars Payment - Progressive Plan**\n\n"
-                payment_summary += f"⏰ **Plan:** {plan_text}\n"
+                payment_summary += f" **Plan:** {plan_text}\n"
                 payment_summary += f"Stats **Frequency:** {posts_per_day} posts/day\n"
                 payment_summary += f"Growth **Total Posts:** {total_posts * len(selected_channels):,} posts\n"
                 if discount_percent > 0:
                     payment_summary += f"Price **Discount:** {discount_percent}% OFF\n"
-                payment_summary += f"💳 **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
-                payment_summary += f"📺 **Channels:** {len(selected_channels)} (No per-channel fee)\n\n"
+                payment_summary += f" **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
+                payment_summary += f" **Channels:** {len(selected_channels)} (No per-channel fee)\n\n"
                 
                 payment_summary += f"Tip **Plan covers all selected channels:**\n"
                 for detail in channel_pricing_details:
@@ -1610,7 +1547,7 @@ async def confirm_payment_handler(callback_query: CallbackQuery, state: FSMConte
         
         # Show checking message
         await callback_query.message.edit_text(
-            "🔍 **Checking Payment...**\n\nPlease wait while we verify your payment...",
+            " **Checking Payment...**\n\nPlease wait while we verify your payment...",
             parse_mode='Markdown'
         )
         
@@ -1699,7 +1636,7 @@ async def handle_successful_payment(callback_query: CallbackQuery, state: FSMCon
         
         # Ensure we have content
         if not ad_content:
-            ad_content = "📢 Your advertisement is now live! Contact @I3lani_bot for more details."
+            ad_content = " Your advertisement is now live! Contact @I3lani_bot for more details."
         
         # Publish ad to I3lani channel immediately
         bot = callback_query.bot
@@ -1708,7 +1645,7 @@ async def handle_successful_payment(callback_query: CallbackQuery, state: FSMCon
         
         try:
             # Format ad with proper branding
-            formatted_content = f"📢 Advertisement\n\n{ad_content}\n\n✨ Advertise with @I3lani_bot"
+            formatted_content = f" Advertisement\n\n{ad_content}\n\n Advertise with @I3lani_bot"
             
             # Publish based on content type
             if ad_media and ad_media.get('file_id'):
@@ -1782,11 +1719,11 @@ Your campaign is running successfully!
             ])
         else:
             confirmation_text = f"""
-Yes **Payment Confirmed**
+**Payment Confirmed**
 
-📋 **Payment ID:** {payment_id}
-Warning **Publishing Status:** In progress
-⏰ **Estimated Time:** Within 24 hours
+**Payment ID:** {payment_id}
+**Publishing Status:** In progress
+**Estimated Time:** Within 24 hours
 
 Your payment has been confirmed. Your ad will be published to the I3lani channel shortly.
             """.strip()
@@ -1831,26 +1768,21 @@ async def handle_payment_not_found(callback_query: CallbackQuery, payment_record
             )]
         ])
         
-        payment_not_found_text = f"""
-No **Payment Not Found**
-
-We couldn't find your payment on the TON blockchain yet.
-
-📋 **Payment Details:**
-- Amount: {payment_record['amount']} TON
-- Memo: {payment_record['memo']}
-- Wallet: UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB
-
-Warning **Please ensure:**
-- You sent the exact amount
-- You included the correct memo
-- Payment was sent from your personal wallet (not exchange)
-
-🔍 **Check your transaction:**
-https://tonviewer.com/UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB
-
-Would you like to try again?
-        """.strip()
+        payment_not_found_text = (
+            "**Payment Not Found**\n\n"
+            "We could not find your payment on the TON blockchain yet.\n\n"
+            "**Payment Details:**\n"
+            f"- Amount: {payment_record['amount']} TON\n"
+            f"- Memo: {payment_record['memo']}\n"
+            "- Wallet: UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB\n\n"
+            "**Please ensure:**\n"
+            "- You sent the exact amount\n"
+            "- You included the correct memo\n"
+            "- Payment was sent from your personal wallet (not exchange)\n\n"
+            "**Check your transaction:**\n"
+            "https://tonviewer.com/UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB\n\n"
+            "Would you like to try again?"
+        )
         
         await callback_query.message.edit_text(
             payment_not_found_text,
@@ -1865,7 +1797,7 @@ Would you like to try again?
 
 @router.callback_query(F.data == "my_ads")
 async def my_ads_handler(callback_query: CallbackQuery):
-    """Show user's ads dashboard"""
+    """Show user ads dashboard"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
@@ -1919,14 +1851,14 @@ async def share_earn_handler(callback_query: CallbackQuery):
     referral_stats = await db.get_referral_stats(user_id)
     
     share_text = f"""
-📺 **{get_text(language, 'share_channels')}**
+**{get_text(language, 'share_channels')}**
 
-Target **Share Our Channels & Earn:**
+**Share Our Channels & Earn:**
 - Share I3lani channel with friends
 - Get 10% discount on next campaign
 - Help grow our community
 
-📺 **Available Channels:**
+ **Available Channels:**
 """
     
     for channel in channels:
@@ -1943,13 +1875,13 @@ Stats **Your Referral Stats:**
 - Total Referrals: {referral_stats.get('total_referrals', 0)}
 - Free Days Earned: {referral_stats.get('total_referrals', 0) * 3}
 
-📎 **Your Bot Referral Link:**
+ **Your Bot Referral Link:**
 `https://t.me/I3lani_bot?start=ref_{user_id}`
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📺 Share I3lani Channel", url="https://t.me/share/url?url=https://t.me/i3lani&text=Join I3lani Channel!"),
+            InlineKeyboardButton(text=" Share I3lani Channel", url="https://t.me/share/url?url=https://t.me/i3lani&text=Join I3lani Channel!"),
         ],
         [
             InlineKeyboardButton(text="🤖 Share Bot", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Try I3lani advertising bot!")
@@ -2046,7 +1978,7 @@ async def support_command(message: Message):
     language = await get_user_language(user_id)
     
     support_text = f"""
-🆘 **{get_text(language, 'support_title', default='Support')}**
+ **{get_text(language, 'support_title', default='Support')}**
 
 **{get_text(language, 'need_help', default='Need Help?')}**
 
@@ -2334,16 +2266,16 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
         pricing_breakdown += "\n- Channel Coverage: All selected channels included"
         
         payment_text = f"""
-💳 **Payment Required - Progressive Plan**
+ **Payment Required - Progressive Plan**
 
-📺 **Selected Channels:** {len(selected_channels)} (No per-channel fee)
-⏰ **Plan Duration:** {plan_text}
+ **Selected Channels:** {len(selected_channels)} (No per-channel fee)
+ **Plan Duration:** {plan_text}
 Stats **Posting Frequency:** {posts_per_day} posts/day per channel
 Growth **Total Posts:** {total_posts * len(selected_channels):,} posts across all channels
 
 Tip **Plan Details:**
 {pricing_breakdown}
-━━━━━━━━━━━━━━━━━
+
 Price **Total Price:** ${total_price_usd:.2f} USD
 Star **Stars Price:** {total_price_stars:,} Stars
 
@@ -2552,9 +2484,9 @@ async def back_to_photos_handler(callback_query: CallbackQuery, state: FSMContex
     await state.set_state(AdCreationStates.upload_photos)
     
     await callback_query.message.edit_text(
-        "📸 **Upload Photos** (Optional)\n\nYou can upload up to 5 photos for your ad.\n\n📷 Send photos one by one, or skip this step.",
+        " **Upload Photos** (Optional)\n\nYou can upload up to 5 photos for your ad.\n\n Send photos one by one, or skip this step.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⏭️ Skip Photos", callback_data="skip_photos")],
+            [InlineKeyboardButton(text=" Skip Photos", callback_data="skip_photos")],
             [InlineKeyboardButton(text="Back Back to Ad Details", callback_data="back_to_details")]
         ]),
         parse_mode='Markdown'
@@ -2568,7 +2500,7 @@ async def back_to_details_handler(callback_query: CallbackQuery, state: FSMConte
     await state.set_state(AdCreationStates.enter_ad_details)
     
     await callback_query.message.edit_text(
-        "Edit️ **Enter Ad Details**\n\nPlease provide detailed information about your ad:\n- Product/service description\n- Key features\n- Benefits\n- Call to action",
+        "Edit **Enter Ad Details**\n\nPlease provide detailed information about your ad:\n- Product/service description\n- Key features\n- Benefits\n- Call to action",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Back Back to Location", callback_data="back_to_location")]
         ]),
@@ -2635,7 +2567,7 @@ async def add_more_photos_handler(callback_query: CallbackQuery, state: FSMConte
     await state.set_state(AdCreationStates.upload_photos)
     
     await callback_query.message.edit_text(
-        "📸 **Upload More Photos**\n\nSend additional photos for your ad (up to 5 total).",
+        " **Upload More Photos**\n\nSend additional photos for your ad (up to 5 total).",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Yes Done with Photos", callback_data="done_photos")],
             [InlineKeyboardButton(text="Back Back to Contact", callback_data="back_to_contact")]
@@ -2668,7 +2600,7 @@ async def payment_timeout_handler(callback_query: CallbackQuery, state: FSMConte
     language = await get_user_language(user_id)
     
     timeout_text = f"""
-⏰ **Payment Timeout**
+ **Payment Timeout**
 
 Your payment session has expired.
 
@@ -2682,7 +2614,7 @@ What would you like to do?
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Refresh Retry Payment", callback_data=f"retry_payment_{payment_id}")],
-        [InlineKeyboardButton(text="💳 Change Method", callback_data="change_payment_method")],
+        [InlineKeyboardButton(text=" Change Method", callback_data="change_payment_method")],
         [InlineKeyboardButton(text="Home Main Menu", callback_data="back_to_main")]
     ])
     
@@ -2698,7 +2630,7 @@ async def change_payment_method_handler(callback_query: CallbackQuery, state: FS
     
     await state.set_state(AdCreationStates.payment_method)
     await callback_query.message.edit_text(
-        "💳 **Choose Payment Method**\n\nSelect your preferred payment option:",
+        " **Choose Payment Method**\n\nSelect your preferred payment option:",
         reply_markup=create_payment_method_keyboard(language),
         parse_mode='Markdown'
     )
@@ -2750,7 +2682,7 @@ async def continue_flow_handler(callback_query: CallbackQuery, state: FSMContext
         await back_to_photos_handler(callback_query, state)
     elif current_state == AdCreationStates.payment_method:
         await callback_query.message.edit_text(
-            "💳 **Choose Payment Method**",
+            " **Choose Payment Method**",
             reply_markup=create_payment_method_keyboard(language)
         )
     else:
@@ -2854,7 +2786,7 @@ async def handle_successful_payment(message: Message, state: FSMContext):
         
         try:
             # Format ad with branding
-            formatted_content = f"📢 **Advertisement**\n\n{ad_content}\n\n✨ *Advertise with @I3lani_bot*"
+            formatted_content = f" **Advertisement**\n\n{ad_content}\n\n *Advertise with @I3lani_bot*"
             
             # Publish based on content type
             if ad_media and ad_media.get('file_id'):
@@ -2994,11 +2926,11 @@ Select a subcategory:
 async def edit_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle edit ad request"""
     await callback_query.message.edit_text(
-        "Edit️ **Edit Ad**\n\nWhat would you like to edit?",
+        "Edit **Edit Ad**\n\nWhat would you like to edit?",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Content Ad Details", callback_data="edit_ad_details")],
             [InlineKeyboardButton(text="**Phone** Contact Info", callback_data="edit_contact_info")],
-            [InlineKeyboardButton(text="📷 Photos", callback_data="edit_photos")],
+            [InlineKeyboardButton(text=" Photos", callback_data="edit_photos")],
             [InlineKeyboardButton(text="Back Back to Preview", callback_data="back_to_preview")]
         ]),
         parse_mode='Markdown'
@@ -3175,7 +3107,7 @@ Type the number of posts per day:
 
 {discount_explanation}
 
-💳 **Choose your payment method:**
+ **Choose your payment method:**
         """.strip()
         
         # Create payment keyboard
