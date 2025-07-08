@@ -1605,7 +1605,7 @@ Select posts per day:"""
 
 @router.callback_query(F.data == "pay_dynamic_ton")
 async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle TON payment for dynamic pricing"""
+    """Handle TON payment for dynamic pricing with wallet address and memo"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
@@ -1613,7 +1613,7 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     calculation = data.get('pricing_calculation', {})
     
     if not calculation or 'total_ton' not in calculation:
-        await callback_query.answer("No Invalid payment data")
+        await callback_query.answer("Invalid payment data")
         return
     
     total_ton = calculation['total_ton']
@@ -1622,16 +1622,42 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     # Generate payment memo
     memo = payment_processor.generate_memo()
     
-    # Automatically confirm payment (since TON should confirm automatically)
-    text = f"**TON Payment Confirmed!**\n\n"
+    # TON wallet address (replace with your actual wallet address)
+    ton_wallet = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    
+    # Create payment expiration timestamp (20 minutes from now)
+    import time
+    expiration_time = int(time.time()) + (20 * 60)  # 20 minutes
+    
+    # Store payment info for monitoring
+    await state.update_data(
+        payment_memo=memo,
+        payment_amount_ton=total_ton,
+        payment_amount_usd=total_usd,
+        payment_expiration=expiration_time,
+        payment_status="pending"
+    )
+    
+    # TonViewer monitoring link
+    tonviewer_link = f"https://tonviewer.com/{ton_wallet}"
+    
+    text = f"**TON Payment Required**\n\n"
     text += f"**Amount:** {total_ton} TON (${total_usd:.2f})\n"
-    text += f"**Payment ID:** {memo}\n\n"
-    text += "✅ Your ad has been successfully created and will be published to all selected channels shortly.\n\n"
-    text += "Thank you for using I3lani Bot!"
+    text += f"**Wallet Address:**\n`{ton_wallet}`\n\n"
+    text += f"**Payment Memo:**\n`{memo}`\n\n"
+    text += f"**⏰ Payment expires in 20 minutes**\n\n"
+    text += f"**Instructions:**\n"
+    text += f"1. Send exactly **{total_ton} TON** to the wallet address above\n"
+    text += f"2. Include the memo: `{memo}`\n"
+    text += f"3. Payment will be verified automatically\n\n"
+    text += f"**Monitor your payment:** [TonViewer]({tonviewer_link})\n\n"
+    text += f"⚠️ Payment must be completed within 20 minutes or it will expire."
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")],
-        [InlineKeyboardButton(text="My Ads", callback_data="my_ads")]
+        [InlineKeyboardButton(text="✅ I Made the Payment", callback_data=f"check_ton_payment_{memo}")],
+        [InlineKeyboardButton(text="📋 Copy Wallet Address", callback_data=f"copy_wallet_{memo}")],
+        [InlineKeyboardButton(text="🔄 Refresh Status", callback_data=f"refresh_ton_status_{memo}")],
+        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
     ])
     
     try:
@@ -1639,7 +1665,10 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     except (AttributeError, Exception):
         await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
     
-    await callback_query.answer("Payment confirmed automatically!")
+    await callback_query.answer("TON payment details provided!")
+    
+    # Start monitoring payment in background
+    asyncio.create_task(monitor_ton_payment(user_id, memo, total_ton, expiration_time, state))
 
 
 @router.callback_query(F.data == "pay_dynamic_stars")
@@ -1678,22 +1707,255 @@ async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMCon
         logger.error(f"Error creating Stars payment: {e}")
         await callback_query.message.answer("Error creating Stars payment. Please try again.")
     
-    await callback_query.answer("Star Stars payment created!")
+    await callback_query.answer("Stars payment created!")
 
 
-# Update state
-    await state.update_data(
-        duration_months=duration,
-        total_price=total_price,
-        currency=currency
-    )
-    await state.set_state(AdCreationStates.payment_method)
+# TonViewer monitoring and payment verification functions
+async def monitor_ton_payment(user_id: int, memo: str, amount_ton: float, expiration_time: int, state: FSMContext):
+    """Monitor TON payment using TonViewer API"""
+    import time
+    import requests
     
-    await callback_query.message.edit_text(
-        f"{pricing_text}\n\n{get_text(language, 'choose_payment')}",
-        reply_markup=create_payment_method_keyboard(language)
-    )
-    await callback_query.answer()
+    # Monitor for 20 minutes (1200 seconds)
+    start_time = time.time()
+    check_interval = 30  # Check every 30 seconds
+    
+    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    
+    while time.time() < expiration_time:
+        try:
+            # Check TonViewer API for transactions
+            api_url = f"https://tonapi.io/v1/blockchain/accounts/{wallet_address}/transactions"
+            response = requests.get(api_url, timeout=10)
+            
+            if response.status_code == 200:
+                transactions = response.json().get('transactions', [])
+                
+                # Check recent transactions for our memo
+                for tx in transactions:
+                    if tx.get('in_msg', {}).get('message') == memo:
+                        tx_amount = tx.get('in_msg', {}).get('value', 0) / 1000000000  # Convert from nanotons
+                        
+                        # Verify amount matches (with small tolerance for fees)
+                        if abs(tx_amount - amount_ton) < 0.01:
+                            # Payment found and verified!
+                            await handle_successful_ton_payment(user_id, memo, amount_ton, state)
+                            return
+            
+            # Wait before next check
+            await asyncio.sleep(check_interval)
+            
+        except Exception as e:
+            logger.error(f"Error monitoring TON payment: {e}")
+            await asyncio.sleep(check_interval)
+    
+    # Payment expired
+    await handle_expired_ton_payment(user_id, memo, state)
+
+
+async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: float, state: FSMContext):
+    """Handle successful TON payment verification"""
+    try:
+        # Update payment status
+        await state.update_data(payment_status="confirmed")
+        
+        # Get user data
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        ad_content = data.get('ad_content', '')
+        
+        # Create ad in database
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=ad_content,
+            media_url=data.get('media_url'),
+            content_type=data.get('content_type', 'text')
+        )
+        
+        # Create subscription for each selected channel
+        for channel in selected_channels:
+            await db.create_subscription(
+                user_id=user_id,
+                ad_id=ad_id,
+                channel_id=channel['id'],
+                duration_months=data.get('days', 1),
+                total_price=data.get('payment_amount_usd', 0),
+                currency='TON'
+            )
+        
+        # Send success notification to user
+        from main import bot
+        success_text = f"✅ **Payment Confirmed!**\n\n"
+        success_text += f"**Amount:** {amount_ton} TON\n"
+        success_text += f"**Payment ID:** {memo}\n\n"
+        success_text += "Your ad has been successfully created and will be published to all selected channels shortly!\n\n"
+        success_text += "Thank you for using I3lani Bot!"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")],
+            [InlineKeyboardButton(text="My Ads", callback_data="my_ads")]
+        ])
+        
+        await bot.send_message(
+            chat_id=user_id,
+            text=success_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing successful TON payment: {e}")
+
+
+async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext):
+    """Handle expired TON payment"""
+    try:
+        # Update payment status
+        await state.update_data(payment_status="expired")
+        
+        # Send expiration notification to user
+        from main import bot
+        expiration_text = f"⏰ **Payment Expired**\n\n"
+        expiration_text += f"**Payment ID:** {memo}\n\n"
+        expiration_text += "Your TON payment has expired. Please create a new payment to continue.\n\n"
+        expiration_text += "Would you like to try again?"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Try Again", callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="back_to_main")]
+        ])
+        
+        await bot.send_message(
+            chat_id=user_id,
+            text=expiration_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing expired TON payment: {e}")
+
+
+# Handler for manual payment check
+@router.callback_query(F.data.startswith("check_ton_payment_"))
+async def check_ton_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle manual payment check"""
+    memo = callback_query.data.replace("check_ton_payment_", "")
+    
+    # Get payment data
+    data = await state.get_data()
+    amount_ton = data.get('payment_amount_ton', 0)
+    
+    # Manually check payment status
+    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    
+    try:
+        # Check TonViewer API for transactions
+        api_url = f"https://tonapi.io/v1/blockchain/accounts/{wallet_address}/transactions"
+        response = requests.get(api_url, timeout=10)
+        
+        if response.status_code == 200:
+            transactions = response.json().get('transactions', [])
+            
+            # Check recent transactions for our memo
+            for tx in transactions:
+                if tx.get('in_msg', {}).get('message') == memo:
+                    tx_amount = tx.get('in_msg', {}).get('value', 0) / 1000000000  # Convert from nanotons
+                    
+                    # Verify amount matches (with small tolerance for fees)
+                    if abs(tx_amount - amount_ton) < 0.01:
+                        # Payment found and verified!
+                        await handle_successful_ton_payment(callback_query.from_user.id, memo, amount_ton, state)
+                        await callback_query.answer("✅ Payment verified successfully!")
+                        return
+        
+        # Payment not found
+        await callback_query.answer("⏳ Payment not found yet. Please wait a few minutes and try again.")
+        
+    except Exception as e:
+        logger.error(f"Error checking TON payment: {e}")
+        await callback_query.answer("❌ Error checking payment. Please try again.")
+
+
+# Handler for copying wallet address
+@router.callback_query(F.data.startswith("copy_wallet_"))
+async def copy_wallet_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle wallet address copy"""
+    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    
+    await callback_query.answer(f"Wallet address copied: {wallet_address}")
+
+
+# Handler for refreshing payment status
+@router.callback_query(F.data.startswith("refresh_ton_status_"))
+async def refresh_ton_status_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payment status refresh"""
+    memo = callback_query.data.replace("refresh_ton_status_", "")
+    
+    # Get payment data
+    data = await state.get_data()
+    amount_ton = data.get('payment_amount_ton', 0)
+    amount_usd = data.get('payment_amount_usd', 0)
+    expiration_time = data.get('payment_expiration', 0)
+    
+    # Check if payment has expired
+    import time
+    if time.time() > expiration_time:
+        await handle_expired_ton_payment(callback_query.from_user.id, memo, state)
+        return
+    
+    # Calculate remaining time
+    remaining_time = int((expiration_time - time.time()) / 60)  # Minutes
+    
+    # Update the message with current status
+    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    tonviewer_link = f"https://tonviewer.com/{wallet_address}"
+    
+    text = f"**TON Payment Required**\n\n"
+    text += f"**Amount:** {amount_ton} TON (${amount_usd:.2f})\n"
+    text += f"**Wallet Address:**\n`{wallet_address}`\n\n"
+    text += f"**Payment Memo:**\n`{memo}`\n\n"
+    text += f"**⏰ Payment expires in {remaining_time} minutes**\n\n"
+    text += f"**Instructions:**\n"
+    text += f"1. Send exactly **{amount_ton} TON** to the wallet address above\n"
+    text += f"2. Include the memo: `{memo}`\n"
+    text += f"3. Payment will be verified automatically\n\n"
+    text += f"**Monitor your payment:** [TonViewer]({tonviewer_link})\n\n"
+    text += f"⚠️ Payment must be completed within {remaining_time} minutes or it will expire."
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ I Made the Payment", callback_data=f"check_ton_payment_{memo}")],
+        [InlineKeyboardButton(text="📋 Copy Wallet Address", callback_data=f"copy_wallet_{memo}")],
+        [InlineKeyboardButton(text="🔄 Refresh Status", callback_data=f"refresh_ton_status_{memo}")],
+        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
+    ])
+    
+    try:
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("Status refreshed!")
+    except Exception as e:
+        logger.error(f"Error refreshing payment status: {e}")
+        await callback_query.answer("Error refreshing status")
+
+
+# Handler for canceling payment
+@router.callback_query(F.data == "cancel_payment")
+async def cancel_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payment cancellation"""
+    await state.update_data(payment_status="cancelled")
+    
+    text = "❌ Payment cancelled. You can create a new ad anytime."
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Create New Ad", callback_data="create_ad")],
+        [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")]
+    ])
+    
+    try:
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await callback_query.answer("Payment cancelled")
+    except Exception as e:
+        logger.error(f"Error cancelling payment: {e}")
+        await callback_query.answer("Payment cancelled")
 
 
 @router.callback_query(F.data.startswith("payment_"))
