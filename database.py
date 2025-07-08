@@ -311,6 +311,22 @@ Last updated: July 2025"""
             print(f"Error setting user language: {e}")
             return False
     
+    async def get_active_channels(self) -> List[Dict]:
+        """Get all active advertising channels"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute('''
+                    SELECT * FROM channels 
+                    WHERE is_active = 1 
+                    ORDER BY name
+                ''') as cursor:
+                    rows = await cursor.fetchall()
+                    return [dict(row) for row in rows]
+        except Exception as e:
+            print(f"Error getting active channels: {e}")
+            return []
+    
     async def update_user_language(self, user_id: int, language: str) -> bool:
         """Update user language"""
         try:

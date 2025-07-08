@@ -15,6 +15,8 @@ from admin_system import setup_admin_handlers
 from stars_handler import init_stars_handler, setup_stars_handlers
 from channel_manager import init_channel_manager, handle_my_chat_member
 from publishing_scheduler import init_scheduler
+from troubleshooting import init_troubleshooting_system
+from troubleshooting_handlers import troubleshooting_router, init_troubleshooting_handlers
 
 # Configure logging
 logging.basicConfig(
@@ -80,6 +82,13 @@ async def main():
         await gamification.initialize_gamification_tables()
         logger.info("Gamification system initialized successfully")
         
+        # Initialize troubleshooting system
+        logger.info("Initializing troubleshooting system...")
+        troubleshooting_system = await init_troubleshooting_system(db, bot)
+        init_troubleshooting_handlers(troubleshooting_system)
+        dp.include_router(troubleshooting_router)
+        logger.info("Troubleshooting system initialized successfully")
+        
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         
@@ -104,7 +113,10 @@ async def main():
             BotCommand(command="referral", description="💰 Referral System"),
             BotCommand(command="support", description="🆘 Get Support"),
             BotCommand(command="help", description="❓ Help & Guide"),
-            BotCommand(command="admin", description="🔧 Admin Panel")
+            BotCommand(command="admin", description="🔧 Admin Panel"),
+            BotCommand(command="health", description="🏥 System Health (Admin)"),
+            BotCommand(command="troubleshoot", description="🛠️ Troubleshooting (Admin)"),
+            BotCommand(command="report_issue", description="📝 Report Issue")
         ])
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
         

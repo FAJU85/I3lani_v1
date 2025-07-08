@@ -91,6 +91,11 @@ class TelegramStarsHandler:
         """Setup Flask backend for webhook handling"""
         self.flask_app = Flask(__name__)
         
+        @self.flask_app.route('/health')
+        def health_check():
+            """Health check endpoint for troubleshooting system"""
+            return {'status': 'ok', 'timestamp': datetime.now().isoformat()}, 200
+        
         @self.flask_app.route('/', methods=['GET'])
         def home():
             return jsonify({
