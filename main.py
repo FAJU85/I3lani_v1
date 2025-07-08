@@ -80,9 +80,9 @@ async def main():
     # Force cleanup any existing bot processes
     import subprocess
     try:
-        subprocess.run(["pkill", "-f", "aiogram"], capture_output=True)
-        subprocess.run(["pkill", "-f", "I3lani"], capture_output=True)
-        await asyncio.sleep(2)  # Wait for cleanup
+        subprocess.run(["pkill", "-f", "python main.py"], capture_output=True, timeout=5)
+        subprocess.run(["pkill", "-f", "aiogram"], capture_output=True, timeout=5)
+        await asyncio.sleep(1)  # Wait for cleanup
     except:
         pass
     
