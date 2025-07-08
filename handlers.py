@@ -4887,6 +4887,124 @@ Thank you for using I3lani Bot!
 def setup_handlers(dp):
     """Setup all handlers"""
     dp.include_router(router)
+    
+    # Content moderation handlers
+    @router.callback_query(F.data == "admin_moderation")
+    async def admin_moderation_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle admin moderation callback"""
+        user_id = callback_query.from_user.id
+        
+        from admin_system import admin_system
+        if not admin_system.is_admin(user_id):
+            await callback_query.answer("Access denied")
+            return
+        
+        await admin_system.show_moderation_panel(callback_query)
+
+    @router.callback_query(F.data == "admin_violations")
+    async def admin_violations_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle admin violations callback"""
+        user_id = callback_query.from_user.id
+        
+        from admin_system import admin_system
+        if not admin_system.is_admin(user_id):
+            await callback_query.answer("Access denied")
+            return
+        
+        await admin_system.show_violation_reports(callback_query)
+
+    @router.callback_query(F.data.startswith("edit_ad_"))
+    async def edit_ad_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle edit ad callback after content violation"""
+        user_id = callback_query.from_user.id
+        order_id = callback_query.data.split("_")[2]
+        
+        try:
+            # Set state for content editing
+            await state.update_data(order_id=order_id, editing_content=True)
+            await state.set_state(AdCreationStates.upload_content)
+            
+            await callback_query.message.edit_text(
+                "📝 **Edit Your Ad Content**\n\n"
+                "Please upload your new content (text, photo, or video) that complies with our guidelines:\n\n"
+                "✅ No hate speech or discrimination\n"
+                "✅ No adult or illegal content\n"
+                "✅ No spam or excessive promotion\n"
+                "✅ Respect cultural and religious values\n"
+                "✅ Follow international regulations\n\n"
+                "💡 Send your new content now:",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="❌ Cancel", callback_data="cancel_edit")]
+                ])
+            )
+            
+        except Exception as e:
+            logger.error(f"Edit ad error: {e}")
+            await callback_query.answer("Error processing edit request")
+
+    @router.callback_query(F.data.startswith("cancel_ad_"))
+    async def cancel_ad_callback(callback_query: CallbackQuery, state: FSMContext):
+        """Handle cancel ad callback"""
+        user_id = callback_query.from_user.id
+        order_id = callback_query.data.split("_")[2]
+        
+        try:
+            # Cancel the order
+            await db.cancel_order(order_id, "User cancelled due to content violation")
+            
+            await callback_query.message.edit_text(
+                "❌ **Ad Cancelled**\n\n"
+                "Your ad has been cancelled. You can create a new ad that complies with our guidelines at any time.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+                ])
+            )
+            
+        except Exception as e:
+            logger.error(f"Cancel ad error: {e}")
+            await callback_query.answer("Error cancelling ad")
+
+    @router.callback_query(F.data == "view_publishing_rules")
+    async def view_publishing_rules_callback(callback_query: CallbackQuery):
+        """Show publishing rules and guidelines"""
+        rules_text = """
+📋 **Publishing Rules & Guidelines**
+
+**Content Standards:**
+• No hate speech, discrimination, or harassment
+• No adult, sexual, or inappropriate content
+• No illegal activities or substances
+• No violence or harmful content
+• No spam or excessive promotional material
+• No fraudulent or misleading information
+
+**Cultural Compliance:**
+• Respect religious and cultural values
+• Follow Saudi Arabian regulations
+• Appropriate language and imagery
+• Cultural sensitivity required
+
+**International Standards:**
+• Human rights compliance
+• Privacy protection (GDPR)
+• Copyright respect
+• Financial regulations compliance
+
+**Violation Consequences:**
+• Strike 1-5: Warning + Edit opportunity
+• Strike 6: Permanent ban + No compensation
+
+**Need Help?**
+Contact @I3lani_support for assistance.
+        """.strip()
+        
+        await callback_query.message.edit_text(
+            rules_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Back", callback_data="back_to_main")]
+            ])
+        )
+    
     logger.info("Handlers setup completed")
 
 

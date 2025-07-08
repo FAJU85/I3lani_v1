@@ -1182,6 +1182,27 @@ async def is_user_blocked(self, user_id: int) -> bool:
             row = await cursor.fetchone()
             return bool(row)
 
+async def is_user_banned(self, user_id: int) -> bool:
+    """Check if user is banned for content violations"""
+    async with aiosqlite.connect(self.db_path) as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS banned_users (
+                user_id INTEGER PRIMARY KEY,
+                reason TEXT,
+                banned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'banned'
+            )
+        """)
+        
+        query = """
+        SELECT status FROM banned_users 
+        WHERE user_id = ? AND status = 'permanently_banned'
+        """
+        
+        async with conn.execute(query, (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return bool(row)
+
 # Bind methods to Database class
 Database._get_user_channels = _get_user_channels
 Database._get_channel_ads_count = _get_channel_ads_count  
@@ -1189,3 +1210,4 @@ Database._get_channel_by_id = _get_channel_by_id
 Database.log_user_interaction = log_user_interaction
 Database.log_user_action = log_user_action
 Database.is_user_blocked = is_user_blocked
+Database.is_user_banned = is_user_banned

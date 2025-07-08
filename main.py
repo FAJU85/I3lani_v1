@@ -67,6 +67,12 @@ async def main():
         from atomic_rewards import init_atomic_rewards
         init_atomic_rewards(db, bot)
         
+        # Initialize content moderation system
+        logger.info("Initializing content moderation system...")
+        from content_moderation import init_content_moderation
+        content_moderation = init_content_moderation(db, bot)
+        logger.info("Content moderation system initialized successfully")
+        
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         

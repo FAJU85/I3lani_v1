@@ -78,6 +78,10 @@ class AdminSystem:
                 InlineKeyboardButton(text="🔒 Security Center", callback_data="admin_security")
             ],
             [
+                InlineKeyboardButton(text="🛡️ Content Moderation", callback_data="admin_moderation"),
+                InlineKeyboardButton(text="📋 Violation Reports", callback_data="admin_violations")
+            ],
+            [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement")
             ],
@@ -568,6 +572,129 @@ Active Users: {active_users}
 
     async def get_active_sessions(self) -> int:
         return 45  # Mock data
+
+    async def show_moderation_panel(self, callback_query: CallbackQuery):
+        """Show content moderation management panel"""
+        try:
+            from content_moderation import ContentModerationSystem
+            moderation_system = ContentModerationSystem(db, self.bot)
+            
+            # Get moderation statistics
+            stats = await moderation_system.get_moderation_statistics()
+            
+            text = f"""
+🛡️ **Content Moderation Panel**
+
+**Strike System Status:**
+• Total Violations: {stats.get('total_violations', 0)}
+• Banned Users: {stats.get('banned_users', 0)}
+• Active Warnings: {stats.get('active_warnings', 0)}
+• Violations Today: {stats.get('violations_today', 0)}
+
+**Compliance Standards:**
+✅ Telegram Community Guidelines
+✅ International Regulations
+✅ Ethical Standards
+✅ Human Rights Compliance
+✅ Saudi Arabian Regulations
+
+**Six-Strike Policy:**
+• Strikes 1-5: Warning + Edit Opportunity
+• Strike 6: Permanent Ban + No Compensation
+            """.strip()
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton(text="📊 Violation Statistics", callback_data="mod_statistics"),
+                    InlineKeyboardButton(text="⚠️ Active Warnings", callback_data="mod_warnings")
+                ],
+                [
+                    InlineKeyboardButton(text="🚫 Banned Users", callback_data="mod_banned_users"),
+                    InlineKeyboardButton(text="📋 Violation History", callback_data="mod_violation_history")
+                ],
+                [
+                    InlineKeyboardButton(text="🔧 Moderation Settings", callback_data="mod_settings"),
+                    InlineKeyboardButton(text="📜 Moderation Logs", callback_data="mod_logs")
+                ],
+                [
+                    InlineKeyboardButton(text="🔄 Manual Review", callback_data="mod_manual_review"),
+                    InlineKeyboardButton(text="⚡ Quick Actions", callback_data="mod_quick_actions")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+                ]
+            ]
+            
+            await callback_query.message.edit_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Moderation panel error: {e}")
+            await callback_query.answer("Error loading moderation panel", show_alert=True)
+
+    async def show_violation_reports(self, callback_query: CallbackQuery):
+        """Show violation reports and statistics"""
+        try:
+            from content_moderation import ContentModerationSystem
+            moderation_system = ContentModerationSystem(db, self.bot)
+            
+            # Get detailed violation statistics
+            stats = await moderation_system.get_moderation_statistics()
+            
+            text = f"""
+📋 **Violation Reports Dashboard**
+
+**Daily Statistics:**
+• Violations Today: {stats.get('violations_today', 0)}
+• New Warnings: {stats.get('active_warnings', 0)}
+• Content Approved: {stats.get('approved_today', 0)}
+• Rejection Rate: {stats.get('rejection_rate', 0):.1f}%
+
+**Violation Categories:**
+• Hate Speech: {stats.get('hate_speech', 0)}
+• Adult Content: {stats.get('adult_content', 0)}
+• Illegal Content: {stats.get('illegal_content', 0)}
+• Fraud/Scam: {stats.get('fraud_scam', 0)}
+• Spam: {stats.get('spam', 0)}
+• Violence: {stats.get('violence', 0)}
+• Discrimination: {stats.get('discrimination', 0)}
+• Saudi Compliance: {stats.get('saudi_specific', 0)}
+
+**Strike Distribution:**
+• Strike 1: {stats.get('strike_1', 0)} users
+• Strike 2: {stats.get('strike_2', 0)} users
+• Strike 3: {stats.get('strike_3', 0)} users
+• Strike 4: {stats.get('strike_4', 0)} users
+• Strike 5: {stats.get('strike_5', 0)} users
+• Strike 6: {stats.get('banned_users', 0)} users (banned)
+            """.strip()
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton(text="📈 Detailed Analytics", callback_data="violation_analytics"),
+                    InlineKeyboardButton(text="🔍 Search Violations", callback_data="violation_search")
+                ],
+                [
+                    InlineKeyboardButton(text="📊 Export Report", callback_data="violation_export"),
+                    InlineKeyboardButton(text="🔔 Alert Settings", callback_data="violation_alerts")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+                ]
+            ]
+            
+            await callback_query.message.edit_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Violation reports error: {e}")
+            await callback_query.answer("Error loading violation reports", show_alert=True)
 
 # Initialize admin system
 admin_system = AdminSystem()
