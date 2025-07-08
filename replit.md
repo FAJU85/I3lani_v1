@@ -161,3 +161,11 @@ The application follows a modular architecture with clear separation of concerns
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Future Enhancements
+
+The user has expressed interest in converting the bot to:
+1. **Telegram Mini App** - Web-based interface running inside Telegram with better UI/UX
+2. **dApp** - Decentralized application leveraging TON blockchain for trustless operations
+
+Current architecture already supports this transition with TON payments and modular design.

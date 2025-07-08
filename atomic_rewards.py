@@ -19,19 +19,24 @@ class AtomicRewardSystem:
         self.database = database
         self.bot = bot
         
-        # TON reward rates (ALL REWARDS ARE IN TON ONLY - NO OTHER CURRENCIES)
+        # TON reward rates - Micro-rewards starting from 0.00005 TON
         self.REWARD_RATES = {
-            'registration': 5.0,        # 5 TON for new partner registration
-            'referral': 2.0,           # 2 TON per successful referral
-            'channel_add': 10.0,       # 10 TON for adding new channel
-            'subscriber_growth': 0.01, # 0.01 TON per new subscriber
-            'ad_host': 1.0,           # 1 TON per ad hosted
-            'monthly_bonus': 25.0,     # 25 TON monthly active bonus
-            'tier_upgrade': 50.0       # 50 TON for tier upgrades
+            'registration': 0.001,      # 0.001 TON for new partner registration
+            'referral': 0.0005,         # 0.0005 TON per successful referral
+            'channel_add': 0.002,       # 0.002 TON for adding new channel
+            'subscriber_growth': 0.00005, # 0.00005 TON per new subscriber
+            'ad_host': 0.0002,          # 0.0002 TON per ad hosted
+            'daily_bonus': 0.00005,     # 0.00005 TON daily active bonus
+            'weekly_bonus': 0.0005,     # 0.0005 TON weekly active bonus
+            'monthly_bonus': 0.005,     # 0.005 TON monthly active bonus
+            'tier_upgrade': 0.01,       # 0.01 TON for tier upgrades
+            'engagement': 0.00001,      # 0.00001 TON per interaction
+            'view_ad': 0.00005,         # 0.00005 TON per ad view
+            'share_content': 0.00002    # 0.00002 TON per content share
         }
         
-        # Minimum payout threshold - Made challenging but achievable
-        self.MIN_PAYOUT = 25.0  # 25 TON minimum (requires 12+ premium referrals or 50+ basic referrals)
+        # Minimum payout threshold - Very low for micro-rewards
+        self.MIN_PAYOUT = 0.01  # 0.01 TON minimum (achievable with regular activity)
         
         # TON wallet for distributions (would be configured in production)
         self.REWARD_WALLET = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
@@ -84,7 +89,7 @@ class AtomicRewardSystem:
             logger.error(f"Error processing atomic reward: {e}")
             return {'success': False, 'message': f'Error: {e}'}
     
-    async def process_instant_payout(self, user_id: int) -> Dict:
+    async def process_instant_payout(self, user_id: int, wallet_address: str = None) -> Dict:
         """Process instant TON payout when threshold is met"""
         
         try:
@@ -95,10 +100,21 @@ class AtomicRewardSystem:
             payout_amount = partner_status['pending_rewards']
             
             if payout_amount < self.MIN_PAYOUT:
-                return {'success': False, 'message': 'Below minimum payout threshold'}
+                return {'success': False, 'message': f'Below minimum payout threshold ({self.MIN_PAYOUT} TON)'}
             
-            # In production, this would trigger actual TON transfer
-            # For now, we'll mark as processed and notify user
+            # Get user wallet address if not provided
+            if not wallet_address:
+                user_wallet = await self.database.get_user_wallet(user_id)
+                if not user_wallet:
+                    return {'success': False, 'message': 'No wallet address found. Please add your TON wallet address first.'}
+                wallet_address = user_wallet
+            
+            # Create withdrawal request
+            withdrawal_id = await self.database.create_withdrawal_request(
+                user_id=user_id,
+                amount=payout_amount,
+                wallet_address=wallet_address
+            )
             
             # Update partner status - clear pending rewards
             await self.database.execute_query('''
@@ -113,16 +129,22 @@ class AtomicRewardSystem:
                 channel_id=None,
                 reward_type='payout',
                 amount=payout_amount,
-                description=f'Instant TON payout - {payout_amount} TON'
+                description=f'TON withdrawal to {wallet_address[:8]}...{wallet_address[-8:]}'
             )
             
             # Send payout notification
-            await self.send_payout_notification(user_id, payout_amount)
+            await self.send_payout_notification(user_id, payout_amount, wallet_address)
+            
+            # In production, this would trigger actual TON transfer
+            # For now, log the withdrawal request
+            logger.info(f"Withdrawal request #{withdrawal_id}: {payout_amount} TON to {wallet_address}")
             
             return {
                 'success': True,
                 'amount': payout_amount,
-                'message': 'Instant payout processed'
+                'wallet': wallet_address,
+                'withdrawal_id': withdrawal_id,
+                'message': 'Withdrawal request processed successfully'
             }
             
         except Exception as e:
@@ -297,36 +319,37 @@ Your referral link: https://t.me/I3lani_bot?start=ref_{user_id}
         except Exception as e:
             logger.error(f"Error sending atomic notification: {e}")
     
-    async def send_payout_notification(self, user_id: int, amount: float):
+    async def send_payout_notification(self, user_id: int, amount: float, wallet_address: str):
         """Send payout notification"""
         
         try:
             notification_text = f"""
-🎉 **TON Payout Processed!**
+🎉 **TON Withdrawal Request Processed!**
 
-💰 **Payout Details:**
-- Amount: {amount} TON
-- Status: Completed
-- Wallet: {self.REWARD_WALLET}
+💰 **Withdrawal Details:**
+- Amount: {amount:.6f} TON
+- Status: Processing
+- Your Wallet: `{wallet_address}`
 
 🚀 **Transaction Info:**
-- Processing Time: Instant
+- Processing Time: Within 24 hours
 - Network: TON Blockchain  
-- Confirmation: Automatic
+- Min. Withdrawal: {self.MIN_PAYOUT} TON
 
-💡 **Keep Earning:**
-- Continue referring friends
-- Add more channels
-- Grow your subscriber base
-- Earn automatic TON rewards
+💡 **Keep Earning Micro-Rewards:**
+- Daily bonus: {self.REWARD_RATES['daily_bonus']} TON
+- Per referral: {self.REWARD_RATES['referral']} TON
+- Per ad view: {self.REWARD_RATES['view_ad']} TON
+- Per channel: {self.REWARD_RATES['channel_add']} TON
 
-🔗 **Share More:**
+🔗 **Share & Earn More:**
 Your referral link: https://t.me/I3lani_bot?start=ref_{user_id}
             """.strip()
             
             await self.bot.send_message(
                 chat_id=user_id,
-                text=notification_text
+                text=notification_text,
+                parse_mode='Markdown'
             )
             
         except Exception as e:

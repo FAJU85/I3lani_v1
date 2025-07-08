@@ -765,6 +765,89 @@ Last updated: July 2025"""
             print(f"Error getting referral count: {e}")
             return 0
     
+    async def get_user_wallet(self, user_id: int) -> Optional[str]:
+        """Get user's TON wallet address"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT wallet_address FROM users WHERE user_id = ?
+                ''', (user_id,))
+                result = await cursor.fetchone()
+                return result[0] if result and result[0] else None
+        except Exception as e:
+            print(f"Error getting user wallet: {e}")
+            return None
+    
+    async def set_user_wallet(self, user_id: int, wallet_address: str) -> bool:
+        """Set user's TON wallet address"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    UPDATE users SET wallet_address = ? WHERE user_id = ?
+                ''', (wallet_address, user_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error setting user wallet: {e}")
+            return False
+    
+    async def create_withdrawal_request(self, user_id: int, amount: float, wallet_address: str) -> Optional[int]:
+        """Create a withdrawal request"""
+        try:
+            import uuid
+            payout_id = str(uuid.uuid4())
+            
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    INSERT INTO payout_requests (user_id, amount, payout_id, wallet_address, status)
+                    VALUES (?, ?, ?, ?, 'pending')
+                ''', (user_id, amount, payout_id, wallet_address))
+                await db.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            print(f"Error creating withdrawal request: {e}")
+            return None
+    
+    async def get_pending_withdrawals(self) -> List[Dict]:
+        """Get all pending withdrawal requests"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute('''
+                    SELECT pr.*, u.username 
+                    FROM payout_requests pr
+                    JOIN users u ON pr.user_id = u.user_id
+                    WHERE pr.status = 'pending'
+                    ORDER BY pr.requested_at ASC
+                ''')
+                results = await cursor.fetchall()
+                return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting pending withdrawals: {e}")
+            return []
+    
+    async def update_withdrawal_status(self, withdrawal_id: int, status: str, transaction_hash: str = None) -> bool:
+        """Update withdrawal request status"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                if transaction_hash:
+                    await db.execute('''
+                        UPDATE payout_requests 
+                        SET status = ?, transaction_hash = ?, processed_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (status, transaction_hash, withdrawal_id))
+                else:
+                    await db.execute('''
+                        UPDATE payout_requests 
+                        SET status = ?
+                        WHERE id = ?
+                    ''', (status, withdrawal_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error updating withdrawal status: {e}")
+            return False
+    
     async def get_referral_by_ids(self, referrer_id: int, referred_id: int) -> Optional[Dict]:
         """Check if referral already exists"""
         try:

@@ -15,22 +15,22 @@ LANGUAGES = {
         'currency_symbol': '$',
         
         # Welcome and start
-        'welcome': '⬢━━━ I3LANI NEURAL NETWORK ━━━⬢\n▲ Welcome to Quantum Advertising ▲',
-        'choose_language': '◇━ NEURAL INTERFACE ━◇',
-        'language_selected': '◈ Neural Language: English 🇺🇸',
+        'welcome': '🎯 Welcome to I3lani Bot\nYour Professional Advertising Platform',
+        'choose_language': '🌐 Please select your language:',
+        'language_selected': '✅ Language: English 🇺🇸',
         'language_changed': '✅ Language changed to English successfully!',
         
         # Main menu
-        'main_menu': '◈━━ NEURAL PATHWAYS ━━◈\n◇ Multi-Channel Broadcasting\n◇ Quantum Payment Processing\n◇ Partner Network Mining\n◇ Real-time Analytics\n\n▣ SELECT PROTOCOL ▣',
-        'create_ad': '🚀 ▶ LAUNCH NEURAL BROADCAST',
-        'my_ads': '📊 ◆ My Quantum Matrix',
-        'pricing': '◇ Quantum Pricing', 
-        'share_earn': '💎 ◆ Earnings Portal',
-        'settings': '⚙️ ◈ Neural Settings',
-        'help': '🆘 ◈ Quantum Support',
-        'channel_partners': '🔗 ◇ Partner Network',
-        'gaming_hub': '🎮 ◇ Neural Gaming Hub',
-        'leaderboard': '🏆 ▲ QUANTUM LEADERBOARD ▲',
+        'main_menu': '📋 I3lani Main Menu\n\nCreate and manage your advertising campaigns across multiple channels.\n\nWhat would you like to do?',
+        'create_ad': '📢 Create Advertisement',
+        'my_ads': '📊 My Campaigns',
+        'pricing': '💰 View Pricing', 
+        'share_earn': '💎 Share & Earn Portal',
+        'settings': '⚙️ Settings',
+        'help': '❓ Help & Support',
+        'channel_partners': '🤝 Partner Network',
+        'gaming_hub': '🎮 Gaming Hub',
+        'leaderboard': '🏆 Leaderboard',
         
         # Navigation
         'back': '⬅️ Back',
