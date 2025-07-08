@@ -11,6 +11,9 @@ import asyncio
 from datetime import datetime
 from flask import Flask, jsonify, request
 
+# Set environment variable to prevent duplicate Flask servers
+os.environ['DISABLE_STARS_FLASK'] = '1'
+
 # Configure logging for deployment
 logging.basicConfig(
     level=logging.INFO,
@@ -70,9 +73,11 @@ def run_bot():
     try:
         logger.info("Starting bot in background...")
         # Import and run the main bot
-        from main_bot import run_bot as start_bot
-        bot_started = True  # Set to true when bot starts
-        start_bot()
+        from main_bot import main as start_bot
+        # Set bot_started to True when bot initialization begins
+        bot_started = True
+        logger.info("Bot initialization started, setting bot_started=True")
+        asyncio.run(start_bot())
         logger.info("Bot started successfully")
     except Exception as e:
         logger.error(f"Bot error: {e}")
@@ -87,7 +92,22 @@ def main():
         
         # Get port from environment
         port = int(os.environ.get('PORT', 5001))
-        logger.info(f"Starting Flask server immediately on 0.0.0.0:{port}")
+        logger.info(f"Configuring Flask server on 0.0.0.0:{port}")
+        
+        # Test port availability before starting
+        import socket
+        try:
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.settimeout(1)
+            result = test_socket.connect_ex(('127.0.0.1', port))
+            test_socket.close()
+            
+            if result == 0:
+                logger.warning(f"Port {port} appears to be in use, but continuing...")
+            else:
+                logger.info(f"Port {port} is available")
+        except Exception as e:
+            logger.info(f"Port test completed: {e}")
         
         # Start bot in background thread
         bot_thread = threading.Thread(target=run_bot, daemon=True)
@@ -95,6 +115,7 @@ def main():
         logger.info("Bot started in background thread")
         
         # Run Flask server immediately (blocking) - this ensures port opens quickly
+        logger.info(f"Starting Flask server on 0.0.0.0:{port}...")
         app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
         
     except Exception as e:

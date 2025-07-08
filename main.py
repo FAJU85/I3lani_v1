@@ -303,14 +303,6 @@ async def init_bot():
         except:
             pass
 
-def run_flask_server(port=5001):
-    """Run Flask server for Cloud Run deployment"""
-    try:
-        logger.info(f"Starting Flask server on 0.0.0.0:{port}...")
-        app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
-    except Exception as e:
-        logger.error(f"Flask server error: {e}")
-
 def run_bot():
     """Run bot in background thread"""
     try:
@@ -322,32 +314,22 @@ def run_bot():
         traceback.print_exc()
 
 def main():
-    """Main application entry point - runs both Flask server and bot"""
+    """Main application entry point - direct bot execution"""
+    logger.info("Starting I3lani Bot from main.py...")
+    logger.info("Note: For deployment, use deployment_server.py instead")
+    
     try:
-        logger.info("Starting I3lani Bot application...")
+        # Set environment variable to prevent duplicate Flask servers
+        os.environ['DISABLE_STARS_FLASK'] = '1'
         
-        # Get port from environment for Cloud Run
-        port = int(os.environ.get('PORT', 5001))
-        logger.info(f"Starting Flask server immediately on 0.0.0.0:{port}")
+        # Run bot directly without Flask server
+        return asyncio.run(init_bot())
         
-        # Test immediate port binding to verify Flask server can start
-        try:
-            import socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind(('0.0.0.0', port))
-            s.close()
-            logger.info(f"Port {port} is available for Flask server")
-        except Exception as e:
-            logger.error(f"Port {port} binding test failed: {e}")
-            raise
-        
-        # Start bot in background thread WITHOUT stars_handler Flask server
-        bot_thread = threading.Thread(target=run_bot, daemon=True)
-        bot_thread.start()
-        logger.info("Bot started in background thread")
-        
-        # Start Flask server immediately in main thread (blocking)
-        # This ensures the port opens quickly for Cloud Run
+    except Exception as e:
+        logger.error(f"Main error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
         logger.info("Starting Flask server in main thread...")
         app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
         

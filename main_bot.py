@@ -2,6 +2,10 @@
 I3lani Telegram Bot - Core Bot Functionality
 Separated from Flask server for Cloud Run deployment
 """
+
+# Set environment variable to prevent duplicate Flask servers
+import os
+os.environ['DISABLE_STARS_FLASK'] = '1'
 import asyncio
 import logging
 import os
@@ -254,6 +258,17 @@ def run_bot():
         logger.error(f"Bot error: {e}")
         import traceback
         traceback.print_exc()
+
+async def main():
+    """Main entry point for deployment server"""
+    logger.info("Starting I3lani Bot main function...")
+    try:
+        await init_bot()
+    except Exception as e:
+        logger.error(f"Bot main error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 if __name__ == "__main__":
     # Configure logging for standalone bot
