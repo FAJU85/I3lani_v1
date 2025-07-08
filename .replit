@@ -22,7 +22,8 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
+args = "python deployment_server.py"
+waitForPort = 5001
 
 [deployment]
 deploymentTarget = "cloudrun"

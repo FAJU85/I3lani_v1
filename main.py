@@ -7,8 +7,11 @@ import logging
 import os
 import fcntl
 import sys
+import threading
+from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from flask import Flask, jsonify, request
 
 from config import BOT_TOKEN
 from database import init_db, db
@@ -33,6 +36,54 @@ logger = logging.getLogger(__name__)
 
 # Global lock file for preventing multiple instances
 LOCK_FILE = "/tmp/i3lani_bot.lock"
+
+# Flask app for Cloud Run deployment
+app = Flask(__name__)
+
+# Global bot instance
+bot_instance = None
+bot_started = False
+
+@app.route('/')
+def health_check():
+    """Health check endpoint for Cloud Run"""
+    return jsonify({
+        'status': 'ok',
+        'service': 'I3lani Telegram Bot',
+        'bot_status': 'running' if bot_started else 'starting',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/health')
+def health():
+    """Additional health endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'bot_running': bot_started,
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """Webhook endpoint for Telegram"""
+    try:
+        if bot_instance:
+            update = request.get_json()
+            # Process webhook update if needed
+            return jsonify({'status': 'processed'})
+        return jsonify({'status': 'bot_not_ready'})
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/status')
+def status():
+    """Bot status endpoint"""
+    return jsonify({
+        'bot_started': bot_started,
+        'uptime': datetime.now().isoformat(),
+        'status': 'operational' if bot_started else 'initializing'
+    })
 
 def acquire_lock():
     """Acquire lock to prevent multiple bot instances"""
@@ -74,8 +125,9 @@ def acquire_lock():
         logger.error("❌ Failed to acquire bot instance lock!")
         sys.exit(1)
 
-async def main():
-    """Main application entry point"""
+async def init_bot():
+    """Initialize and start the Telegram bot"""
+    global bot_instance, bot_started
     
     # Force cleanup any existing bot processes
     import subprocess
@@ -94,6 +146,7 @@ async def main():
         if not BOT_TOKEN:
             raise ValueError("BOT_TOKEN environment variable is required")
         bot = Bot(token=BOT_TOKEN)
+        bot_instance = bot
         storage = MemoryStorage()
         dp = Dispatcher(storage=storage)
         
@@ -204,6 +257,9 @@ async def main():
         ])
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
         
+        # Mark bot as started
+        bot_started = True
+        
         # Start polling
         logger.info("Starting I3lani Bot...")
         logger.info("Bot Features:")
@@ -222,6 +278,9 @@ async def main():
         traceback.print_exc()
         raise
     finally:
+        # Mark bot as stopped
+        bot_started = False
+        
         # Clean up lock file
         try:
             if 'lock_fd' in locals():
@@ -239,13 +298,66 @@ async def main():
         except:
             pass
 
+def run_flask_server():
+    """Run Flask server for Cloud Run deployment"""
+    try:
+        logger.info("Starting Flask server on 0.0.0.0:5001...")
+        app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)
+    except Exception as e:
+        logger.error(f"Flask server error: {e}")
+
+def run_bot():
+    """Run bot in background thread"""
+    try:
+        logger.info("Starting bot in background thread...")
+        asyncio.run(init_bot())
+    except Exception as e:
+        logger.error(f"Bot error: {e}")
+        import traceback
+        traceback.print_exc()
+
+def main():
+    """Main application entry point - runs both Flask server and bot"""
+    try:
+        logger.info("🚀 Starting I3lani Bot application...")
+        
+        # Start bot in background thread
+        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        bot_thread.start()
+        logger.info("🤖 Bot started in background thread")
+        
+        # Add a small delay to ensure bot starts
+        import time
+        time.sleep(3)
+        
+        # Run Flask server in main thread (blocking)
+        run_flask_server()
+        
+    except Exception as e:
+        logger.error(f"Main application error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        # Configure logging for deployment
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(sys.stdout),
+                logging.FileHandler('bot.log', mode='a')
+            ]
+        )
+        
+        logger.info("🚀 Starting I3lani Bot application...")
+        main()
     except KeyboardInterrupt:
-        print("Bot stopped by user")
+        logger.info("Bot stopped by user")
     except Exception as e:
-        print(f"Fatal error: {e}")
+        logger.error(f"Fatal error: {e}")
         import traceback
         traceback.print_exc()
+        sys.exit(1)
