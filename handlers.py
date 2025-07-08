@@ -23,6 +23,7 @@ from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
 from frequency_pricing import FrequencyPricingSystem
+from ui_effects import ui_effects
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -45,24 +46,190 @@ def create_language_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
-async def create_neural_main_menu_text(language: str, user_id: int) -> str:
-    """Create enhanced neural network main menu text with visual effects"""
+async def is_user_partner(user_id: int) -> bool:
+    """Check if user is a partner/affiliate"""
+    try:
+        partner_status = await db.get_partner_status(user_id)
+        return partner_status is not None
+    except:
+        return False
+
+async def create_regular_main_menu_text(language: str, user_id: int) -> str:
+    """Create standard main menu text for regular users"""
     
     # Get user stats for dynamic content
     user_stats = await db.get_user_stats(user_id)
     total_ads = user_stats.get('total_ads', 0) if user_stats else 0
     
-    # Use translation system for main menu text
+    # Add dynamic status indicators
+    status_indicators = {
+        'en': '🟢 ONLINE & READY',
+        'ar': '🟢 متصل وجاهز',
+        'ru': '🟢 ОНЛАЙН И ГОТОВ'
+    }
+    
+    welcome_text = {
+        'en': f"""
+<b>🎯 I3lani Advertising Platform</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Status:</b> {status_indicators['en']}
+<b>🔹 Professional advertising made simple</b>
+
+<b>📊 Your Dashboard:</b>
+• 📢 Total Campaigns: <code>{total_ads}</code>
+• 🎯 Account Status: <b>ACTIVE</b>
+• 🌟 Performance: <b>OPTIMIZED</b>
+
+<b>🚀 Platform Features:</b>
+• ✨ Smart ad creation tools
+• 📈 Multi-channel distribution  
+• 💎 Real-time analytics
+• 🔥 Professional targeting
+
+<b>💼 Ready to grow your business?</b>
+        """,
+        'ar': f"""
+<b>🎯 منصة I3lani للإعلانات</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<b>الحالة:</b> {status_indicators['ar']}
+<b>🔹 الإعلان المهني أصبح بسيطاً</b>
+
+<b>📊 لوحة التحكم:</b>
+• 📢 إجمالي الحملات: <code>{total_ads}</code>
+• 🎯 حالة الحساب: <b>نشط</b>
+• 🌟 الأداء: <b>محسّن</b>
+
+<b>🚀 ميزات المنصة:</b>
+• ✨ أدوات إنشاء إعلانات ذكية
+• 📈 توزيع متعدد القنوات
+• 💎 تحليلات فورية
+• 🔥 استهداف مهني
+
+<b>💼 هل أنت مستعد لتنمية عملك؟</b>
+        """,
+        'ru': f"""
+<b>🎯 Рекламная платформа I3lani</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Статус:</b> {status_indicators['ru']}
+<b>🔹 Профессиональная реклама стала простой</b>
+
+<b>📊 Ваша панель:</b>
+• 📢 Всего кампаний: <code>{total_ads}</code>
+• 🎯 Статус аккаунта: <b>АКТИВЕН</b>
+• 🌟 Производительность: <b>ОПТИМИЗИРОВАНА</b>
+
+<b>🚀 Возможности платформы:</b>
+• ✨ Умные инструменты создания рекламы
+• 📈 Многоканальное распространение
+• 💎 Аналитика в реальном времени
+• 🔥 Профессиональное таргетинг
+
+<b>💼 Готовы развивать свой бизнес?</b>
+        """
+    }
+    
+    return welcome_text.get(language, welcome_text['en']).strip()
+
+async def create_neural_main_menu_text(language: str, user_id: int) -> str:
+    """Create neural network main menu text for partners only"""
+    
+    # Use translation system for partner main menu text
     return get_text(language, 'main_menu')
 
-async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
-    """Create enhanced neural network main menu keyboard with visual effects"""
+async def create_regular_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
+    """Create standard main menu keyboard for regular users"""
     keyboard_rows = []
     
     # Check if user can use free trial
     can_use_trial = await db.check_free_trial_available(user_id)
     
-    # Free trial quantum gift for new users
+    # Free trial for new users (standard styling)
+    if can_use_trial:
+        free_trial_text = {
+            'en': '🎁 Free Trial (1 Day)',
+            'ar': '🎁 تجربة مجانية (يوم واحد)',
+            'ru': '🎁 Бесплатная пробная версия (1 день)'
+        }
+        keyboard_rows.append([
+            InlineKeyboardButton(
+                text=free_trial_text.get(language, free_trial_text['en']), 
+                callback_data="free_trial"
+            )
+        ])
+    
+    # Primary Actions Row
+    create_ad_text = {
+        'en': '📢 Create Advertisement',
+        'ar': '📢 إنشاء إعلان',
+        'ru': '📢 Создать рекламу'
+    }
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=create_ad_text.get(language, create_ad_text['en']), 
+            callback_data="create_ad"
+        )
+    ])
+    
+    my_ads_text = {
+        'en': '📊 My Advertisements',
+        'ar': '📊 إعلاناتي',
+        'ru': '📊 Мои объявления'
+    }
+    
+    partner_program_text = {
+        'en': '💼 Partner Program',
+        'ar': '💼 برنامج الشراكة',
+        'ru': '💼 Партнерская программа'
+    }
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=my_ads_text.get(language, my_ads_text['en']), 
+            callback_data="my_ads"
+        ),
+        InlineKeyboardButton(
+            text=partner_program_text.get(language, partner_program_text['en']), 
+            callback_data="join_partner_program"
+        )
+    ])
+    
+    # System Controls Row
+    settings_text = {
+        'en': '⚙️ Settings',
+        'ar': '⚙️ الإعدادات',
+        'ru': '⚙️ Настройки'
+    }
+    
+    help_text = {
+        'en': '❓ Help & Support',
+        'ar': '❓ المساعدة والدعم',
+        'ru': '❓ Помощь и поддержка'
+    }
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=settings_text.get(language, settings_text['en']), 
+            callback_data="settings"
+        ),
+        InlineKeyboardButton(
+            text=help_text.get(language, help_text['en']), 
+            callback_data="help"
+        )
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+
+async def create_partner_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
+    """Create neural network main menu keyboard for partners only"""
+    keyboard_rows = []
+    
+    # Check if user can use free trial
+    can_use_trial = await db.check_free_trial_available(user_id)
+    
+    # Free trial quantum gift for partners
     if can_use_trial:
         keyboard_rows.append([
             InlineKeyboardButton(
@@ -433,31 +600,51 @@ Contact: @I3lani_support
 
 
 async def show_main_menu(message_or_query, language: str):
-    """Show enhanced neural network main menu with visual effects"""
+    """Show appropriate main menu based on user type (regular vs partner)"""
     # Get user_id from message or callback query
     if isinstance(message_or_query, Message):
         user_id = message_or_query.from_user.id
+        chat_id = message_or_query.chat.id
+        bot = message_or_query.bot
     else:
         user_id = message_or_query.from_user.id
+        chat_id = message_or_query.message.chat.id
+        bot = message_or_query.bot
     
     logger.info(f"🎯 Showing main menu for user {user_id} in language: {language}")
     
-    # Create enhanced neural network main menu
-    text = await create_neural_main_menu_text(language, user_id)
-    keyboard = await create_main_menu_keyboard(language, user_id)
+    # Add typing simulation for better UX
+    await ui_effects.typing_simulation(bot, chat_id, "Loading your personalized interface...")
+    
+    # Check if user is a partner to determine interface style
+    is_partner = await is_user_partner(user_id)
+    
+    if is_partner:
+        # Show neural network interface for partners/affiliates
+        text = await create_neural_main_menu_text(language, user_id)
+        keyboard = await create_partner_main_menu_keyboard(language, user_id)
+        logger.info(f"🧠 Partner neural interface for user {user_id}")
+    else:
+        # Show standard interface for regular users
+        text = await create_regular_main_menu_text(language, user_id)
+        keyboard = await create_regular_main_menu_keyboard(language, user_id)
+        logger.info(f"👤 Regular interface for user {user_id}")
+    
+    # Enhance text with dynamic elements
+    user_stats = await db.get_user_stats(user_id) if db else {}
+    text = ui_effects.create_dynamic_menu_text(text, user_stats)
     
     logger.info(f"📝 Main menu text preview: {text[:50]}...")
     
     if isinstance(message_or_query, Message):
-        # Send typing action for better UX
-        await message_or_query.bot.send_chat_action(
-            chat_id=message_or_query.chat.id,
-            action="typing"
-        )
         await message_or_query.answer(text, reply_markup=keyboard, parse_mode='HTML')
     else:
         try:
-            await message_or_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
+            # Use fade transition for smoother UX
+            await ui_effects.fade_transition(message_or_query.message, 
+                                           message_or_query.message.text or "Loading...", 
+                                           text)
+            await message_or_query.message.edit_reply_markup(reply_markup=keyboard)
         except Exception as e:
             # If edit fails, send new message
             await message_or_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
@@ -472,17 +659,29 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         
         logger.info(f"🌍 Language selection: User {user_id} selected {language_code}")
         
+        # Show immediate feedback
+        await ui_effects.button_press_feedback(callback_query, "🌍 Updating language...")
+        
+        # Show loading animation
+        loading_text = "🔄 Configuring your language preferences..."
+        temp_message = await callback_query.message.edit_text(loading_text)
+        await ui_effects.show_loading_animation(temp_message, "Setting up interface", 2)
+        
         # Update user language in database
         success = await db.set_user_language(user_id, language_code)
         if success:
             logger.info(f"✅ Language {language_code} saved for user {user_id}")
+            # Show success animation
+            await ui_effects.success_animation(temp_message, f"Language updated to {language_code}!")
+            await asyncio.sleep(1)
         else:
             logger.error(f"❌ Failed to save language {language_code} for user {user_id}")
+            await ui_effects.error_shake_effect(temp_message, "Failed to update language")
+            return
         
         # Clear state and show main menu
         await state.clear()
         await show_main_menu(callback_query, language_code)
-        await callback_query.answer(get_text(language_code, 'language_changed'))
         
     except Exception as e:
         logger.error(f"Language selection error: {e}")
@@ -2232,8 +2431,9 @@ async def show_frequency_payment_summary(callback_query: CallbackQuery, state: F
     
     # Get channel names
     channel_names = []
+    all_channels = await db.get_channels(active_only=False)
     for channel_id in selected_channels:
-        channel = await db.get_channel(channel_id)
+        channel = next((ch for ch in all_channels if ch['channel_id'] == channel_id), None)
         if channel:
             channel_names.append(channel['name'])
     
@@ -2287,8 +2487,9 @@ async def show_frequency_payment_summary_message(message: Message, state: FSMCon
     
     # Get channel names
     channel_names = []
+    all_channels = await db.get_channels(active_only=False)
     for channel_id in selected_channels:
-        channel = await db.get_channel(channel_id)
+        channel = next((ch for ch in all_channels if ch['channel_id'] == channel_id), None)
         if channel:
             channel_names.append(channel['name'])
     
