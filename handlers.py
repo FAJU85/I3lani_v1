@@ -161,7 +161,7 @@ def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="11 Months - $2178 (40% off)", callback_data="duration_11_months"),
             InlineKeyboardButton(text="12 Months - $2409 (45% off)", callback_data="duration_12_months")
         ],
-        [InlineKeyboardButton(text="Back Back to Channels", callback_data="back_to_channels")]
+        [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channels")]
     ])
     return keyboard
 
@@ -352,7 +352,7 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         user_id = callback_query.from_user.id
         
         # Update user language
-        await db.update_user_language(user_id, language_code)
+        await db.set_user_language(user_id, language_code)
         
         # Clear state and show main menu
         await state.clear()
@@ -470,11 +470,11 @@ You can send:
 - Image with description
 - Video with description
 
-Tip Tip: Make your ad engaging and clear!
+Tip: Make your ad engaging and clear!
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back Back to Menu", callback_data="back_to_main")]
+        [InlineKeyboardButton(text="◀️ Back to Menu", callback_data="back_to_main")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -545,11 +545,11 @@ Examples:
 - Email: user@email.com
 - Telegram: @username
 
-Send your contact information:
+Your ad content is ready!
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back to Text", callback_data="back_to_text")]
+        [InlineKeyboardButton(text="◀️ Back to Text", callback_data="back_to_text")]
     ])
     
     await message.answer(contact_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -685,7 +685,7 @@ Send your contact information:
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back Back to Photos", callback_data="back_to_photos")]
+        [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
     ])
     
     await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
@@ -724,7 +724,7 @@ Send your contact information:
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back Back to Photos", callback_data="back_to_photos")]
+        [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
     ])
     
     await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
@@ -1166,7 +1166,7 @@ Stats **Account Info:**
             ],
             [
                 InlineKeyboardButton(
-                    text="Back Back", 
+                    text="◀️ Back to Main", 
                     callback_data="back_to_main"
                 )
             ]
@@ -1227,7 +1227,7 @@ Question **Need Help?** Use /support to contact us!
             help_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(
-                    text="Back Back", 
+                    text="◀️ Back to Main", 
                     callback_data="back_to_main"
                 )]
             ]),
@@ -1331,7 +1331,7 @@ Ready to create your free trial ad?
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="[Star] Start Free Trial", callback_data="start_free_trial")],
-        [InlineKeyboardButton(text="[Back] Back", callback_data="back_to_main")]
+        [InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")]
     ])
     
     await callback_query.message.edit_text(trial_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1455,7 +1455,7 @@ You have used all 3 free ads for this month.
                 [InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze")],
                 [InlineKeyboardButton(text="[Silver] Silver $29", callback_data="select_package_silver")],
                 [InlineKeyboardButton(text="[Gold] Gold $47", callback_data="select_package_gold")],
-                [InlineKeyboardButton(text="Back Back", callback_data="back_to_start")]
+                [InlineKeyboardButton(text="◀️ Back to Start", callback_data="back_to_start")]
             ])
         )
         await callback_query.answer("Free ads limit reached for this month!")
@@ -1638,7 +1638,7 @@ What would you like to edit?
                 InlineKeyboardButton(text="Content Change Description", callback_data=f"change_desc_{package_type}"),
                 InlineKeyboardButton(text="Target Change Features", callback_data=f"change_features_{package_type}")
             ],
-            [InlineKeyboardButton(text="Back Back", callback_data="admin_edit_subscription")]
+            [InlineKeyboardButton(text="◀️ Back to Subscription", callback_data="admin_edit_subscription")]
         ])
         
         await callback_query.message.edit_text(text, reply_markup=keyboard)
@@ -1760,7 +1760,7 @@ Ready to confirm your free trial?
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="[Check] Confirm Free Trial", callback_data="confirm_free_trial")],
-            [InlineKeyboardButton(text="[Back] Back to Channels", callback_data="back_to_channel_selection")]
+            [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channel_selection")]
         ])
         
         await callback_query.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -2589,7 +2589,7 @@ async def payment_method_handler(callback_query: CallbackQuery, state: FSMContex
                 await callback_query.message.edit_text(
                     payment_summary,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="Back Back", callback_data="back_to_channels")]
+                        [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channels")]
                     ]),
                     parse_mode='Markdown'
                 )
@@ -3407,9 +3407,9 @@ Choose your payment method:
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Star Telegram Stars", callback_data="payment_stars")],
-            [InlineKeyboardButton(text="Diamond TON Cryptocurrency", callback_data="payment_ton")],
-            [InlineKeyboardButton(text="Back Back to Channels", callback_data="back_to_channels")]
+            [InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="payment_stars")],
+            [InlineKeyboardButton(text="💎 TON Cryptocurrency", callback_data="payment_ton")],
+            [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channels")]
         ])
         
         await callback_query.message.edit_text(
@@ -3508,25 +3508,6 @@ Link **{get_text(language, 'referral_link')}:**
 
 
 # Duplicate handlers removed - using main handlers with callback_data "help" and "settings"
-
-
-@router.callback_query(F.data.startswith("lang_"))
-async def language_change_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle language change"""
-    try:
-        language_code = callback_query.data.replace("lang_", "")
-        user_id = callback_query.from_user.id
-        
-        # Update user language in database
-        await db.set_user_language(user_id, language_code)
-        
-        # Show main menu in new language
-        await show_main_menu(callback_query, language_code)
-        await callback_query.answer(get_text(language_code, 'language_updated'))
-        
-    except Exception as e:
-        logger.error(f"Language change error: {e}")
-        await callback_query.answer(get_text(language_code, 'error_updating_language'))
 
 
 # Navigation handlers
@@ -3709,7 +3690,7 @@ async def back_to_contact_handler(callback_query: CallbackQuery, state: FSMConte
     await callback_query.message.edit_text(
         "**Phone** **Contact Information**\n\nPlease provide your contact details:\n- Phone number\n- Email address\n- Telegram username\n- Any other contact method",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Back Back to Photos", callback_data="back_to_photos")]
+            [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
         ]),
         parse_mode='Markdown'
     )
