@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime
 from flask import Flask, jsonify, request
 
-# Configure logging
+# Configure logging for deployment
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -70,8 +70,8 @@ def run_bot():
     try:
         logger.info("Starting bot in background...")
         # Import and run the main bot
-        from main_bot import start_bot
-        asyncio.run(start_bot())
+        from main_bot import run_bot as start_bot
+        start_bot()
         bot_started = True
         logger.info("Bot started successfully")
     except Exception as e:

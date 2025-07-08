@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-Core bot functionality for I3lani Bot
+I3lani Telegram Bot - Core Bot Functionality
 Separated from Flask server for Cloud Run deployment
 """
 import asyncio
@@ -8,39 +7,98 @@ import logging
 import os
 import fcntl
 import sys
+from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from bot_lock_manager import lock_manager
+from aiogram.types import BotCommand, MenuButtonCommands
+
+from config import BOT_TOKEN
+from database import init_db, db
+from handlers import setup_handlers
+from admin_system import setup_admin_handlers
+from stars_handler import init_stars_handler, setup_stars_handlers
+from channel_manager import init_channel_manager, handle_my_chat_member
+from publishing_scheduler import init_scheduler
+from troubleshooting import init_troubleshooting_system
+from troubleshooting_handlers import troubleshooting_router, init_troubleshooting_handlers
+from admin_ui_control import router as ui_control_router
+from button_test_handler import router as button_test_router
+from comprehensive_button_tester import router as comprehensive_button_router
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def start_bot():
-    """Start the Telegram bot"""
+# Global lock file for preventing multiple instances
+LOCK_FILE = "/tmp/i3lani_bot.lock"
+
+# Global bot instance
+bot_instance = None
+bot_started = False
+
+def acquire_lock():
+    """Acquire lock to prevent multiple bot instances"""
     try:
-        # Clean up any existing bot processes first
-        logger.info("Cleaning up existing bot processes...")
-        lock_manager.cleanup_all_bot_processes()
+        # Kill any existing python processes running the bot
+        import subprocess
+        try:
+            subprocess.run(["pkill", "-f", "python main.py"], check=False, capture_output=True)
+            logger.info("Killed existing bot processes")
+        except:
+            pass
         
-        # Acquire lock to ensure single instance
-        if not lock_manager.acquire_lock():
-            logger.error("Failed to acquire bot lock - another instance may be running")
-            return
+        # Clean up stale lock file if process doesn't exist
+        if os.path.exists(LOCK_FILE):
+            try:
+                with open(LOCK_FILE, 'r') as f:
+                    old_pid = int(f.read().strip())
+                try:
+                    os.kill(old_pid, 0)  # Check if process exists
+                    logger.error("Another bot instance is already running!")
+                    sys.exit(1)
+                except OSError:
+                    # Process doesn't exist, remove stale lock
+                    os.remove(LOCK_FILE)
+                    logger.info("Removed stale lock file")
+            except (ValueError, FileNotFoundError):
+                # Invalid or missing lock file, remove it
+                try:
+                    os.remove(LOCK_FILE)
+                except FileNotFoundError:
+                    pass
         
-        # Import all required modules
-        from config import BOT_TOKEN
-        from database import init_db, db
-        from handlers import setup_handlers
-        from admin_system import setup_admin_handlers
-        from stars_handler import init_stars_handler, setup_stars_handlers
-        from channel_manager import init_channel_manager, handle_my_chat_member
-        
+        lock_fd = open(LOCK_FILE, 'w')
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_fd.write(str(os.getpid()))
+        lock_fd.flush()
+        return lock_fd
+    except IOError:
+        logger.error("Failed to acquire bot instance lock!")
+        sys.exit(1)
+
+async def init_bot():
+    """Initialize and start the Telegram bot"""
+    global bot_instance, bot_started
+    
+    # Force cleanup any existing bot processes
+    import subprocess
+    try:
+        subprocess.run(["pkill", "-f", "python main.py"], capture_output=True, timeout=5)
+        subprocess.run(["pkill", "-f", "aiogram"], capture_output=True, timeout=5)
+        await asyncio.sleep(1)  # Wait for cleanup
+    except:
+        pass
+    
+    # Acquire lock to prevent multiple instances
+    lock_fd = acquire_lock()
+    logger.info("Bot instance lock acquired successfully")
+    
+    try:
         # Initialize bot and dispatcher
         if not BOT_TOKEN:
             raise ValueError("BOT_TOKEN environment variable is required")
         
         bot = Bot(token=BOT_TOKEN)
+        bot_instance = bot
         storage = MemoryStorage()
         dp = Dispatcher(storage=storage)
         
@@ -64,100 +122,90 @@ async def start_bot():
         logger.info("Initializing channel manager...")
         channel_manager = init_channel_manager(bot, db)
         
-        # Initialize other systems
-        try:
-            from channel_incentives import init_incentives
-            init_incentives(db)
-            logger.info("Channel incentives system initialized")
-        except Exception as e:
-            logger.warning(f"Channel incentives initialization failed: {e}")
+        # Initialize channel incentives system
+        logger.info("Initializing channel incentives system...")
+        from channel_incentives import init_incentives
+        init_incentives(db)
+        logger.info("Channel incentives system initialized")
         
-        try:
-            from atomic_rewards import init_atomic_rewards
-            init_atomic_rewards(db, bot)
-            logger.info("Atomic rewards system initialized")
-        except Exception as e:
-            logger.warning(f"Atomic rewards initialization failed: {e}")
+        # Initialize atomic rewards system
+        logger.info("Initializing atomic rewards system...")
+        from atomic_rewards import init_atomic_rewards
+        init_atomic_rewards(db, bot)
+        logger.info("Atomic rewards system initialized")
         
-        try:
-            from content_moderation import init_content_moderation
-            content_moderation = init_content_moderation(db, bot)
-            logger.info("Content moderation system initialized")
-        except Exception as e:
-            logger.warning(f"Content moderation initialization failed: {e}")
+        # Initialize content moderation system
+        logger.info("Initializing content moderation system...")
+        from content_moderation import init_content_moderation
+        content_moderation = init_content_moderation(db, bot)
+        logger.info("Content moderation system initialized")
         
-        try:
-            from gamification import init_gamification
-            gamification = init_gamification(db, bot)
-            await gamification.initialize_gamification_tables()
-            logger.info("Gamification system initialized")
-        except Exception as e:
-            logger.warning(f"Gamification initialization failed: {e}")
+        # Initialize gamification system
+        logger.info("Initializing gamification system...")
+        from gamification import init_gamification
+        gamification = init_gamification(db, bot)
+        await gamification.initialize_gamification_tables()
+        logger.info("Gamification system initialized")
         
-        try:
-            from troubleshooting import init_troubleshooting_system
-            from troubleshooting_handlers import troubleshooting_router, init_troubleshooting_handlers
-            troubleshooting_system = await init_troubleshooting_system(db, bot)
-            init_troubleshooting_handlers(troubleshooting_system)
-            dp.include_router(troubleshooting_router)
-            logger.info("Troubleshooting system initialized")
-        except Exception as e:
-            logger.warning(f"Troubleshooting initialization failed: {e}")
+        # Initialize troubleshooting system
+        logger.info("Initializing troubleshooting system...")
+        troubleshooting_system = await init_troubleshooting_system(db, bot)
+        init_troubleshooting_handlers(troubleshooting_system)
+        dp.include_router(troubleshooting_router)
+        dp.include_router(ui_control_router)
+        dp.include_router(button_test_router)
+        dp.include_router(comprehensive_button_router)
+        logger.info("Troubleshooting system initialized")
         
+        # Initialize UI control systems
+        logger.info("Initializing UI control systems...")
         try:
-            from admin_ui_control import router as ui_control_router
-            from button_test_handler import router as button_test_router
-            from comprehensive_button_tester import router as comprehensive_button_router
-            dp.include_router(ui_control_router)
-            dp.include_router(button_test_router)
-            dp.include_router(comprehensive_button_router)
+            from ui_control_system import UIControlSystem
+            ui_control_system = UIControlSystem()
             logger.info("UI control systems initialized")
         except Exception as e:
-            logger.warning(f"UI control initialization failed: {e}")
+            logger.warning(f"UI control system not available: {e}")
+            logger.info("UI control systems skipped")
         
-        try:
-            from translation_system import init_translation_system
-            init_translation_system()
-            logger.info("Translation system initialized")
-        except Exception as e:
-            logger.warning(f"Translation initialization failed: {e}")
+        # Initialize translation system
+        logger.info("Initializing comprehensive translation system...")
+        from translation_system import init_translation_system
+        init_translation_system()
+        logger.info("Translation system initialized")
         
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         
-        # Clean up and sync channels
+        # Clean up invalid channels first
         logger.info("Syncing existing channels...")
-        try:
-            cleaned_count = await db.clean_invalid_channels()
-            if cleaned_count > 0:
-                logger.info(f"Cleaned up {cleaned_count} invalid channels")
-            
-            await channel_manager.sync_existing_channels()
-            logger.info("Automatic channel discovery completed")
-        except Exception as e:
-            logger.warning(f"Channel sync failed: {e}")
+        cleaned_count = await db.clean_invalid_channels()
+        if cleaned_count > 0:
+            logger.info(f"Cleaned up {cleaned_count} invalid channels")
         
-        # Setup bot commands with error handling
-        try:
-            from aiogram.types import BotCommand, MenuButtonCommands
-            await bot.set_my_commands([
-                BotCommand(command="start", description="Start the bot"),
-                BotCommand(command="dashboard", description="My Ads Dashboard"),
-                BotCommand(command="mystats", description="My Statistics"),
-                BotCommand(command="referral", description="Referral System"),
-                BotCommand(command="support", description="Get Support"),
-                BotCommand(command="help", description="Help & Guide"),
-                BotCommand(command="admin", description="Admin Panel"),
-                BotCommand(command="health", description="System Health (Admin)"),
-                BotCommand(command="troubleshoot", description="Troubleshooting (Admin)"),
-                BotCommand(command="report_issue", description="Report Issue")
-            ])
-            await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-            logger.info("Bot commands set successfully")
-        except Exception as e:
-            logger.warning(f"Failed to set bot commands: {e}. Bot will continue without command menu.")
+        # Auto-discover existing channels where bot is admin
+        await channel_manager.sync_existing_channels()
+        logger.info("Automatic channel discovery completed")
         
-        # Start polling without signal handlers (for threading compatibility)
+        # Setup bot commands
+        await bot.set_my_commands([
+            BotCommand(command="start", description="Start the bot"),
+            BotCommand(command="dashboard", description="My Ads Dashboard"),
+            BotCommand(command="mystats", description="My Statistics"),
+            BotCommand(command="referral", description="Referral System"),
+            BotCommand(command="support", description="Get Support"),
+            BotCommand(command="help", description="Help & Guide"),
+            BotCommand(command="admin", description="Admin Panel"),
+            BotCommand(command="health", description="System Health (Admin)"),
+            BotCommand(command="troubleshoot", description="Troubleshooting (Admin)"),
+            BotCommand(command="report_issue", description="Report Issue")
+        ])
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        logger.info("Bot commands set successfully")
+        
+        # Mark bot as started
+        bot_started = True
+        
+        # Start polling
         logger.info("Starting I3lani Bot...")
         logger.info("Bot Features:")
         logger.info("- Multi-language support (EN, AR, RU)")
@@ -166,24 +214,53 @@ async def start_bot():
         logger.info("- Referral system with rewards")
         logger.info("- Complete user dashboard")
         
-        # Use polling without signal handlers for background thread compatibility
+        # Start polling without signal handlers for threading compatibility
         await dp.start_polling(bot, handle_signals=False)
         
     except Exception as e:
-        logger.error(f"Bot error: {e}")
+        logger.error(f"Error starting bot: {e}")
         import traceback
         traceback.print_exc()
         raise
     finally:
-        # Clean up and release lock
+        # Mark bot as stopped
+        bot_started = False
+        
+        # Clean up lock file
         try:
-            await bot.close()
+            if 'lock_fd' in locals():
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                lock_fd.close()
+            if os.path.exists(LOCK_FILE):
+                os.remove(LOCK_FILE)
+                logger.info("Cleaned up lock file")
+        except Exception as e:
+            logger.error(f"Error cleaning up lock: {e}")
+        
+        # Close bot session properly
+        try:
+            if bot_instance:
+                await bot_instance.session.close()
         except:
             pass
-        
-        # Release the lock
-        lock_manager.release_lock()
-        logger.info("Bot lock released")
+
+def run_bot():
+    """Run bot in background thread"""
+    try:
+        logger.info("Starting bot in background thread...")
+        asyncio.run(init_bot())
+    except Exception as e:
+        logger.error(f"Bot error: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    asyncio.run(start_bot())
+    # Configure logging for standalone bot
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
+    
+    logger.info("Starting I3lani Bot standalone...")
+    run_bot()
