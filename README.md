@@ -11,29 +11,31 @@ A sophisticated Telegram advertising bot with blockchain payment integration, mu
 - 🛡️ Anti-fraud protection
 - 📊 Comprehensive admin panel
 
-## Quick Deploy to Render
+## Quick Deploy Options
 
-### Step 1: Upload to GitHub
-1. Create repository: `i3lani-bot`
-2. Upload all project files
-3. Make repository public
+### Option 1: Railway (Recommended)
+1. **Upload to GitHub:** Create `i3lani-bot` repository
+2. **Deploy to Railway:** Go to [railway.app](https://railway.app)
+3. **Setup:** PostgreSQL database + web service
+4. **Free tier:** $5 credits monthly
 
-### Step 2: Deploy to Render
-1. Go to [render.com](https://render.com)
-2. Sign up with GitHub
-3. Create PostgreSQL database (free)
-4. Deploy web service from your repository
-5. Set environment variables:
-   - `BOT_TOKEN` - Your bot token from @BotFather
-   - `ADMIN_IDS` - Your Telegram user ID
+### Option 2: Render
+1. **Upload to GitHub:** Create `i3lani-bot` repository  
+2. **Deploy to Render:** Go to [render.com](https://render.com)
+3. **Setup:** PostgreSQL database + web service
+4. **Free tier:** 750 hours monthly
 
-### Step 3: Test Your Bot
-- Send `/start` to your bot in Telegram
-- Bot should respond with language selection
-- Test creating ads and payments
+### Step-by-Step Guides
+- 🚀 **Railway:** See `RAILWAY_DEPLOYMENT_GUIDE.md`
+- 🔧 **Render:** See `RENDER_DEPLOYMENT_GUIDE.md`
+- ☁️ **Google Cloud:** See `CLOUD_RUN_DEPLOYMENT_GUIDE.md`
 
-**One-click deploy link (after GitHub upload):**
-`https://render.com/deploy?repo=https://github.com/YOUR_USERNAME/i3lani-bot`
+### Required Environment Variables
+- `BOT_TOKEN` - Your bot token from @BotFather
+- `ADMIN_IDS` - Your Telegram user ID
+- `DATABASE_URL` - Auto-set by hosting platform
+
+Bot will be live in 10-15 minutes!
 
 ## Manual Deployment
 

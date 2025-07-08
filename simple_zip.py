@@ -41,10 +41,12 @@ files_to_zip = [
     '.gitignore',
     'RENDER_DEPLOYMENT_GUIDE.md',
     'CLOUD_RUN_DEPLOYMENT_GUIDE.md',
+    'RAILWAY_DEPLOYMENT_GUIDE.md',
     'BACKGROUND_WORKERS_GUIDE.md',
     'DEPLOYMENT_CHECKLIST.md',
     'GITHUB_UPLOAD_GUIDE.md',
-    'SECRETS_SETUP_GUIDE.md'
+    'SECRETS_SETUP_GUIDE.md',
+    'railway.json'
 ]
 
 # Create ZIP file
