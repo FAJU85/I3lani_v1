@@ -16,7 +16,6 @@ from payments import payment_processor
 from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
-from pricing_system import get_pricing_system
 from dynamic_pricing import get_dynamic_pricing
 # Flow validator removed for cleanup
 
@@ -1510,102 +1509,82 @@ Choose your plan duration:
     await callback_query.answer()
 
 
-@router.callback_query(F.data.startswith("plan_"))
-async def plan_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle plan selection"""
+# Payment handlers now use dynamic pricing system
+
+@router.callback_query(F.data == "pay_dynamic_ton")
+async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle TON payment for dynamic pricing"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    plan_id = int(callback_query.data.replace("plan_", ""))
-    
-    # Get current data
     data = await state.get_data()
-    selected_channels = data.get('selected_channels', [])
+    calculation = data.get('pricing_calculation', {})
     
-    # Get pricing system and plan details
-    pricing = get_pricing_system()
-    plan = pricing.get_plan(plan_id)
-    
-    if not plan:
-        await callback_query.answer("❌ Invalid plan selected")
+    if not calculation or 'total_ton' not in calculation:
+        await callback_query.answer("❌ Invalid payment data")
         return
     
-    # Get channel data
-    channels = await db.get_channels()
-    selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
+    total_ton = calculation['total_ton']
+    total_usd = calculation['total_usd']
     
-    # Calculate pricing (flat rate regardless of channel count)
-    total_price = plan['discounted_price']
-    stars_price = pricing.get_stars_price(total_price)
-    savings = pricing.calculate_savings(plan_id)
-    
-    # Store plan details in state
-    await state.update_data(
-        plan_id=plan_id,
-        duration_months=plan['duration_months'],
-        posts_per_day=plan['posts_per_day'],
-        total_posts=plan['total_posts'],
-        discount_percent=plan['discount_percent'],
-        total_price=total_price,
-        selected_channels=selected_channels
-    )
-    
-    # Create channel list for display
-    channel_list = "\n".join([f"• {ch['channel_name']}" for ch in selected_channel_data])
-    
-    # Show payment summary
-    payment_text = f"""
-💰 **Payment Summary**
+    text = f"""
+💰 **TON Payment Instructions**
 
-**Selected Plan:** {plan['name']}
-• Duration: {plan['duration_months']} months
-• Posts per day: {plan['posts_per_day']}
-• Total posts: {plan['total_posts']:,}
-• Discount: {plan['discount_percent']}% OFF
+**Amount to Pay:** {total_ton} TON
+**USD Equivalent:** ${total_usd:.2f}
 
-**Selected Channels ({len(selected_channels)}):**
-{channel_list}
+**Payment Address:**
+`UQC7VpEhRnW16_7FdTf_9QrF4AEqFRCVRJnSJZDKOLKSqxjE`
 
-**Pricing:**
-• Original Price: ${savings['original_price']:.0f}
-• Your Price: ${total_price:.0f}
-• You Save: ${savings['savings_amount']:.0f}
-• Per-channel fee: $0 (No additional fees)
+**Important:**
+• Send exactly {total_ton} TON
+• Include memo: AB0102-{user_id}
+• Payment must be confirmed within 30 minutes
 
-**Payment Options:**
+After payment, your ad will be processed and published to all selected channels.
     """.strip()
     
-    # Create payment keyboard
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=f"💳 Pay ${total_price:.0f} USD", callback_data="pay_usd"),
-            InlineKeyboardButton(text=f"⭐ Pay {stars_price} Stars", callback_data="pay_stars")
-        ],
-        [InlineKeyboardButton(text="⬅️ Back to Plans", callback_data="back_to_plans")],
-        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_start")]
+        [InlineKeyboardButton(text="✅ Payment Sent", callback_data="payment_sent")],
+        [InlineKeyboardButton(text="⬅️ Back", callback_data="recalculate_dynamic")]
     ])
     
     try:
-        await callback_query.message.edit_text(
-            payment_text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
-        )
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     except (AttributeError, Exception):
-        await callback_query.message.answer(
-            payment_text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
-        )
+        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
     
     await callback_query.answer()
+
+
+@router.callback_query(F.data == "pay_dynamic_stars")
+async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle Telegram Stars payment for dynamic pricing"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    # Show package pricing and payment methods
-    pricing_text = payment_processor.get_pricing_display(
-        selected_channel_data, duration, currency, language
+    data = await state.get_data()
+    calculation = data.get('pricing_calculation', {})
+    
+    if not calculation or 'total_stars' not in calculation:
+        await callback_query.answer("❌ Invalid payment data")
+        return
+    
+    stars_price = calculation['total_stars']
+    total_usd = calculation['total_usd']
+    
+    # Create Stars payment
+    await payment_processor.create_stars_payment(
+        callback_query.message,
+        stars_price,
+        f"I3lani Bot - Dynamic Ad Package (${total_usd:.2f})",
+        f"stars_payment_{user_id}_{int(datetime.now().timestamp())}"
     )
     
-    # Update state
+    await callback_query.answer("⭐ Stars payment created!")
+
+
+# Update state
     await state.update_data(
         duration_months=duration,
         total_price=total_price,

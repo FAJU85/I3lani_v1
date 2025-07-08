@@ -15,7 +15,7 @@ import os
 
 from config import ADMIN_IDS, CHANNELS
 from database import db
-from pricing_system import get_pricing_system
+from dynamic_pricing import get_dynamic_pricing
 
 logger = logging.getLogger(__name__)
 
