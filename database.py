@@ -154,6 +154,49 @@ class Database:
                 )
             ''')
             
+            # Partner rewards tracking table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS partner_rewards (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    channel_id TEXT,
+                    reward_type TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    description TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    paid_at TIMESTAMP NULL
+                )
+            ''')
+            
+            # Partner referrals tracking table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS partner_referrals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_id INTEGER NOT NULL,
+                    referred_id INTEGER NOT NULL,
+                    channel_id TEXT,
+                    commission_rate REAL DEFAULT 0.05,
+                    total_earned REAL DEFAULT 0,
+                    status TEXT DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Partner status tracking table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS partner_status (
+                    user_id INTEGER PRIMARY KEY,
+                    tier TEXT DEFAULT 'Basic',
+                    total_earnings REAL DEFAULT 0,
+                    pending_rewards REAL DEFAULT 0,
+                    total_referrals INTEGER DEFAULT 0,
+                    active_channels INTEGER DEFAULT 0,
+                    registration_bonus_paid BOOLEAN DEFAULT FALSE,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             await db.commit()
             
         # Initialize default channels
@@ -544,6 +587,173 @@ Last updated: July 2025"""
                 return True
         except Exception as e:
             print(f"Error creating referral: {e}")
+            return False
+    
+    # Partner reward methods
+    async def add_partner_reward(self, user_id: int, channel_id: str, reward_type: str, 
+                                amount: float, description: str = None) -> bool:
+        """Add a new partner reward"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    INSERT INTO partner_rewards (user_id, channel_id, reward_type, amount, description)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (user_id, channel_id, reward_type, amount, description))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error adding partner reward: {e}")
+            return False
+    
+    async def get_partner_status(self, user_id: int) -> Dict:
+        """Get partner status and statistics"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT * FROM partner_status WHERE user_id = ?
+                ''', (user_id,))
+                result = await cursor.fetchone()
+                return dict(result) if result else None
+        except Exception as e:
+            print(f"Error getting partner status: {e}")
+            return None
+    
+    async def create_partner_status(self, user_id: int) -> bool:
+        """Create initial partner status and give registration bonus"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Create partner status
+                await db.execute('''
+                    INSERT OR REPLACE INTO partner_status 
+                    (user_id, tier, total_earnings, pending_rewards, registration_bonus_paid)
+                    VALUES (?, 'Basic', 5.0, 5.0, TRUE)
+                ''', (user_id,))
+                
+                # Add registration bonus reward
+                await db.execute('''
+                    INSERT INTO partner_rewards 
+                    (user_id, reward_type, amount, description, status)
+                    VALUES (?, 'registration_bonus', 5.0, 'Welcome bonus for new partners', 'confirmed')
+                ''', (user_id,))
+                
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating partner status: {e}")
+            return False
+    
+    async def update_partner_earnings(self, user_id: int, amount: float) -> bool:
+        """Update partner earnings"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    UPDATE partner_status 
+                    SET total_earnings = total_earnings + ?, 
+                        pending_rewards = pending_rewards + ?,
+                        last_updated = CURRENT_TIMESTAMP
+                    WHERE user_id = ?
+                ''', (amount, amount, user_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error updating partner earnings: {e}")
+            return False
+    
+    async def get_partner_rewards(self, user_id: int) -> List[Dict]:
+        """Get partner rewards history"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT * FROM partner_rewards 
+                    WHERE user_id = ? 
+                    ORDER BY created_at DESC
+                ''', (user_id,))
+                results = await cursor.fetchall()
+                return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting partner rewards: {e}")
+            return []
+    
+    async def get_partner_referrals(self, user_id: int) -> List[Dict]:
+        """Get partner referrals"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT pr.*, u.username as referred_username
+                    FROM partner_referrals pr
+                    LEFT JOIN users u ON pr.referred_id = u.user_id
+                    WHERE pr.referrer_id = ?
+                    ORDER BY pr.created_at DESC
+                ''', (user_id,))
+                results = await cursor.fetchall()
+                return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting partner referrals: {e}")
+            return []
+    
+    async def get_referral_count(self, user_id: int) -> int:
+        """Get total referral count for user"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT COUNT(*) FROM referrals WHERE referrer_id = ?
+                ''', (user_id,))
+                result = await cursor.fetchone()
+                return result[0] if result else 0
+        except Exception as e:
+            print(f"Error getting referral count: {e}")
+            return 0
+    
+    async def get_referral_by_ids(self, referrer_id: int, referred_id: int) -> Optional[Dict]:
+        """Check if referral already exists"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT * FROM referrals WHERE referrer_id = ? AND referee_id = ?
+                ''', (referrer_id, referred_id))
+                result = await cursor.fetchone()
+                return dict(result) if result else None
+        except Exception as e:
+            print(f"Error getting referral by IDs: {e}")
+            return None
+    
+    async def execute_query(self, query: str, params: tuple = ()) -> bool:
+        """Execute raw SQL query"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(query, params)
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error executing query: {e}")
+            return False
+    
+    async def increment_free_ads_used(self, user_id: int) -> bool:
+        """Increment free ads used count for user"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Check if user exists in stats
+                cursor = await db.execute('''
+                    SELECT free_ads_used FROM users WHERE user_id = ?
+                ''', (user_id,))
+                result = await cursor.fetchone()
+                
+                if result:
+                    # Update existing count
+                    current_count = result[0] or 0
+                    await db.execute('''
+                        UPDATE users SET free_ads_used = ? WHERE user_id = ?
+                    ''', (current_count + 1, user_id))
+                else:
+                    # Initialize count for new user
+                    await db.execute('''
+                        UPDATE users SET free_ads_used = 1 WHERE user_id = ?
+                    ''', (user_id,))
+                
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error incrementing free ads used: {e}")
             return False
 
     async def reset_free_ads_counter(self, user_id: int) -> bool:

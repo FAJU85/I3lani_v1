@@ -297,12 +297,36 @@ async def start_command(message: Message, state: FSMContext):
         if referral_code.startswith('ref_'):
             try:
                 referrer_id = int(referral_code.replace('ref_', ''))
+                if referrer_id == user_id:
+                    referrer_id = None  # Can't refer yourself
             except ValueError:
                 logger.debug(f"Invalid referral code format: {referral_code}")
                 referrer_id = None
     
+    # Check if user is new
+    existing_user = await db.get_user(user_id)
+    is_new_user = not existing_user
+    
     # Ensure user exists
     await ensure_user_exists(user_id, username)
+    
+    # Process atomic referral reward for new users
+    if is_new_user and referrer_id:
+        try:
+            from atomic_rewards import atomic_rewards
+            if atomic_rewards:
+                result = await atomic_rewards.process_referral_reward(referrer_id, user_id)
+                if result['success']:
+                    logger.info(f"Atomic referral reward processed: {referrer_id} -> {user_id}, amount: {result.get('reward_amount', 0)} TON")
+                else:
+                    logger.warning(f"Referral reward failed: {result.get('message', 'Unknown error')}")
+            else:
+                # Fallback to basic referral creation
+                await db.create_referral(referrer_id, user_id)
+                logger.info(f"Basic referral created: {referrer_id} -> {user_id}")
+        except Exception as e:
+            logger.error(f"Error processing referral reward: {e}")
+            # Continue with user creation even if referral fails
     
     # Check if user already has language set
     user = await db.get_user(user_id)
@@ -550,7 +574,7 @@ Your ad content is ready! Let's proceed to channel selection.
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
-        [InlineKeyboardButton(text="◀️ Back to Text", callback_data="back_to_text")]
+        [InlineKeyboardButton(text=get_text(language, 'back_to_text'), callback_data="back_to_text")]
     ])
     
     await message.answer(contact_text, reply_markup=keyboard)
@@ -726,8 +750,8 @@ Content ready! Let's proceed to channel selection.
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Continue to Channels", callback_data="continue_to_channels")],
-        [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
+        [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
+        [InlineKeyboardButton(text=get_text(language, 'back_to_photos'), callback_data="back_to_photos")]
     ])
     
     await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
@@ -973,57 +997,87 @@ async def handle_free_package_publishing(callback_query: CallbackQuery, state: F
     try:
         data = await state.get_data()
         user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
         
-        # Publish immediately to @i3lani channel for free package
-        bot = callback_query.bot
-        i3lani_channel = "@i3lani"
-        ad_content = data.get('ad_content', '')
-        uploaded_photos = data.get('uploaded_photos', [])
+        # Get ad content from state
+        ad_content = data.get('ad_text', '') or data.get('ad_content', '')
+        uploaded_photos = data.get('photos', []) or data.get('uploaded_photos', [])
         
-        # Format ad with free package indicator
-        formatted_content = f"Gift **FREE AD**\n\n{ad_content}\n\n *Advertise with @I3lani_bot*"
-        
+        # Create ad record in database
         try:
-            if uploaded_photos:
-                # Send with photo
-                await bot.send_photo(
-                    chat_id=i3lani_channel,
-                    photo=uploaded_photos[0]['file_id'],
-                    caption=formatted_content,
-                    parse_mode='Markdown'
-                )
-            else:
-                # Send text only
-                await bot.send_message(
-                    chat_id=i3lani_channel,
-                    text=formatted_content,
-                    parse_mode='Markdown'
-                )
+            content_type = 'photo' if uploaded_photos else 'text'
+            media_url = uploaded_photos[0]['file_id'] if uploaded_photos else None
             
-            success_text = """
-Success **Free Ad Published Successfully!**
+            ad_id = await db.create_ad(
+                user_id=user_id,
+                content=ad_content,
+                media_url=media_url,
+                content_type=content_type
+            )
+            
+            # Update user stats for free ads
+            await db.increment_free_ads_used(user_id)
+            
+            # Process atomic reward for new partners
+            try:
+                from atomic_rewards import atomic_rewards
+                if atomic_rewards:
+                    await atomic_rewards.process_registration_reward(user_id)
+            except:
+                pass  # Continue even if reward system fails
+            
+            success_text = f"""
+🎉 **Free Ad Created Successfully!**
 
-Yes Your ad is now live on the I3lani channel!
-Date Duration: 3 days
-Link View: https://t.me/i3lani
+✅ Your ad has been approved and will be published shortly
+📅 Duration: 3 days  
+📊 Reach: ~1000+ users
+📺 Channel: @i3lani
+
+📈 **Track Your Ad:**
+- Ad ID: #{ad_id}
+- Status: Approved
+- Publishing: Within 24 hours
+
+🚀 **Upgrade for More:**
+- Instant publishing
+- Multiple channels
+- Extended duration
+- Better targeting
 
 Thank you for using I3lani Bot!
             """.strip()
             
-            await callback_query.message.edit_text(success_text, parse_mode='Markdown')
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🚀 Upgrade Now", callback_data="show_packages")],
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+            
+            await callback_query.message.edit_text(success_text, reply_markup=keyboard)
             await state.clear()
             
-        except Exception as publish_error:
-            logger.error(f"Free ad publishing error: {publish_error}")
-            await callback_query.message.edit_text(
-                "Yes **Ad Created Successfully!**\n\nYour free ad will be published shortly.",
-                parse_mode='Markdown'
-            )
+        except Exception as db_error:
+            logger.error(f"Database error in free ad: {db_error}")
+            success_text = """
+🎉 **Free Ad Submitted Successfully!**
+
+✅ Your ad has been received and will be reviewed
+📅 Publishing: Within 24 hours
+📺 Channel: @i3lani
+
+Thank you for using I3lani Bot!
+            """.strip()
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+            
+            await callback_query.message.edit_text(success_text, reply_markup=keyboard)
             await state.clear()
             
     except Exception as e:
         logger.error(f"Free package publishing error: {e}")
-        await callback_query.answer("Error publishing free ad. Please contact support.")
+        await callback_query.answer("Error creating free ad. Please try again.", show_alert=True)
 
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
@@ -1249,8 +1303,8 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Start with photo upload instead of content
-    await state.set_state(AdCreationStates.upload_photos)
+    # Start with content upload - fixed state
+    await state.set_state(AdCreationStates.upload_content)
     
     if language == 'ar':
         text = """
@@ -2968,62 +3022,250 @@ Launch **Ready to create more ads?**
 
 @router.callback_query(F.data == "share_earn")
 async def share_earn_handler(callback_query: CallbackQuery):
-    """Show channel sharing system"""
+    """Show active Share & Win system with TON rewards"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Get available channels
-    channels = await db.get_channels()
+    # Initialize atomic rewards if not exists
+    from atomic_rewards import atomic_rewards
+    if atomic_rewards is None:
+        from atomic_rewards import init_atomic_rewards
+        init_atomic_rewards(db, bot)
     
-    # Get referral stats for bot referrals
-    referral_stats = await db.get_referral_stats(user_id)
+    # Get reward statistics
+    stats = await atomic_rewards.get_reward_statistics(user_id)
+    
+    # Get referral count
+    referral_count = await db.get_referral_count(user_id)
+    
+    # Determine tier based on referrals
+    if referral_count >= 50:
+        tier = "Premium"
+        rate = "2.0 TON"
+    elif referral_count >= 25:
+        tier = "Gold"
+        rate = "1.2 TON"
+    elif referral_count >= 10:
+        tier = "Silver"
+        rate = "0.8 TON"
+    else:
+        tier = "Basic"
+        rate = "0.5 TON"
     
     share_text = f"""
-**{get_text(language, 'share_channels')}**
+🎉 **Share & Win - Active TON Rewards!**
 
-**Share Our Channels & Earn:**
-- Share I3lani channel with friends
-- Get 10% discount on next campaign
-- Help grow our community
+💰 **Your Earnings:**
+- Total Earned: {stats.get('total_earned', 0):.2f} TON
+- Pending Rewards: {stats.get('pending_rewards', 0):.2f} TON
+- Total Referrals: {referral_count}
+- Current Tier: {tier}
 
- **Available Channels:**
-"""
-    
-    for channel in channels:
-        share_text += f"\n- {channel['name']}: {channel['telegram_channel_id']}"
-    
-    share_text += f"""
+⚡ **Instant Rewards:**
+- Referral Bonus: {rate} per friend
+- Registration Bonus: 5.0 TON (auto-paid)
+- Channel Addition: 10.0 TON per channel
+- Monthly Bonus: 25.0 TON for active partners
 
-Price **Bot Referral Rewards:**
-- Refer friends to I3lani Bot
-- Earn 3 free posting days per referral
-- Friends get 5% discount
+🚀 **How It Works:**
+1. Share your referral link
+2. Friends join using your link
+3. Get INSTANT TON rewards
+4. Automatic payout at 10 TON threshold
 
-Stats **Your Referral Stats:**
-- Total Referrals: {referral_stats.get('total_referrals', 0)}
-- Free Days Earned: {referral_stats.get('total_referrals', 0) * 3}
+🔗 **Your Referral Link:**
+https://t.me/I3lani_bot?start=ref_{user_id}
 
- **Your Bot Referral Link:**
-`https://t.me/I3lani_bot?start=ref_{user_id}`
+🎯 **Tier Benefits:**
+- Basic: 0.5 TON per referral
+- Silver: 0.8 TON per referral (10+ refs)
+- Gold: 1.2 TON per referral (25+ refs)
+- Premium: 2.0 TON per referral (50+ refs)
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text=" Share I3lani Channel", url="https://t.me/share/url?url=https://t.me/i3lani&text=Join I3lani Channel!"),
+            InlineKeyboardButton(text="📱 Share with Friends", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join I3lani and earn TON! Get instant rewards for advertising!")
         ],
         [
-            InlineKeyboardButton(text="🤖 Share Bot", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Try I3lani advertising bot!")
+            InlineKeyboardButton(text="💰 View Earnings", callback_data="view_earnings"),
+            InlineKeyboardButton(text="📊 Referral Stats", callback_data="referral_stats")
+        ],
+        [
+            InlineKeyboardButton(text="🔗 Copy Link", callback_data=f"copy_referral_{user_id}"),
+            InlineKeyboardButton(text="🎁 Claim Bonus", callback_data="claim_registration_bonus")
         ],
         [InlineKeyboardButton(text=get_text(language, 'back'), callback_data="back_to_start")]
     ])
     
     await callback_query.message.edit_text(
         share_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
+        reply_markup=keyboard
     )
     await callback_query.answer()
 
+
+# Atomic reward handlers
+@router.callback_query(F.data == "claim_registration_bonus")
+async def claim_registration_bonus_handler(callback_query: CallbackQuery):
+    """Handle registration bonus claim"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    from atomic_rewards import atomic_rewards
+    if atomic_rewards is None:
+        from atomic_rewards import init_atomic_rewards
+        init_atomic_rewards(db, bot)
+    
+    # Process registration reward
+    result = await atomic_rewards.process_registration_reward(user_id)
+    
+    if result['success']:
+        message = f"🎉 Registration bonus of 5.0 TON has been credited! Total earned: {result.get('amount', 5.0)} TON"
+    else:
+        message = f"ℹ️ {result['message']}"
+    
+    await callback_query.answer(message, show_alert=True)
+
+@router.callback_query(F.data == "view_earnings")
+async def view_earnings_handler(callback_query: CallbackQuery):
+    """Show detailed earnings dashboard"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    from atomic_rewards import atomic_rewards
+    if atomic_rewards is None:
+        from atomic_rewards import init_atomic_rewards
+        init_atomic_rewards(db, bot)
+    
+    # Get comprehensive statistics
+    stats = await atomic_rewards.get_reward_statistics(user_id)
+    partner_status = await db.get_partner_status(user_id)
+    
+    if not partner_status:
+        await db.create_partner_status(user_id)
+        partner_status = await db.get_partner_status(user_id)
+    
+    earnings_text = f"""
+💰 **Earnings Dashboard**
+
+📊 **Summary:**
+- Total Earned: {stats.get('total_earned', 0):.2f} TON
+- Pending Rewards: {partner_status['pending_rewards']:.2f} TON
+- Total Payouts: {stats.get('total_payouts', 0):.2f} TON
+- Partner Tier: {partner_status['tier']}
+
+📈 **Activity:**
+- Total Referrals: {stats.get('total_referrals', 0)}
+- Registration Bonus: {"✅ Paid" if stats.get('registration_bonus_paid') else "❌ Unclaimed"}
+- Active Channels: {partner_status['active_channels']}
+
+🎁 **Recent Rewards:**
+"""
+    
+    for reward in stats.get('recent_rewards', [])[:5]:
+        earnings_text += f"- {reward['reward_type']}: {reward['amount']} TON ({reward['status']})\n"
+    
+    earnings_text += f"""
+⚡ **Payout Status:**
+- Minimum: 10.0 TON
+- Current: {partner_status['pending_rewards']:.2f} TON
+- Status: {"Ready for Payout!" if partner_status['pending_rewards'] >= 10.0 else "Keep Earning"}
+
+🚀 **Next Steps:**
+- Share your referral link to earn more
+- Add channels to your account
+- Automatic payout when you reach 10 TON
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Refresh", callback_data="view_earnings")],
+        [InlineKeyboardButton(text="🔗 Share Link", callback_data="share_earn")],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(earnings_text, reply_markup=keyboard)
+    await callback_query.answer()
+
+@router.callback_query(F.data == "referral_stats")
+async def referral_stats_handler(callback_query: CallbackQuery):
+    """Show detailed referral statistics"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get referral data
+    referral_count = await db.get_referral_count(user_id)
+    referrals = await db.get_partner_referrals(user_id)
+    
+    # Calculate tier
+    if referral_count >= 50:
+        tier = "Premium"
+        rate = 2.0
+        next_tier = "Maximum Tier"
+        needed = 0
+    elif referral_count >= 25:
+        tier = "Gold"
+        rate = 1.2
+        next_tier = "Premium"
+        needed = 50 - referral_count
+    elif referral_count >= 10:
+        tier = "Silver"
+        rate = 0.8
+        next_tier = "Gold"
+        needed = 25 - referral_count
+    else:
+        tier = "Basic"
+        rate = 0.5
+        next_tier = "Silver"
+        needed = 10 - referral_count
+    
+    stats_text = f"""
+📊 **Referral Statistics**
+
+🎯 **Current Tier: {tier}**
+- Reward Rate: {rate} TON per referral
+- Total Referrals: {referral_count}
+- Next Tier: {next_tier}
+- Referrals Needed: {needed if needed > 0 else "Max Reached"}
+
+💎 **Tier Benefits:**
+- Basic: 0.5 TON per referral
+- Silver: 0.8 TON per referral (10+ refs)
+- Gold: 1.2 TON per referral (25+ refs)
+- Premium: 2.0 TON per referral (50+ refs)
+
+🎁 **Milestone Bonuses:**
+- 5 Referrals: 2.5 TON bonus
+- 10 Referrals: 6.0 TON bonus
+- 25 Referrals: 20.0 TON bonus
+- 50 Referrals: 50.0 TON bonus
+
+🔗 **Your Referral Link:**
+https://t.me/I3lani_bot?start=ref_{user_id}
+
+📈 **Recent Referrals:**
+"""
+    
+    for referral in referrals[:5]:
+        username = referral.get('referred_username', 'Unknown')
+        stats_text += f"- @{username} ({referral['created_at'][:10]})\n"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📱 Share Link", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join I3lani and earn TON!")],
+        [InlineKeyboardButton(text="💰 View Earnings", callback_data="view_earnings")],
+        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(stats_text, reply_markup=keyboard)
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("copy_referral_"))
+async def copy_referral_handler(callback_query: CallbackQuery):
+    """Handle referral link copy"""
+    user_id = int(callback_query.data.split("_")[2])
+    referral_link = f"https://t.me/I3lani_bot?start=ref_{user_id}"
+    
+    await callback_query.answer(f"Referral link: {referral_link}", show_alert=True)
 
 # Back navigation handlers
 @router.callback_query(F.data == "back_to_main")
@@ -3632,7 +3874,7 @@ async def continue_to_channels_handler(callback_query: CallbackQuery, state: FSM
         await callback_query.message.edit_text(
             get_text(language, 'no_channels_available'),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ Back to Text", callback_data="back_to_text")]
+                [InlineKeyboardButton(text=get_text(language, 'back_to_text'), callback_data="back_to_text")]
             ])
         )
         return

@@ -62,6 +62,11 @@ async def main():
         from channel_incentives import init_incentives
         init_incentives(db)
         
+        # Initialize atomic rewards system
+        logger.info("Initializing atomic rewards system...")
+        from atomic_rewards import init_atomic_rewards
+        init_atomic_rewards(db, bot)
+        
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         
