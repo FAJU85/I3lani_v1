@@ -218,6 +218,8 @@ async def main():
         
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
+        import traceback
+        traceback.print_exc()
         raise
     finally:
         # Clean up lock file
@@ -230,7 +232,20 @@ async def main():
                 logger.info("🧹 Cleaned up lock file")
         except Exception as e:
             logger.error(f"Error cleaning up lock: {e}")
+        
+        # Close bot session properly
+        try:
+            await bot.close()
+        except:
+            pass
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot stopped by user")
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
