@@ -71,11 +71,12 @@ def run_bot():
         logger.info("Starting bot in background...")
         # Import and run the main bot
         from main_bot import run_bot as start_bot
+        bot_started = True  # Set to true when bot starts
         start_bot()
-        bot_started = True
         logger.info("Bot started successfully")
     except Exception as e:
         logger.error(f"Bot error: {e}")
+        bot_started = False
         import traceback
         traceback.print_exc()
 
