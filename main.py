@@ -37,57 +37,12 @@ logger = logging.getLogger(__name__)
 # Global lock file for preventing multiple instances
 LOCK_FILE = "/tmp/i3lani_bot.lock"
 
-# Flask app for Cloud Run deployment - initialize immediately
-app = Flask(__name__)
-
 # Global bot instance
 bot_instance = None
 bot_started = False
 
-# Initialize Flask app configuration immediately
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-app.config['TESTING'] = False
-
-@app.route('/')
-def health_check():
-    """Health check endpoint for Cloud Run"""
-    return jsonify({
-        'status': 'ok',
-        'service': 'I3lani Telegram Bot',
-        'bot_status': 'running' if bot_started else 'starting',
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/health')
-def health():
-    """Additional health endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'bot_running': bot_started,
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    """Webhook endpoint for Telegram"""
-    try:
-        if bot_instance:
-            update = request.get_json()
-            # Process webhook update if needed
-            return jsonify({'status': 'processed'})
-        return jsonify({'status': 'bot_not_ready'})
-    except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/status')
-def status():
-    """Bot status endpoint"""
-    return jsonify({
-        'bot_started': bot_started,
-        'uptime': datetime.now().isoformat(),
-        'status': 'operational' if bot_started else 'initializing'
-    })
+# Note: Flask server is handled by deployment_server.py for Cloud Run deployment
+# This file is for direct bot execution only
 
 def acquire_lock():
     """Acquire lock to prevent multiple bot instances"""
@@ -316,7 +271,7 @@ def run_bot():
 def main():
     """Main application entry point - direct bot execution"""
     logger.info("Starting I3lani Bot from main.py...")
-    logger.info("Note: For deployment, use deployment_server.py instead")
+    logger.info("Note: For Cloud Run deployment, use deployment_server.py instead")
     
     try:
         # Set environment variable to prevent duplicate Flask servers
