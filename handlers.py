@@ -9,6 +9,8 @@ from typing import List, Dict
 import logging
 import time
 
+logger = logging.getLogger(__name__)
+
 from states import AdCreationStates, UserStates
 from languages import get_text, get_currency_info, LANGUAGES
 from database import db, ensure_user_exists, get_user_language
@@ -464,11 +466,12 @@ async def upload_content_handler(message: Message, state: FSMContext):
         await message.answer("Unsupported content type. Please send text, photo, or video.")
         return
     
-    # Store content in state
+    # Store content in state and initialize selected channels
     await state.update_data(
         content=content,
         media_url=media_url,
-        content_type=content_type
+        content_type=content_type,
+        selected_channels=[]
     )
     
     # Create ad in database
@@ -478,14 +481,65 @@ async def upload_content_handler(message: Message, state: FSMContext):
     # Move to channel selection
     await state.set_state(AdCreationStates.channel_selection)
     
-    # Show channel selection - convert message to callback for existing function
-    # Create a dummy callback query to work with existing function
-    from types import SimpleNamespace
-    fake_callback = SimpleNamespace()
-    fake_callback.message = message
-    fake_callback.answer = lambda text="": None
+    # Show channel selection - create proper channel selection message
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
     
-    await show_channel_selection_for_enhanced_flow(fake_callback, state)
+    # Get available channels
+    channels = await db.get_channels(active_only=True)
+    
+    if not channels:
+        await message.answer("No channels available for advertising. Please contact admin.")
+        return
+    
+    # Create channel selection text
+    if language == 'ar':
+        text = """اختر القنوات للإعلان
+
+اختر القنوات التي تريد نشر إعلانك فيها:"""
+    elif language == 'ru': 
+        text = """Выберите каналы для рекламы
+
+Выберите каналы для размещения вашего объявления:"""
+    else:
+        text = """Choose Channels for Your Ad
+
+Select the channels where you want to publish your advertisement:"""
+    
+    # Get selected channels from state
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Create keyboard with channels
+    keyboard_rows = []
+    for channel in channels:
+        is_selected = channel['channel_id'] in selected_channels
+        status = "✓ " if is_selected else ""
+        keyboard_rows.append([InlineKeyboardButton(
+            text=f"{status}{channel['name']} ({channel['subscribers']:,} subscribers)",
+            callback_data=f"toggle_channel_{channel['channel_id']}"
+        )])
+    
+    # Add control buttons
+    if selected_channels:
+        keyboard_rows.append([InlineKeyboardButton(
+            text=f"Continue to Pricing ({len(selected_channels)} channels)",
+            callback_data="continue_to_duration"
+        )])
+    else:
+        keyboard_rows.append([InlineKeyboardButton(
+            text="Select at least one channel",
+            callback_data="select_channels_info"
+        )])
+    
+    keyboard_rows.append([InlineKeyboardButton(
+        text="Back to Menu",
+        callback_data="back_to_main"
+    )])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 # Category selection handler removed - going directly to content upload
@@ -1138,6 +1192,55 @@ async def select_gold_package(callback_query: CallbackQuery, state: FSMContext):
     await callback_query.answer("Gold package selected!")
 
 
+async def refresh_channel_selection_keyboard(callback_query: CallbackQuery, state: FSMContext):
+    """Refresh the channel selection keyboard after toggle"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Get available channels
+        channels = await db.get_channels(active_only=True)
+        
+        # Get selected channels from state
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        # Create keyboard with channels
+        keyboard_rows = []
+        for channel in channels:
+            is_selected = channel['channel_id'] in selected_channels
+            status = "✓ " if is_selected else ""
+            keyboard_rows.append([InlineKeyboardButton(
+                text=f"{status}{channel['name']} ({channel['subscribers']:,} subscribers)",
+                callback_data=f"toggle_channel_{channel['channel_id']}"
+            )])
+        
+        # Add control buttons
+        if selected_channels:
+            keyboard_rows.append([InlineKeyboardButton(
+                text=f"Continue to Pricing ({len(selected_channels)} channels)",
+                callback_data="continue_to_duration"
+            )])
+        else:
+            keyboard_rows.append([InlineKeyboardButton(
+                text="Select at least one channel",
+                callback_data="select_channels_info"
+            )])
+        
+        keyboard_rows.append([InlineKeyboardButton(
+            text="Back to Menu",
+            callback_data="back_to_main"
+        )])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+        
+        # Edit the message with updated keyboard
+        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+        
+    except Exception as e:
+        logger.error(f"Error refreshing channel selection: {e}")
+
+
 @router.callback_query(F.data.startswith("toggle_channel_"))
 async def toggle_channel_selection(callback_query: CallbackQuery, state: FSMContext):
     """Handle channel selection toggle"""
@@ -1159,7 +1262,7 @@ async def toggle_channel_selection(callback_query: CallbackQuery, state: FSMCont
         await state.update_data(selected_channels=selected_channels)
         
         # Refresh the channel selection interface
-        await show_channel_selection_for_enhanced_flow(callback_query, state)
+        await refresh_channel_selection_keyboard(callback_query, state)
         await callback_query.answer(f"Channel {'selected' if channel_id in selected_channels else 'deselected'}")
         
     except Exception as e:
