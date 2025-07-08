@@ -84,14 +84,16 @@ def main():
     try:
         logger.info("Starting I3lani Bot deployment server...")
         
+        # Get port from environment
+        port = int(os.environ.get('PORT', 5001))
+        logger.info(f"Starting Flask server immediately on 0.0.0.0:{port}")
+        
         # Start bot in background thread
         bot_thread = threading.Thread(target=run_bot, daemon=True)
         bot_thread.start()
         logger.info("Bot started in background thread")
         
-        # Run Flask server (blocking)
-        port = int(os.environ.get('PORT', 5001))
-        logger.info(f"Starting Flask server on 0.0.0.0:{port}")
+        # Run Flask server immediately (blocking) - this ensures port opens quickly
         app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
         
     except Exception as e:

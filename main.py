@@ -298,11 +298,11 @@ async def init_bot():
         except:
             pass
 
-def run_flask_server():
+def run_flask_server(port=5001):
     """Run Flask server for Cloud Run deployment"""
     try:
-        logger.info("Starting Flask server on 0.0.0.0:5001...")
-        app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)
+        logger.info(f"Starting Flask server on 0.0.0.0:{port}...")
+        app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
     except Exception as e:
         logger.error(f"Flask server error: {e}")
 
@@ -321,17 +321,18 @@ def main():
     try:
         logger.info("🚀 Starting I3lani Bot application...")
         
+        # Get port from environment for Cloud Run
+        port = int(os.environ.get('PORT', 5001))
+        logger.info(f"Starting Flask server immediately on 0.0.0.0:{port}")
+        
         # Start bot in background thread
         bot_thread = threading.Thread(target=run_bot, daemon=True)
         bot_thread.start()
         logger.info("🤖 Bot started in background thread")
         
-        # Add a small delay to ensure bot starts
-        import time
-        time.sleep(3)
-        
-        # Run Flask server in main thread (blocking)
-        run_flask_server()
+        # Start Flask server immediately in main thread (blocking)
+        # This ensures the port opens quickly for Cloud Run
+        app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
         
     except Exception as e:
         logger.error(f"Main application error: {e}")
