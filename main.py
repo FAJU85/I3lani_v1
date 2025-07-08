@@ -4,6 +4,9 @@ Complete implementation following the new guide
 """
 import asyncio
 import logging
+import os
+import fcntl
+import sys
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -25,9 +28,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global lock file for preventing multiple instances
+LOCK_FILE = "/tmp/i3lani_bot.lock"
+
+def acquire_lock():
+    """Acquire lock to prevent multiple bot instances"""
+    try:
+        lock_fd = open(LOCK_FILE, 'w')
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_fd.write(str(os.getpid()))
+        lock_fd.flush()
+        return lock_fd
+    except IOError:
+        logger.error("❌ Another bot instance is already running!")
+        logger.error("💡 Please stop the existing instance before starting a new one")
+        sys.exit(1)
 
 async def main():
     """Main application entry point"""
+    
+    # Acquire lock to prevent multiple instances
+    lock_fd = acquire_lock()
+    logger.info("🔒 Bot instance lock acquired successfully")
     try:
         # Initialize bot and dispatcher
         if not BOT_TOKEN:
@@ -88,6 +110,26 @@ async def main():
         init_troubleshooting_handlers(troubleshooting_system)
         dp.include_router(troubleshooting_router)
         logger.info("Troubleshooting system initialized successfully")
+        
+        # Initialize translation system
+        logger.info("Initializing comprehensive translation system...")
+        from translation_system import init_translation_system
+        init_translation_system()
+        logger.info("Translation system initialized successfully")
+        
+        # Initialize auto-deployment system
+        logger.info("Initializing auto-deployment system...")
+        try:
+            from auto_deploy import init_auto_deploy
+            auto_deploy = init_auto_deploy()
+            if auto_deploy:
+                logger.info("✅ Auto-deployment system initialized successfully")
+            else:
+                logger.warning("⚠️ Auto-deployment system failed to initialize")
+        except ImportError:
+            logger.info("📦 Auto-deployment system not available - install watchdog package")
+        except Exception as e:
+            logger.error(f"Auto-deployment initialization error: {e}")
         
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
