@@ -107,8 +107,9 @@ async def init_bot():
         await init_db()
         logger.info("Database initialized successfully")
         
-        # Initialize Telegram Stars system
+        # Initialize Telegram Stars system (WITHOUT Flask server)
         logger.info("Initializing Telegram Stars payment system...")
+        os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler
         stars_handler = init_stars_handler(bot)
         logger.info("Telegram Stars system initialized successfully")
         

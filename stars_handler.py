@@ -6,6 +6,7 @@ Combines aiogram bot handlers with Flask backend webhook processing
 import asyncio
 import logging
 import json
+import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 import requests
@@ -125,17 +126,20 @@ class TelegramStarsHandler:
         def get_stats():
             return jsonify(self.get_payment_stats())
         
-        # Start Flask in separate thread
-        def run_flask():
-            self.flask_app.run(
-                host=WEBHOOK_CONFIG['host'],
-                port=WEBHOOK_CONFIG['port'],
-                debug=WEBHOOK_CONFIG['debug'],
-                threaded=WEBHOOK_CONFIG['threaded']
-            )
-        
-        Thread(target=run_flask, daemon=True).start()
-        logger.info(f"✅ Flask backend started on port {WEBHOOK_CONFIG['port']}")
+        # Start Flask in separate thread only if not disabled
+        if not os.environ.get('DISABLE_STARS_FLASK'):
+            def run_flask():
+                self.flask_app.run(
+                    host=WEBHOOK_CONFIG['host'],
+                    port=WEBHOOK_CONFIG['port'],
+                    debug=WEBHOOK_CONFIG['debug'],
+                    threaded=WEBHOOK_CONFIG['threaded']
+                )
+            
+            Thread(target=run_flask, daemon=True).start()
+            logger.info(f"✅ Flask backend started on port {WEBHOOK_CONFIG['port']}")
+        else:
+            logger.info("✅ Flask backend disabled - using main deployment server")
     
     async def create_stars_invoice(self, user_id: int, package_id: str, ad_content: str = None):
         """Create Telegram Stars invoice"""

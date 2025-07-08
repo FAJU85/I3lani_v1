@@ -37,12 +37,16 @@ logger = logging.getLogger(__name__)
 # Global lock file for preventing multiple instances
 LOCK_FILE = "/tmp/i3lani_bot.lock"
 
-# Flask app for Cloud Run deployment
+# Flask app for Cloud Run deployment - initialize immediately
 app = Flask(__name__)
 
 # Global bot instance
 bot_instance = None
 bot_started = False
+
+# Initialize Flask app configuration immediately
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+app.config['TESTING'] = False
 
 @app.route('/')
 def health_check():
@@ -157,8 +161,9 @@ async def init_bot():
         
         # Debug system removed for cleanup
         
-        # Initialize Telegram Stars system
+        # Initialize Telegram Stars system (WITHOUT Flask server)
         logger.info("Initializing Telegram Stars payment system...")
+        os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler
         stars_handler = init_stars_handler(bot)
         logger.info("Telegram Stars system initialized successfully")
         
@@ -319,19 +324,31 @@ def run_bot():
 def main():
     """Main application entry point - runs both Flask server and bot"""
     try:
-        logger.info("🚀 Starting I3lani Bot application...")
+        logger.info("Starting I3lani Bot application...")
         
         # Get port from environment for Cloud Run
         port = int(os.environ.get('PORT', 5001))
         logger.info(f"Starting Flask server immediately on 0.0.0.0:{port}")
         
-        # Start bot in background thread
+        # Test immediate port binding to verify Flask server can start
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind(('0.0.0.0', port))
+            s.close()
+            logger.info(f"Port {port} is available for Flask server")
+        except Exception as e:
+            logger.error(f"Port {port} binding test failed: {e}")
+            raise
+        
+        # Start bot in background thread WITHOUT stars_handler Flask server
         bot_thread = threading.Thread(target=run_bot, daemon=True)
         bot_thread.start()
-        logger.info("🤖 Bot started in background thread")
+        logger.info("Bot started in background thread")
         
         # Start Flask server immediately in main thread (blocking)
         # This ensures the port opens quickly for Cloud Run
+        logger.info("Starting Flask server in main thread...")
         app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
         
     except Exception as e:
