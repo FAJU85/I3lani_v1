@@ -273,9 +273,12 @@ Users can now select this channel when creating ads through the bot.
         patterns = []
         
         # Common prefixes and suffixes for channels
-        base_names = ["i3lani", "shop", "news", "tech", "business", "deals", "offers"]
-        suffixes = ["", "_channel", "_official", "_news", "_deals", "_shop", "_tech", "_main"]
-        prefixes = ["", "official_", "the_"]
+        base_names = ["i3lani", "shop", "news", "tech", "business", "deals", "offers", 
+                     "3lani", "e3lani", "i3lan", "e3lan", "a3lan", "i3lany", "e3lany",
+                     "smart", "smshco", "ads", "market", "store", "sale", "promo"]
+        suffixes = ["", "_channel", "_official", "_news", "_deals", "_shop", "_tech", "_main",
+                   "_sa", "_ksa", "_saudi", "_arab", "_me", "_bot", "_ads", "_market"]
+        prefixes = ["", "official_", "the_", "new_", "best_"]
         
         for base in base_names:
             for prefix in prefixes:
@@ -367,8 +370,18 @@ Users can now select this channel when creating ads through the bot.
             # Generate comprehensive list of potential channels
             potential_channels = await self._generate_potential_channel_patterns()
             
-            # Add known channels
-            potential_channels.extend(["@smshco", "@i3lani", "@shop_smart", "@i3lani_news"])
+            # Add known channels and variations
+            known_channels = [
+                "@smshco", "@i3lani", "@shop_smart", "@i3lani_news",
+                "@i3lani_official", "@i3lani_main", "@i3lani_ads", "@i3lani_channel",
+                "@i3lani_ksa", "@i3lani_sa", "@i3lani_saudi", "@i3lani_arab",
+                "@i3lani_market", "@i3lani_deals", "@i3lani_offers", "@i3lani_promo",
+                "@i3lani_shop", "@i3lani_store", "@i3lani_buy", "@i3lani_sell",
+                "@i3lani_tech", "@i3lani_business", "@i3lani_trade",
+                "@3lani", "@e3lani", "@a3lani", "@i3lan", "@e3lan",
+                "@smshco_official", "@smshco_ksa", "@smart_shop", "@smart_shop_sa"
+            ]
+            potential_channels.extend(known_channels)
             
             for channel_username in potential_channels:
                 results['total_scanned'] += 1
