@@ -13,25 +13,22 @@ class FrequencyPricingSystem:
     """Advanced pricing system where more days = higher frequency + bigger discounts"""
     
     def __init__(self):
-        # Base cost per post per channel per day
-        self.BASE_COST_PER_POST = 0.50  # $0.50 per post per channel per day
+        # Base cost per post per day (flat rate, not per channel)
+        self.BASE_COST_PER_POST = 1.00  # $1.00 per post per day
         
-        # Frequency tiers based on days purchased
+        # Smart day-based frequency tiers (exact specification)
         self.frequency_tiers = {
-            1: {'posts_per_day': 1, 'discount': 0, 'name': 'Basic'},
-            2: {'posts_per_day': 1, 'discount': 5, 'name': 'Starter'},
-            3: {'posts_per_day': 2, 'discount': 10, 'name': 'Standard'},
-            5: {'posts_per_day': 2, 'discount': 15, 'name': 'Enhanced'},
-            7: {'posts_per_day': 3, 'discount': 20, 'name': 'Weekly'},
-            10: {'posts_per_day': 3, 'discount': 25, 'name': 'Extended'},
-            14: {'posts_per_day': 4, 'discount': 30, 'name': 'Bi-Weekly'},
-            21: {'posts_per_day': 5, 'discount': 35, 'name': 'Premium'},
-            30: {'posts_per_day': 6, 'discount': 40, 'name': 'Monthly'},
-            45: {'posts_per_day': 7, 'discount': 45, 'name': 'Extended Monthly'},
-            60: {'posts_per_day': 8, 'discount': 50, 'name': 'Bi-Monthly'},
-            90: {'posts_per_day': 10, 'discount': 55, 'name': 'Quarterly'},
-            180: {'posts_per_day': 12, 'discount': 60, 'name': 'Semi-Annual'},
-            365: {'posts_per_day': 15, 'discount': 65, 'name': 'Annual'}
+            1: {'posts_per_day': 1, 'discount': 0, 'name': 'Single Day'},
+            3: {'posts_per_day': 2, 'discount': 5, 'name': '3-Day Boost'},
+            5: {'posts_per_day': 3, 'discount': 7, 'name': '5-Day Power'},
+            7: {'posts_per_day': 4, 'discount': 10, 'name': 'Weekly Pro'},
+            10: {'posts_per_day': 5, 'discount': 12, 'name': '10-Day Elite'},
+            15: {'posts_per_day': 6, 'discount': 15, 'name': '15-Day Premium'},
+            20: {'posts_per_day': 8, 'discount': 18, 'name': '20-Day Ultra'},
+            30: {'posts_per_day': 10, 'discount': 20, 'name': 'Monthly Max'},
+            45: {'posts_per_day': 12, 'discount': 25, 'name': 'Extended Power'},
+            60: {'posts_per_day': 15, 'discount': 30, 'name': 'Bi-Monthly Pro'},
+            90: {'posts_per_day': 18, 'discount': 35, 'name': 'Quarterly Elite'}
         }
         
         # Convert to USD equivalent (Telegram Stars)
@@ -53,29 +50,28 @@ class FrequencyPricingSystem:
         
         return tier_data
 
-    def calculate_pricing(self, days: int, channels_count: int) -> Dict:
-        """Calculate comprehensive pricing for given days and channels"""
+    def calculate_pricing(self, days: int, channels_count: int = 1) -> Dict:
+        """Calculate smart day-based pricing (flat rate, not per channel)"""
         
         tier = self.get_tier_for_days(days)
         posts_per_day = tier['posts_per_day']
         discount_percent = tier['discount']
         tier_name = tier['name']
         
-        # Calculate base costs
-        total_posts = days * posts_per_day * channels_count
-        base_cost = total_posts * self.BASE_COST_PER_POST
+        # Calculate base costs (flat rate - not multiplied by channels)
+        daily_cost = posts_per_day * self.BASE_COST_PER_POST
+        total_base_cost = days * daily_cost
         
         # Apply discount
-        discount_amount = base_cost * (discount_percent / 100)
-        final_cost_usd = base_cost - discount_amount
+        discount_amount = total_base_cost * (discount_percent / 100)
+        final_cost_usd = total_base_cost - discount_amount
         
         # Convert to other currencies
         cost_stars = int(final_cost_usd * self.USD_TO_STARS)
         cost_ton = round(final_cost_usd * self.USD_TO_TON, 3)
         
-        # Calculate per-day and per-channel costs
-        cost_per_day = final_cost_usd / days if days > 0 else final_cost_usd
-        cost_per_channel = final_cost_usd / channels_count if channels_count > 0 else final_cost_usd
+        # Calculate total posts for the campaign
+        total_posts = days * posts_per_day
         
         return {
             'days': days,
@@ -84,62 +80,54 @@ class FrequencyPricingSystem:
             'posts_per_day': posts_per_day,
             'total_posts': total_posts,
             'discount_percent': discount_percent,
-            'base_cost_usd': round(base_cost, 2),
+            'daily_price': round(daily_cost, 2),
+            'base_cost_usd': round(total_base_cost, 2),
             'discount_amount_usd': round(discount_amount, 2),
             'final_cost_usd': round(final_cost_usd, 2),
             'cost_stars': cost_stars,
             'cost_ton': cost_ton,
-            'cost_per_day_usd': round(cost_per_day, 2),
-            'cost_per_channel_usd': round(cost_per_channel, 2),
-            'posts_per_channel_per_day': posts_per_day,
             'savings_usd': round(discount_amount, 2),
             'savings_percent': discount_percent
         }
 
     def get_pricing_breakdown_text(self, pricing: Dict, language: str = 'en') -> str:
-        """Generate detailed pricing breakdown text"""
+        """Generate smart day-based pricing breakdown text"""
         
         if language == 'ar':
             return f"""
-💰 **تفاصيل التسعير - {pricing['tier_name']}**
+✅ **ملخص خطة الإعلان الخاصة بك:**
 
 📅 **المدة:** {pricing['days']} يوم
-📺 **القنوات:** {pricing['channels_count']} قناة
-📝 **المنشورات يومياً:** {pricing['posts_per_day']} منشور/قناة
-📊 **إجمالي المنشورات:** {pricing['total_posts']:,} منشور
+📝 **المنشورات يومياً:** {pricing['posts_per_day']} منشور
+💰 **الخصم:** {pricing['discount_percent']}%
+💵 **السعر النهائي:** ${pricing['final_cost_usd']:.2f}
 
-💵 **التكلفة الأساسية:** ${pricing['base_cost_usd']:.2f}
-🎯 **الخصم ({pricing['discount_percent']}%):** -${pricing['discount_amount_usd']:.2f}
-✅ **السعر النهائي:** ${pricing['final_cost_usd']:.2f}
-
-⭐ **بالستارز:** {pricing['cost_stars']:,} ستارز
 💎 **بالتون:** {pricing['cost_ton']:.3f} TON
+⭐ **بالستارز:** {pricing['cost_stars']:,} ستارز
 
-📈 **التكلفة لكل يوم:** ${pricing['cost_per_day_usd']:.2f}
-📺 **التكلفة لكل قناة:** ${pricing['cost_per_channel_usd']:.2f}
+📌 **بتأكيد هذا الدفع، أنت توافق على اتفاقية الاستخدام.**
 
-🎉 **وفرت:** ${pricing['savings_usd']:.2f} ({pricing['savings_percent']}%)
+💳 **اختر طريقة الدفع:**
+💎 ادفع بالتون
+⭐ ادفع بستارز تليجرام
             """.strip()
         
         return f"""
-💰 **Pricing Breakdown - {pricing['tier_name']} Tier**
+✅ **Your Ad Plan Summary:**
 
 📅 **Duration:** {pricing['days']} days
-📺 **Channels:** {pricing['channels_count']} channels  
-📝 **Posts per day:** {pricing['posts_per_day']} posts/channel
-📊 **Total posts:** {pricing['total_posts']:,} posts
+📝 **Posts per day:** {pricing['posts_per_day']} posts
+💰 **Discount:** {pricing['discount_percent']}%
+💵 **Final Price:** ${pricing['final_cost_usd']:.2f}
 
-💵 **Base cost:** ${pricing['base_cost_usd']:.2f}
-🎯 **Discount ({pricing['discount_percent']}%):** -${pricing['discount_amount_usd']:.2f}
-✅ **Final price:** ${pricing['final_cost_usd']:.2f}
-
-⭐ **In Stars:** {pricing['cost_stars']:,} Stars
 💎 **In TON:** {pricing['cost_ton']:.3f} TON
+⭐ **In Telegram Stars:** {pricing['cost_stars']:,} Stars
 
-📈 **Cost per day:** ${pricing['cost_per_day_usd']:.2f}
-📺 **Cost per channel:** ${pricing['cost_per_channel_usd']:.2f}
+📌 **By making this payment, you agree to the Usage Agreement.**
 
-🎉 **You save:** ${pricing['savings_usd']:.2f} ({pricing['savings_percent']}%)
+💳 **Choose your payment method:**
+💎 Pay with TON
+⭐ Pay with Telegram Stars
         """.strip()
 
     def get_available_tiers(self) -> List[Dict]:

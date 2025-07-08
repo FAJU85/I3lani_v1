@@ -2120,9 +2120,9 @@ async def frequency_tier_handler(callback_query: CallbackQuery, state: FSMContex
         await callback_query.answer("Please select channels first")
         return
     
-    # Calculate pricing
+    # Calculate pricing (flat rate, not per channel)
     pricing = FrequencyPricingSystem()
-    pricing_data = pricing.calculate_pricing(days, len(selected_channels))
+    pricing_data = pricing.calculate_pricing(days)
     await state.update_data(pricing_data=pricing_data)
     
     # Show payment options
@@ -2157,9 +2157,9 @@ async def handle_custom_duration(message: Message, state: FSMContext):
             await message.reply("❌ Please select channels first")
             return
         
-        # Calculate pricing
+        # Calculate pricing (flat rate, not per channel)
         pricing = FrequencyPricingSystem()
-        pricing_data = pricing.calculate_pricing(days, len(selected_channels))
+        pricing_data = pricing.calculate_pricing(days)
         await state.update_data(pricing_data=pricing_data)
         
         # Show payment options
@@ -2203,29 +2203,28 @@ async def show_frequency_payment_summary(callback_query: CallbackQuery, state: F
         if channel:
             channel_names.append(channel['name'])
     
-    text = f"""💰 **Payment Summary**
+    text = f"""✅ **Your Ad Plan Summary:**
 
-📅 **Campaign Details:**
-• Duration: {pricing_data['days']} days
-• Channels: {pricing_data['channels_count']} channels
-• Tier: {pricing_data['tier_name']}
-• Posts per day: {pricing_data['posts_per_day']} per channel
-• Total posts: {pricing_data['total_posts']:,} posts
+📅 **Duration:** {pricing_data['days']} days
+📝 **Posts per day:** {pricing_data['posts_per_day']} posts
+💰 **Discount:** {pricing_data['discount_percent']}%
+💵 **Final Price:** ${pricing_data['final_cost_usd']:.2f}
+
+💎 **In TON:** {pricing_data['cost_ton']:.3f} TON
+⭐ **In Telegram Stars:** {pricing_data['cost_stars']:,} Stars
 
 📺 **Selected Channels:**
 {chr(10).join(f"• {name}" for name in channel_names)}
 
-💵 **Pricing:**
-• Base cost: ${pricing_data['base_cost_usd']:.2f}
-• Discount ({pricing_data['discount_percent']}%): -${pricing_data['discount_amount_usd']:.2f}
-• **Final price: ${pricing_data['final_cost_usd']:.2f}**
+📊 **Campaign Details:**
+• Daily Rate: ${pricing_data['daily_price']:.2f}/day ({pricing_data['posts_per_day']} posts)
+• Total Posts: {pricing_data['total_posts']:,} posts
+• Base Cost: ${pricing_data['base_cost_usd']:.2f}
+• You Save: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% off)
 
-⭐ **Stars:** {pricing_data['cost_stars']:,} Stars
-💎 **TON:** {pricing_data['cost_ton']:.3f} TON
+📌 **By making this payment, you agree to the Usage Agreement.**
 
-🎉 **You save:** ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}%)
-
-💡 **Higher frequency = Better engagement!**
+💡 **More days = More posts per day + Bigger discounts!**
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -2259,29 +2258,28 @@ async def show_frequency_payment_summary_message(message: Message, state: FSMCon
         if channel:
             channel_names.append(channel['name'])
     
-    text = f"""💰 **Payment Summary**
+    text = f"""✅ **Your Ad Plan Summary:**
 
-📅 **Campaign Details:**
-• Duration: {pricing_data['days']} days
-• Channels: {pricing_data['channels_count']} channels
-• Tier: {pricing_data['tier_name']}
-• Posts per day: {pricing_data['posts_per_day']} per channel
-• Total posts: {pricing_data['total_posts']:,} posts
+📅 **Duration:** {pricing_data['days']} days
+📝 **Posts per day:** {pricing_data['posts_per_day']} posts
+💰 **Discount:** {pricing_data['discount_percent']}%
+💵 **Final Price:** ${pricing_data['final_cost_usd']:.2f}
+
+💎 **In TON:** {pricing_data['cost_ton']:.3f} TON
+⭐ **In Telegram Stars:** {pricing_data['cost_stars']:,} Stars
 
 📺 **Selected Channels:**
 {chr(10).join(f"• {name}" for name in channel_names)}
 
-💵 **Pricing:**
-• Base cost: ${pricing_data['base_cost_usd']:.2f}
-• Discount ({pricing_data['discount_percent']}%): -${pricing_data['discount_amount_usd']:.2f}
-• **Final price: ${pricing_data['final_cost_usd']:.2f}**
+📊 **Campaign Details:**
+• Daily Rate: ${pricing_data['daily_price']:.2f}/day ({pricing_data['posts_per_day']} posts)
+• Total Posts: {pricing_data['total_posts']:,} posts
+• Base Cost: ${pricing_data['base_cost_usd']:.2f}
+• You Save: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% off)
 
-⭐ **Stars:** {pricing_data['cost_stars']:,} Stars
-💎 **TON:** {pricing_data['cost_ton']:.3f} TON
+📌 **By making this payment, you agree to the Usage Agreement.**
 
-🎉 **You save:** ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}%)
-
-💡 **Higher frequency = Better engagement!**
+💡 **More days = More posts per day + Bigger discounts!**
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
