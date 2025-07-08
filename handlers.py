@@ -1659,11 +1659,11 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
 
 How many days: {days}
 
-💰 **Live Price Preview** (1 post/day):
-🔷 TON: {calculation['total_ton']} TON
-⭐ Stars: {calculation['total_stars']} Stars
+**Live Price Preview** (1 post/day):
+- TON: {calculation['total_ton']} TON
+- Stars: {calculation['total_stars']} Stars
 
-📊 **Volume Discount Info:**
+**Volume Discount Info:**
 - 1 post/day = No discount
 - 2 posts/day = 5% off  
 - 4 posts/day = 10% off

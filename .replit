@@ -26,6 +26,7 @@ args = "python main.py"
 
 [deployment]
 deploymentTarget = "cloudrun"
+run = ["sh", "-c", "python main.py"]
 
 [[ports]]
 localPort = 5001
