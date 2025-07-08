@@ -20,6 +20,9 @@ from channel_manager import init_channel_manager, handle_my_chat_member
 from publishing_scheduler import init_scheduler
 from troubleshooting import init_troubleshooting_system
 from troubleshooting_handlers import troubleshooting_router, init_troubleshooting_handlers
+from admin_ui_control import router as ui_control_router
+from button_test_handler import router as button_test_router
+from comprehensive_button_tester import router as comprehensive_button_router
 
 # Configure logging
 logging.basicConfig(
@@ -34,6 +37,14 @@ LOCK_FILE = "/tmp/i3lani_bot.lock"
 def acquire_lock():
     """Acquire lock to prevent multiple bot instances"""
     try:
+        # Kill any existing python processes running the bot
+        import subprocess
+        try:
+            subprocess.run(["pkill", "-f", "python main.py"], check=False, capture_output=True)
+            logger.info("🧹 Killed existing bot processes")
+        except:
+            pass
+        
         # Clean up stale lock file if process doesn't exist
         if os.path.exists(LOCK_FILE):
             try:
@@ -137,6 +148,9 @@ async def main():
         troubleshooting_system = await init_troubleshooting_system(db, bot)
         init_troubleshooting_handlers(troubleshooting_system)
         dp.include_router(troubleshooting_router)
+        dp.include_router(ui_control_router)
+        dp.include_router(button_test_router)
+        dp.include_router(comprehensive_button_router)
         logger.info("Troubleshooting system initialized successfully")
         
         # Initialize translation system

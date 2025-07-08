@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 from states import AdCreationStates, UserStates
 from languages import get_text, get_currency_info, LANGUAGES
+from ui_integration import get_mapped_text, get_button_text, get_message_text
 from database import db, ensure_user_exists, get_user_language
 from payments import payment_processor
 from config import ADMIN_IDS

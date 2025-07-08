@@ -17,6 +17,7 @@ from config import ADMIN_IDS, CHANNELS
 from database import db
 from dynamic_pricing import get_dynamic_pricing
 from states import AdminStates
+from admin_ui_control import admin_ui_control
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,10 @@ class AdminSystem:
             [
                 InlineKeyboardButton(text="📺 Channel Management", callback_data="admin_channels"),
                 InlineKeyboardButton(text="💰 Price Management", callback_data="admin_packages")
+            ],
+            [
+                InlineKeyboardButton(text="🎨 UI Control", callback_data="ui_control_main"),
+                InlineKeyboardButton(text="🔧 Troubleshoot", callback_data="admin_troubleshoot")
             ],
             [
                 InlineKeyboardButton(text="👥 User Management", callback_data="admin_users"),
@@ -393,7 +398,7 @@ Active Users: {active_users}
                 InlineKeyboardButton(text="SUCCESS: Unban User", callback_data="admin_unban_user")
             ],
             [
-                InlineKeyboardButton(text="STATS: User Analytics", callback_data="admin_user_analytics"),
+                InlineKeyboardButton(text="STATS: User Analytics", callback_data="user_analytics"),
                 InlineKeyboardButton(text="💰 Payment History", callback_data="admin_payment_history")
             ],
             [

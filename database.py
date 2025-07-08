@@ -12,6 +12,10 @@ from config import DATABASE_URL
 class Database:
     def __init__(self, db_path: str = "bot.db"):
         self.db_path = db_path
+    
+    def get_connection(self):
+        """Get database connection for async context manager"""
+        return aiosqlite.connect(self.db_path)
         
     async def init_db(self):
         """Initialize database tables"""
@@ -211,6 +215,20 @@ class Database:
                     processed_at TIMESTAMP,
                     notes TEXT,
                     FOREIGN KEY (user_id) REFERENCES users (user_id)
+                )
+            ''')
+            
+            # UI customizations table for admin control
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS ui_customizations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category TEXT NOT NULL,
+                    text_key TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    custom_text TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(category, text_key, language)
                 )
             ''')
             
@@ -1014,6 +1032,108 @@ Last updated: July 2025"""
             print(f"Error updating payout status: {e}")
             return False
 
+    # UI Customization Methods
+    async def get_ui_text(self, category: str, key: str, language: str) -> Optional[str]:
+        """Get customized UI text"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT custom_text FROM ui_customizations 
+                    WHERE category = ? AND text_key = ? AND language = ?
+                ''', (category, key, language))
+                row = await cursor.fetchone()
+                return row[0] if row else None
+        except Exception as e:
+            print(f"Error getting UI text: {e}")
+            return None
+    
+    async def set_ui_text(self, category: str, key: str, language: str, text: str) -> bool:
+        """Set customized UI text"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    INSERT OR REPLACE INTO ui_customizations 
+                    (category, text_key, language, custom_text, updated_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (category, key, language, text))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error setting UI text: {e}")
+            return False
+    
+    async def delete_ui_text(self, category: str, key: str, language: str) -> bool:
+        """Delete customized UI text (reset to default)"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    DELETE FROM ui_customizations 
+                    WHERE category = ? AND text_key = ? AND language = ?
+                ''', (category, key, language))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting UI text: {e}")
+            return False
+    
+    async def get_all_ui_customizations(self) -> dict:
+        """Get all UI customizations grouped by category"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT category, text_key, language, custom_text 
+                    FROM ui_customizations 
+                    ORDER BY category, text_key, language
+                ''')
+                rows = await cursor.fetchall()
+                
+                result = {}
+                for row in rows:
+                    category, key, language, text = row
+                    if category not in result:
+                        result[category] = {}
+                    if key not in result[category]:
+                        result[category][key] = {}
+                    result[category][key][language] = text
+                
+                return result
+        except Exception as e:
+            print(f"Error getting all UI customizations: {e}")
+            return {}
+    
+    async def get_ui_customization_stats(self) -> dict:
+        """Get statistics about UI customizations"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute('''
+                    SELECT 
+                        COUNT(*) as total_customizations,
+                        COUNT(DISTINCT category) as categories_customized,
+                        COUNT(DISTINCT text_key) as keys_customized,
+                        COUNT(DISTINCT language) as languages_customized
+                    FROM ui_customizations
+                ''')
+                row = await cursor.fetchone()
+                
+                # Get category breakdown
+                cursor = await db.execute('''
+                    SELECT category, COUNT(*) as count
+                    FROM ui_customizations
+                    GROUP BY category
+                    ORDER BY count DESC
+                ''')
+                category_stats = await cursor.fetchall()
+                
+                return {
+                    'total_customizations': row[0],
+                    'categories_customized': row[1],
+                    'keys_customized': row[2],
+                    'languages_customized': row[3],
+                    'category_breakdown': dict(category_stats)
+                }
+        except Exception as e:
+            print(f"Error getting UI stats: {e}")
+            return {}
 
 # Global database instance
 db = Database()

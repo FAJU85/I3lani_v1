@@ -383,7 +383,7 @@ async def generate_system_report(callback_query: CallbackQuery):
 async def report_user_issue(message: Message, state: FSMContext):
     """Allow users to report issues to support"""
     user_id = message.from_user.id
-    language = await db.get_user_language(user_id)
+    language = await get_user_language(user_id)
     
     if len(message.text.split()) < 2:
         await message.reply(
