@@ -67,32 +67,32 @@ class ChannelIncentives:
         
         messages = {
             'en': """
-🚀 **Transform Your Channel into a Revenue Stream!**
+🚀 Transform Your Channel into a Revenue Stream!
 
-**Add I3lani Bot as Administrator and Unlock:**
+Add I3lani Bot as Administrator and Unlock:
 
-💰 **Monthly Revenue Share**
+💰 Monthly Revenue Share
 • Earn $0.01 per subscriber monthly
 • Performance bonuses up to $50/month
 • Instant payments via TON/Telegram Stars
 
-🎯 **Partner Benefits**
+🎯 Partner Benefits
 • Free premium ad placement in your channel
 • Priority support and custom features
 • Revenue analytics and insights
 
-🏆 **Tier Rewards**
+🏆 Tier Rewards
 • Basic Partner: Standard benefits
 • Silver Partner (5K+): +$10 monthly bonus
 • Gold Partner (10K+): +$20 monthly bonus  
 • Premium Partner (50K+): +$50 monthly bonus
 
-⚡ **Instant Setup**
+⚡ Instant Setup
 1. Add @I3lani_bot as administrator
 2. Grant "Post Messages" permission
 3. Start earning immediately!
 
-**Your channel deserves premium monetization!**
+Your channel deserves premium monetization!
             """,
             'ar': """
 🚀 **حول قناتك إلى مصدر دخل!**

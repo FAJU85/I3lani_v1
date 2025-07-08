@@ -545,18 +545,15 @@ How should customers reach you?
 
 Examples:
 - Phone: +966501234567
-- WhatsApp: +966501234567
-- Email: user@email.com
-- Telegram: @username
-
-Your ad content is ready!
+Your ad content is ready! Let's proceed to channel selection.
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Continue to Channels", callback_data="continue_to_channels")],
         [InlineKeyboardButton(text="◀️ Back to Text", callback_data="back_to_text")]
     ])
     
-    await message.answer(contact_text, reply_markup=keyboard, parse_mode='Markdown')
+    await message.answer(contact_text, reply_markup=keyboard)
     
     # Show channel selection - create proper channel selection message
     user_id = message.from_user.id
@@ -685,10 +682,11 @@ Examples:
 - Email: user@email.com
 - Telegram: @username
 
-Send your contact information:
+Content ready! Let's proceed to channel selection.
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Continue to Channels", callback_data="continue_to_channels")],
         [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
     ])
     
@@ -724,15 +722,16 @@ Examples:
 - Email: user@email.com
 - Telegram: @username
 
-Send your contact information:
+Content ready! Let's proceed to channel selection.
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Continue to Channels", callback_data="continue_to_channels")],
         [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
     ])
     
     await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
-    await callback_query.answer("Photos skipped")
+    await callback_query.answer("Ready for channel selection")
 
 
 @router.callback_query(F.data == "skip_photos_to_text")
@@ -2278,8 +2277,8 @@ async def show_payment_options_handler(callback_query: CallbackQuery, state: FSM
     from dynamic_pricing import get_dynamic_pricing
     pricing = get_dynamic_pricing()
     
-    base_cost = f"{calculation['base_cost']:.2f}"
-    discount_amount = f"{calculation['discount_amount']:.2f}"
+    base_cost = f"{calculation.get('base_cost', calculation.get('total_usd', 0)):.2f}"
+    discount_amount = f"{calculation.get('discount_amount', 0):.2f}"
     final_price = f"{calculation['total_usd']:.2f}"
     
     text = f"""
@@ -2458,8 +2457,9 @@ async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext)
         expiration_text += "Would you like to try again?"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="[Refresh] Try Again", callback_data="pay_dynamic_ton")],
-            [InlineKeyboardButton(text="[X] Cancel", callback_data="back_to_main")]
+            [InlineKeyboardButton(text="🔄 Try Again", callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+            [InlineKeyboardButton(text="💬 Contact Support", callback_data="support_contact")]
         ])
         
         await bot.send_message(
@@ -3531,7 +3531,7 @@ async def join_partner_program_handler(callback_query: CallbackQuery, state: FSM
         [InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")]
     ])
     
-    await callback_query.message.edit_text(invitation_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(invitation_text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.callback_query(F.data == "view_partner_dashboard")
@@ -3605,6 +3605,58 @@ async def success_stories_handler(callback_query: CallbackQuery, state: FSMConte
     ])
     
     await callback_query.message.edit_text(stories_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "continue_to_channels")
+async def continue_to_channels_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Continue to channel selection after content creation"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get available channels
+    channels = await db.get_channels()
+    
+    if not channels:
+        await callback_query.message.edit_text(
+            get_text(language, 'no_channels_available'),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Back to Text", callback_data="back_to_text")]
+            ])
+        )
+        return
+    
+    # Show channel selection
+    await show_channel_selection_for_enhanced_flow(callback_query, state)
+
+@router.callback_query(F.data == "support_contact")
+async def support_contact_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle support contact requests"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    support_text = """
+📞 Contact Support
+
+We're here to help! Contact us:
+
+• Telegram: @I3lani_Support
+• Email: support@i3lani.com
+• Response time: 24 hours
+
+Common issues:
+• Payment not confirmed
+• Ad not published
+• Technical problems
+• Account questions
+
+Our team will help you resolve any issues quickly!
+    """
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(support_text, reply_markup=keyboard)
     await callback_query.answer()
 
 @router.callback_query(F.data == "request_payout")
