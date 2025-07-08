@@ -3249,7 +3249,7 @@ Type the number of posts per day:
         discount_explanation = pricing.get_discount_explanation(posts_per_day)
         
         # Create channel list
-        channel_list = "\n".join([f"- {ch['channel_name']}" for ch in selected_channel_data])
+        channel_list = "\n".join([f"- {ch['name']}" for ch in selected_channel_data])
         
         text = f"""
 {summary}
