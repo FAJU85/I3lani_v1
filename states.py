@@ -38,6 +38,7 @@ class AdCreationStates(StatesGroup):
     payment_processing = State()
     error_state = State()
     confirmation_pending = State()
+    custom_duration = State()
 
 
 class UserStates(StatesGroup):

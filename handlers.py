@@ -22,7 +22,7 @@ from payments import payment_processor
 from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
-from dynamic_pricing import get_dynamic_pricing
+from frequency_pricing import FrequencyPricingSystem
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -2098,12 +2098,238 @@ async def days_info_handler(callback_query: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "days_confirm")
 async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Confirm days selection and continue to posts per day"""
+    """Confirm days selection and continue to frequency tier selection"""
     data = await state.get_data()
     selected_days = data.get('selected_days', 1)
     
-    # Move to posts per day selection
-    await show_posts_per_day_selection(callback_query, state, selected_days)
+    # Move to frequency tier selection
+    await show_frequency_tier_selection(callback_query, state)
+
+# Frequency Pricing System Handlers
+@router.callback_query(F.data.startswith("freq_tier_"))
+async def frequency_tier_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle frequency tier selection"""
+    days = int(callback_query.data.replace("freq_tier_", ""))
+    await state.update_data(selected_days=days)
+    
+    # Get channel data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    if not selected_channels:
+        await callback_query.answer("Please select channels first")
+        return
+    
+    # Calculate pricing
+    pricing = FrequencyPricingSystem()
+    pricing_data = pricing.calculate_pricing(days, len(selected_channels))
+    await state.update_data(pricing_data=pricing_data)
+    
+    # Show payment options
+    await show_frequency_payment_summary(callback_query, state, pricing_data)
+
+@router.callback_query(F.data == "freq_custom")
+async def frequency_custom_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle custom duration selection"""
+    await callback_query.message.edit_text(
+        "📝 **Custom Duration**\n\nPlease enter the number of days (1-365):",
+        parse_mode='Markdown'
+    )
+    await state.set_state(AdCreationStates.custom_duration)
+    await callback_query.answer()
+
+@router.message(AdCreationStates.custom_duration)
+async def handle_custom_duration(message: Message, state: FSMContext):
+    """Handle custom duration input"""
+    try:
+        days = int(message.text.strip())
+        if days < 1 or days > 365:
+            await message.reply("❌ Please enter a number between 1 and 365 days.")
+            return
+        
+        await state.update_data(selected_days=days)
+        
+        # Get channel data
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        if not selected_channels:
+            await message.reply("❌ Please select channels first")
+            return
+        
+        # Calculate pricing
+        pricing = FrequencyPricingSystem()
+        pricing_data = pricing.calculate_pricing(days, len(selected_channels))
+        await state.update_data(pricing_data=pricing_data)
+        
+        # Show payment options
+        await show_frequency_payment_summary_message(message, state, pricing_data)
+        
+    except ValueError:
+        await message.reply("❌ Please enter a valid number of days.")
+
+@router.callback_query(F.data == "freq_all_tiers")
+async def frequency_all_tiers_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Show all available frequency tiers"""
+    pricing = FrequencyPricingSystem()
+    all_tiers = pricing.get_available_tiers()
+    
+    text = "📊 **All Available Frequency Tiers**\n\n"
+    for tier in all_tiers:
+        text += f"• **{tier['name']}** ({tier['days']} days)\n"
+        text += f"  📝 {tier['posts_per_day']} posts/day per channel\n"
+        if tier['discount'] > 0:
+            text += f"  💰 {tier['discount']}% discount\n"
+        text += "\n"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="◀️ Back to Selection", callback_data="continue_to_duration")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+
+async def show_frequency_payment_summary(callback_query: CallbackQuery, state: FSMContext, pricing_data: Dict):
+    """Show payment summary for frequency pricing"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Get channel names
+    channel_names = []
+    for channel_id in selected_channels:
+        channel = await db.get_channel(channel_id)
+        if channel:
+            channel_names.append(channel['name'])
+    
+    text = f"""💰 **Payment Summary**
+
+📅 **Campaign Details:**
+• Duration: {pricing_data['days']} days
+• Channels: {pricing_data['channels_count']} channels
+• Tier: {pricing_data['tier_name']}
+• Posts per day: {pricing_data['posts_per_day']} per channel
+• Total posts: {pricing_data['total_posts']:,} posts
+
+📺 **Selected Channels:**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+💵 **Pricing:**
+• Base cost: ${pricing_data['base_cost_usd']:.2f}
+• Discount ({pricing_data['discount_percent']}%): -${pricing_data['discount_amount_usd']:.2f}
+• **Final price: ${pricing_data['final_cost_usd']:.2f}**
+
+⭐ **Stars:** {pricing_data['cost_stars']:,} Stars
+💎 **TON:** {pricing_data['cost_ton']:.3f} TON
+
+🎉 **You save:** ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}%)
+
+💡 **Higher frequency = Better engagement!**
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
+            InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
+        ],
+        [
+            InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
+            InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
+        ],
+        [
+            InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
+        ]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+
+async def show_frequency_payment_summary_message(message: Message, state: FSMContext, pricing_data: Dict):
+    """Show payment summary for frequency pricing via message"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Get channel names
+    channel_names = []
+    for channel_id in selected_channels:
+        channel = await db.get_channel(channel_id)
+        if channel:
+            channel_names.append(channel['name'])
+    
+    text = f"""💰 **Payment Summary**
+
+📅 **Campaign Details:**
+• Duration: {pricing_data['days']} days
+• Channels: {pricing_data['channels_count']} channels
+• Tier: {pricing_data['tier_name']}
+• Posts per day: {pricing_data['posts_per_day']} per channel
+• Total posts: {pricing_data['total_posts']:,} posts
+
+📺 **Selected Channels:**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+💵 **Pricing:**
+• Base cost: ${pricing_data['base_cost_usd']:.2f}
+• Discount ({pricing_data['discount_percent']}%): -${pricing_data['discount_amount_usd']:.2f}
+• **Final price: ${pricing_data['final_cost_usd']:.2f}**
+
+⭐ **Stars:** {pricing_data['cost_stars']:,} Stars
+💎 **TON:** {pricing_data['cost_ton']:.3f} TON
+
+🎉 **You save:** ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}%)
+
+💡 **Higher frequency = Better engagement!**
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
+            InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
+        ],
+        [
+            InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
+            InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
+        ],
+        [
+            InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
+        ]
+    ])
+    
+    await message.reply(text, reply_markup=keyboard, parse_mode='Markdown')
+
+@router.callback_query(F.data == "freq_change_duration")
+async def frequency_change_duration_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle duration change request"""
+    await show_frequency_tier_selection(callback_query, state)
+
+@router.callback_query(F.data == "pay_freq_ton")
+async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle TON payment for frequency pricing"""
+    data = await state.get_data()
+    pricing_data = data.get('pricing_data', {})
+    
+    if not pricing_data:
+        await callback_query.answer("❌ Pricing data not found")
+        return
+    
+    # Process TON payment
+    await process_ton_payment(callback_query, state, pricing_data['cost_ton'])
+
+@router.callback_query(F.data == "pay_freq_stars")
+async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle Stars payment for frequency pricing"""
+    data = await state.get_data()
+    pricing_data = data.get('pricing_data', {})
+    
+    if not pricing_data:
+        await callback_query.answer("❌ Pricing data not found")
+        return
+    
+    # Process Stars payment
+    await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
 
 async def show_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
     """Show posts per day selection with the selected days"""

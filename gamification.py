@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from database import Database
-from web3_ui import Web3UIComponents
+from web3_ui import Web3UI
 from languages import get_text
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class GamificationSystem:
     def __init__(self, database: Database, bot):
         self.db = database
         self.bot = bot
-        self.web3_ui = Web3UIComponents()
+        # Web3 UI functions imported directly
         
         # Achievement definitions
         self.achievements = {
@@ -687,7 +687,7 @@ Keep up the amazing work! 🎯
             # Create XP progress bar
             if next_level:
                 xp_progress = (profile['xp'] - level_info['xp_required']) / (next_level['xp_required'] - level_info['xp_required'])
-                xp_bar = self.web3_ui.create_progress_bar(xp_progress)
+                xp_bar = Web3UI.create_quantum_progress(xp_progress)
             else:
                 xp_bar = "████████████ MAX LEVEL"
             
@@ -699,7 +699,7 @@ Keep up the amazing work! 🎯
             dashboard = f"""
 🎮 **GAMIFICATION DASHBOARD** 🎮
 
-{self.web3_ui.create_neural_header("PLAYER PROFILE")}
+{Web3UI.create_neural_header("PLAYER PROFILE")}
 
 **Level Progress:**
 {level_info['badge']} Level {profile['level']}: {level_info['name']}
@@ -719,7 +719,7 @@ Current Streak: {profile['daily_streak']} days
 **Unlocked Perks:**
 {chr(10).join(f"✅ {perk}" for perk in level_info['perks'])}
 
-{self.web3_ui.create_holographic_display("NEURAL GAMING MATRIX")}
+{Web3UI.create_quantum_section("NEURAL GAMING MATRIX", "Competitive achievement tracking", "quantum")}
             """.strip()
             
             return dashboard
