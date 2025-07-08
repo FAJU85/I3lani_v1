@@ -1,9 +1,11 @@
 """
 Message and callback handlers for I3lani Telegram Bot
 """
-from aiogram import Router, F, Bot
+from aiogram import Router, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
+from aiogram.filters.callback_data import CallbackData
+from aiogram import F
 from aiogram.fsm.context import FSMContext
 from typing import List, Dict
 import logging
@@ -3127,7 +3129,7 @@ async def claim_registration_bonus_handler(callback_query: CallbackQuery):
     
     await callback_query.answer(message, show_alert=True)
 
-@router.callback_query(F.data == "view_earnings")
+@router.callback_query(lambda c: c.data == "view_earnings")
 async def view_earnings_handler(callback_query: CallbackQuery):
     """Show comprehensive partner reward board"""
     user_id = callback_query.from_user.id
@@ -3156,7 +3158,7 @@ async def view_earnings_handler(callback_query: CallbackQuery):
         ]
         
         # Add payout button if threshold is met
-        if partner_status and partner_status['pending_rewards'] >= 25.0:
+        if partner_status and partner_status.get('pending_rewards', 0) >= 25.0:
             keyboard_buttons.insert(1, [InlineKeyboardButton(text="💰 Request Payout", callback_data="request_payout")])
         
         keyboard_buttons.append([InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")])
@@ -3170,20 +3172,68 @@ async def view_earnings_handler(callback_query: CallbackQuery):
         logger.error(f"Error in view_earnings_handler: {e}")
         await callback_query.answer("Error loading reward board. Please try again.", show_alert=True)
 
-@router.callback_query(F.data == "referral_stats")
+@router.callback_query(lambda c: c.data == "referral_stats")
 async def referral_stats_handler(callback_query: CallbackQuery):
-    """Show detailed referral statistics"""
+    """Show referral statistics"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Get referral data
-    referral_count = await db.get_referral_count(user_id)
-    referrals = await db.get_partner_referrals(user_id)
-    
-    # Calculate tier
-    if referral_count >= 50:
-        tier = "Premium"
-        rate = 2.0
+    try:
+        # Get referral statistics
+        referral_count = await db.get_referral_count(user_id)
+        partner_status = await db.get_partner_status(user_id)
+        
+        if not partner_status:
+            await db.create_partner_status(user_id)
+            partner_status = await db.get_partner_status(user_id)
+        
+        # Calculate tier
+        if referral_count >= 50:
+            tier = "Premium"
+            tier_icon = "💎"
+        elif referral_count >= 25:
+            tier = "Gold"
+            tier_icon = "🥇"
+        elif referral_count >= 10:
+            tier = "Silver"
+            tier_icon = "🥈"
+        else:
+            tier = "Basic"
+            tier_icon = "🥉"
+        
+        stats_text = f"""
+📊 **REFERRAL STATISTICS**
+
+{tier_icon} **Current Tier: {tier}**
+├─ Total Referrals: {referral_count}
+├─ Pending Rewards: {partner_status.get('pending_rewards', 0):.2f} TON
+└─ Registration Bonus: {"✅ Claimed" if partner_status.get('registration_bonus_paid') else "❌ Unclaimed"}
+
+🎯 **Next Tier Requirements:**
+{'• Maximum tier reached!' if referral_count >= 50 else f'• {(50 if referral_count >= 25 else 25 if referral_count >= 10 else 10) - referral_count} more referrals needed'}
+
+🔗 **Your Referral Link:**
+https://t.me/I3lani_bot?start=ref_{user_id}
+
+💡 **Tips to Earn More:**
+• Share your link on social media
+• Invite friends personally
+• Join relevant Telegram groups
+• Create referral campaigns
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💰 Reward Board", callback_data="view_earnings")],
+            [InlineKeyboardButton(text="🔗 Share Link", callback_data="share_earn")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+        ])
+        
+        await callback_query.message.edit_text(stats_text, reply_markup=keyboard)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in referral_stats_handler: {e}")
+        await callback_query.answer("Error loading referral stats. Please try again.", show_alert=True)
         next_tier = "Maximum Tier"
         needed = 0
     elif referral_count >= 25:
