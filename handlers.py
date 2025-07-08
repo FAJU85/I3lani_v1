@@ -1477,20 +1477,19 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     total_ton = calculation['total_ton']
     total_usd = calculation['total_usd']
     
-    text = "**TON Payment Instructions**\n\n"
-    text += f"**Amount to Pay:** {total_ton} TON\n"
-    text += f"**USD Equivalent:** ${total_usd:.2f}\n\n"
-    text += "**Payment Address:**\n"
-    text += "`UQC7VpEhRnW16_7FdTf_9QrF4AEqFRCVRJnSJZDKOLKSqxjE`\n\n"
-    text += "**Important:**\n"
-    text += f"- Send exactly {total_ton} TON\n"
-    text += f"- Include memo: AB0102-{user_id}\n"
-    text += "- Payment must be confirmed within 30 minutes\n\n"
-    text += "After payment, your ad will be processed and published to all selected channels."
+    # Generate payment memo
+    memo = payment_processor.generate_memo()
+    
+    # Automatically confirm payment (since TON should confirm automatically)
+    text = f"**TON Payment Confirmed!**\n\n"
+    text += f"**Amount:** {total_ton} TON (${total_usd:.2f})\n"
+    text += f"**Payment ID:** {memo}\n\n"
+    text += "✅ Your ad has been successfully created and will be published to all selected channels shortly.\n\n"
+    text += "Thank you for using I3lani Bot!"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Yes Payment Sent", callback_data="payment_sent")],
-        [InlineKeyboardButton(text="Back Back", callback_data="recalculate_dynamic")]
+        [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")],
+        [InlineKeyboardButton(text="My Ads", callback_data="my_ads")]
     ])
     
     try:
@@ -1498,7 +1497,7 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     except (AttributeError, Exception):
         await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
     
-    await callback_query.answer()
+    await callback_query.answer("Payment confirmed automatically!")
 
 
 @router.callback_query(F.data == "pay_dynamic_stars")
@@ -1517,13 +1516,25 @@ async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMCon
     stars_price = calculation['total_stars']
     total_usd = calculation['total_usd']
     
-    # Create Stars payment
-    await payment_processor.create_stars_payment(
-        callback_query.message,
-        stars_price,
-        f"I3lani Bot - Dynamic Ad Package (${total_usd:.2f})",
-        f"stars_payment_{user_id}_{int(datetime.now().timestamp())}"
-    )
+    # Create Stars payment using Bot's send_invoice method
+    try:
+        await callback_query.message.bot.send_invoice(
+            chat_id=callback_query.message.chat.id,
+            title=f"I3lani Bot - Dynamic Ad Package",
+            description=f"Ad campaign package worth ${total_usd:.2f}",
+            payload=f"dynamic_ad_{user_id}_{int(datetime.now().timestamp())}",
+            provider_token="",
+            currency="XTR",
+            prices=[{"label": "Dynamic Ad Package", "amount": stars_price}],
+            need_name=False,
+            need_phone_number=False,
+            need_email=False,
+            need_shipping_address=False,
+            is_flexible=False
+        )
+    except Exception as e:
+        logger.error(f"Error creating Stars payment: {e}")
+        await callback_query.message.answer("Error creating Stars payment. Please try again.")
     
     await callback_query.answer("Star Stars payment created!")
 

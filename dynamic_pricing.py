@@ -123,7 +123,6 @@ class DynamicPricing:
 - Daily rate{discount_text}: **${calculation['daily_cost']:.2f}**{channel_text}
 
 💰 **Total Cost:**
-- **USD: ${calculation['total_usd']:.2f}**
 - **TON: {calculation['total_ton']} TON**
 - **Stars: {calculation['total_stars']} ⭐**
 
@@ -141,10 +140,7 @@ class DynamicPricing:
         
         return [
             [
-                {'text': f'💳 Pay ${calculation["total_usd"]:.2f} USD', 'callback_data': 'pay_dynamic_usd'},
-                {'text': f'🔷 Pay {calculation["total_ton"]} TON', 'callback_data': 'pay_dynamic_ton'}
-            ],
-            [
+                {'text': f'🔷 Pay {calculation["total_ton"]} TON', 'callback_data': 'pay_dynamic_ton'},
                 {'text': f'⭐ Pay {calculation["total_stars"]} Stars', 'callback_data': 'pay_dynamic_stars'}
             ],
             [
