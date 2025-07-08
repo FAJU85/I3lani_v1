@@ -53,6 +53,14 @@ LANGUAGES = {
         'continue': '➡️ Continue',
         'cancel': '❌ Cancel',
         'confirm': '✅ Confirm',
+        'back_to_main': '◀️ Back to Main',
+        'channel_partners': '🤝 Channel Partners',
+        'contact_support': '💬 Contact Support',
+        'try_again': '🔄 Try Again',
+        'main_menu': '🏠 Main Menu',
+        'continue_to_channels': '✅ Continue to Channels',
+        'back_to_text': '◀️ Back to Text',
+        'back_to_photos': '◀️ Back to Photos',
         
         # Referral
         'referral_link': 'Your referral link:',
@@ -179,6 +187,20 @@ Questions? Use /support to get help!""",
         'error_processing_request': 'خطأ في معالجة الطلب. يرجى المحاولة مرة أخرى.',
         'language_updated': 'تم تحديث اللغة بنجاح!',
         
+        # Buttons
+        'back_to_main': '◀️ العودة للقائمة الرئيسية',
+        'channel_partners': '🤝 شراكة القنوات',
+        'contact_support': '💬 تواصل مع الدعم',
+        'try_again': '🔄 حاول مرة أخرى',
+        'main_menu': '🏠 القائمة الرئيسية',
+        'continue_to_channels': '✅ متابعة إلى القنوات',
+        'back_to_text': '◀️ العودة للنص',
+        'back_to_photos': '◀️ العودة للصور',
+        'back': '🔙 رجوع',
+        'continue': '➡️ متابعة',
+        'cancel': '❌ إلغاء',
+        'confirm': '✅ تأكيد',
+        
         # Help
         'help_text': """🤖 **بوت إعلاني - المساعدة والأوامر**
 
@@ -268,6 +290,20 @@ Questions? Use /support to get help!""",
         'error_uploading_photo': 'Ошибка загрузки фото. Пожалуйста, попробуйте снова.',
         'error_processing_request': 'Ошибка обработки запроса. Пожалуйста, попробуйте снова.',
         'language_updated': 'Язык успешно обновлен!',
+        
+        # Buttons
+        'back_to_main': '◀️ В главное меню',
+        'channel_partners': '🤝 Партнеры каналов',
+        'contact_support': '💬 Связаться с поддержкой',
+        'try_again': '🔄 Попробовать снова',
+        'main_menu': '🏠 Главное меню',
+        'continue_to_channels': '✅ Перейти к каналам',
+        'back_to_text': '◀️ Назад к тексту',
+        'back_to_photos': '◀️ Назад к фото',
+        'back': '🔙 Назад',
+        'continue': '➡️ Продолжить',
+        'cancel': '❌ Отмена',
+        'confirm': '✅ Подтвердить',
         
         # Help
         'help_text': """🤖 **I3lani Bot - Справка и команды**

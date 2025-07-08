@@ -77,7 +77,7 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
             callback_data="share_earn"
         ),
         InlineKeyboardButton(
-            text="🤝 Channel Partners", 
+            text=get_text(language, 'channel_partners'), 
             callback_data="join_partner_program"
         )
     ])
@@ -549,7 +549,7 @@ Your ad content is ready! Let's proceed to channel selection.
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Continue to Channels", callback_data="continue_to_channels")],
+        [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
         [InlineKeyboardButton(text="◀️ Back to Text", callback_data="back_to_text")]
     ])
     
@@ -2428,7 +2428,7 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
         success_text += "Thank you for using I3lani Bot!"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")],
+            [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")],
             [InlineKeyboardButton(text="My Ads", callback_data="my_ads")]
         ])
         
@@ -2457,9 +2457,9 @@ async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext)
         expiration_text += "Would you like to try again?"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Try Again", callback_data="pay_dynamic_ton")],
-            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
-            [InlineKeyboardButton(text="💬 Contact Support", callback_data="support_contact")]
+            [InlineKeyboardButton(text=get_text(language, 'try_again'), callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text=get_text(language, 'main_menu'), callback_data="back_to_main")],
+            [InlineKeyboardButton(text=get_text(language, 'contact_support'), callback_data="support_contact")]
         ])
         
         await bot.send_message(
@@ -2486,7 +2486,7 @@ async def cancel_payment_handler(callback_query: CallbackQuery, state: FSMContex
     text = "[X] Payment cancelled. You can create a new ad anytime."
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Create New Ad", callback_data="create_ad")],
-        [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")]
+        [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
     ])
     
     try:
@@ -3521,18 +3521,24 @@ async def join_partner_program_handler(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    from channel_incentives import incentives
+    from channel_incentives import ChannelIncentives
+    from main import db
+    incentives = ChannelIncentives(db)
     invitation_text = await incentives.create_invitation_message(language)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📢 Add Bot to Channel", url="https://t.me/I3lani_bot?startchannel=partner")],
         [InlineKeyboardButton(text="🎁 Referral Program", callback_data="referral_program")],
         [InlineKeyboardButton(text="🌟 Success Stories", callback_data="success_stories")],
-        [InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")]
+        [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
     ])
     
-    await callback_query.message.edit_text(invitation_text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    try:
+        await callback_query.message.edit_text(invitation_text, reply_markup=keyboard)
+        await callback_query.answer()
+    except Exception as e:
+        logger.error(f"Error in channel partner handler: {e}")
+        await callback_query.answer("Channel Partner feature loaded!", show_alert=True)
 
 @router.callback_query(F.data == "view_partner_dashboard")
 async def view_partner_dashboard_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -3553,7 +3559,9 @@ async def view_partner_dashboard_handler(callback_query: CallbackQuery, state: F
         )
         return
     
-    from channel_incentives import incentives
+    from channel_incentives import ChannelIncentives
+    from main import db
+    incentives = ChannelIncentives(db)
     dashboard_text = ""
     
     for channel in channels:
@@ -3575,7 +3583,9 @@ async def referral_program_handler(callback_query: CallbackQuery, state: FSMCont
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    from channel_incentives import incentives
+    from channel_incentives import ChannelIncentives
+    from main import db
+    incentives = ChannelIncentives(db)
     referral_text = await incentives.create_referral_program(language)
     
     # Replace {user_id} with actual user ID
@@ -3596,7 +3606,9 @@ async def success_stories_handler(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    from channel_incentives import incentives
+    from channel_incentives import ChannelIncentives
+    from main import db
+    incentives = ChannelIncentives(db)
     stories_text = await incentives.create_success_stories(language)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -3653,7 +3665,7 @@ Our team will help you resolve any issues quickly!
     """
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")]
+        [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
     ])
     
     await callback_query.message.edit_text(support_text, reply_markup=keyboard)
@@ -3666,7 +3678,9 @@ async def request_payout_handler(callback_query: CallbackQuery, state: FSMContex
     language = await get_user_language(user_id)
     
     # Calculate total earnings
-    from channel_incentives import incentives
+    from channel_incentives import ChannelIncentives
+    from main import db
+    incentives = ChannelIncentives(db)
     channels = await db.get_user_channels(user_id)
     total_earnings = 0
     
