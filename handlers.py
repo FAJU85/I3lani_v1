@@ -288,9 +288,30 @@ def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
 
 @router.message(Command("start"))
 async def start_command(message: Message, state: FSMContext):
-    """Start command handler"""
+    """Start command handler with comprehensive anti-fraud protection"""
     user_id = message.from_user.id if message.from_user else 0
     username = message.from_user.username if message.from_user else None
+    
+    # Initialize anti-fraud system
+    from anti_fraud import AntiFraudSystem
+    fraud_system = AntiFraudSystem(db)
+    
+    # Log user interaction for fraud detection
+    await db.log_user_interaction(user_id, "start_command", f"Username: {username}")
+    await db.log_user_action(user_id, "start", "Bot started")
+    
+    # Check if user is blocked
+    if await db.is_user_blocked(user_id):
+        blocked_message = """
+🚫 **Account Restricted**
+
+Your account has been restricted due to suspicious activity.
+If you believe this is an error, please contact support.
+
+Contact: @I3lani_support
+        """.strip()
+        await message.answer(blocked_message)
+        return
     
     # Extract referral code if present
     referrer_id = None
@@ -312,22 +333,55 @@ async def start_command(message: Message, state: FSMContext):
     # Ensure user exists
     await ensure_user_exists(user_id, username)
     
-    # Process atomic referral reward for new users
+    # Process atomic referral reward for new users with comprehensive fraud protection
     if is_new_user and referrer_id:
         try:
-            from atomic_rewards import atomic_rewards
-            if atomic_rewards:
-                result = await atomic_rewards.process_referral_reward(referrer_id, user_id)
-                if result['success']:
-                    logger.info(f"Atomic referral reward processed: {referrer_id} -> {user_id}, amount: {result.get('reward_amount', 0)} TON")
+            # Collect user data for fraud analysis
+            user_data = {
+                'username': username,
+                'first_name': message.from_user.first_name,
+                'last_name': message.from_user.last_name,
+                'profile_photo': bool(message.from_user.photo),
+                'account_age_days': 999  # Default high value (unknown age)
+            }
+            
+            # Validate referral with comprehensive fraud detection
+            validation_result = await fraud_system.validate_referral(referrer_id, user_id, user_data)
+            
+            if validation_result['valid']:
+                # Process legitimate referral
+                from atomic_rewards import atomic_rewards
+                if atomic_rewards:
+                    result = await atomic_rewards.process_referral_reward(referrer_id, user_id)
+                    if result['success']:
+                        logger.info(f"✅ Legitimate referral processed: {referrer_id} -> {user_id}, amount: {result.get('reward_amount', 0)} TON")
+                    else:
+                        logger.warning(f"Referral reward failed: {result.get('message', 'Unknown error')}")
                 else:
-                    logger.warning(f"Referral reward failed: {result.get('message', 'Unknown error')}")
+                    # Fallback to basic referral creation
+                    await db.create_referral(referrer_id, user_id)
+                    logger.info(f"✅ Basic referral created: {referrer_id} -> {user_id}")
             else:
-                # Fallback to basic referral creation
-                await db.create_referral(referrer_id, user_id)
-                logger.info(f"Basic referral created: {referrer_id} -> {user_id}")
+                # Block fraudulent referral
+                logger.warning(f"🚫 Referral blocked - Risk Score: {validation_result['risk_score']}, Reason: {validation_result['block_reason']}")
+                
+                # Send warning message to user if risk is high
+                if validation_result['risk_score'] > 70:
+                    fraud_message = f"""
+🚨 **Security Alert**
+
+Your referral could not be processed due to security concerns.
+Risk Score: {validation_result['risk_score']}/100
+Detected Issues: {', '.join(validation_result['flags'])}
+
+If you believe this is an error, please contact support.
+Contact: @I3lani_support
+                    """.strip()
+                    
+                    await message.answer(fraud_message)
+                
         except Exception as e:
-            logger.error(f"Error processing referral reward: {e}")
+            logger.error(f"Error processing referral with fraud detection: {e}")
             # Continue with user creation even if referral fails
     
     # Check if user already has language set
@@ -3189,54 +3243,77 @@ async def view_earnings_handler(callback_query: CallbackQuery):
         else:
             next_tier_text = "Maximum tier reached!"
         
+        # Import Web3 UI components
+        from web3_ui import Web3UI, Web3Templates
+        
+        # Create Web3-themed earnings dashboard
+        earnings_metrics = {
+            'Quantum_Balance': f'{pending_rewards:.2f}',
+            'Neural_Tier': tier,
+            'Network_Nodes': referral_count,
+            'Total_Mined': f'{total_earnings:.2f}',
+            'Progress_Level': f'{progress_percentage:.1f}%'
+        }
+        
+        # Prepare tier display data
+        tier_stats = {'Rate': f'{tier_rate} TON', 'Nodes': referral_count}
+        recent_activity_text = f"Recent Mining Activity:\n{recent_rewards_text}"
+        
+        # Build earnings text with Web3 components
+        header_section = Web3UI.create_neural_header("PARTNER EARNINGS MATRIX", "Quantum Reward Dashboard")
+        tier_section = Web3UI.create_cyber_tier_display(tier, tier_stats)
+        dashboard_section = Web3UI.create_fintech_dashboard("QUANTUM EARNINGS", earnings_metrics)
+        progress_section = Web3UI.create_quantum_progress(pending_rewards, payout_threshold, 15)
+        advancement_section = Web3UI.create_quantum_section("NEURAL ADVANCEMENT", next_tier_text, "process")
+        activity_section = Web3UI.create_holographic_display(recent_activity_text, "neural")
+        alert_section = Web3UI.create_web3_alert("Continue network expansion to unlock quantum rewards", "quantum")
+        separator_section = Web3UI.create_neon_separator(35, "quantum")
+        
+        milestone_section = """
+◇━━━ MILESTONE PROTOCOL ━━━◇
+◈ 5 Network Nodes → +2.5 TON Quantum Bonus
+◈ 10 Network Nodes → +6.0 TON Neural Reward  
+◈ 25 Network Nodes → +20.0 TON Matrix Bonus
+◈ 50 Network Nodes → +50.0 TON Nexus Prize
+"""
+        
         earnings_text = f"""
-💰 **COMPREHENSIVE REWARD BOARD**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{header_section}
 
-{tier_color} **Partner Status:** {tier}
-💎 **Referral Rate:** {tier_rate} TON per referral
-👥 **Total Referrals:** {referral_count}
+{tier_section}
 
-💰 **EARNINGS OVERVIEW**
-├─ Total Earned: {total_earnings:.2f} TON
-├─ Pending Balance: {pending_rewards:.2f} TON
-├─ Payout Threshold: {payout_threshold:.2f} TON
-└─ Progress: {progress_percentage:.1f}%
+{dashboard_section}
 
-📊 **PAYOUT PROGRESS**
-{progress_bar} {progress_percentage:.1f}%
+{progress_section}
 
-🎯 **TIER ADVANCEMENT**
-{next_tier_text}
+{advancement_section}
 
-💸 **RECENT REWARDS**
-{recent_rewards_text}
+{activity_section}
 
-🎁 **MILESTONE BONUSES**
-• 5 referrals: +2.5 TON
-• 10 referrals: +6.0 TON  
-• 25 referrals: +20.0 TON
-• 50 referrals: +50.0 TON
+{alert_section}
 
-💡 **QUICK ACTIONS**
-Share your referral link to earn instant TON rewards!
+{milestone_section}
+
+{separator_section}
         """.strip()
+        
+        from web3_ui import Web3UI
         
         keyboard_buttons = [
             [
-                InlineKeyboardButton(text="📈 Referral Stats", callback_data="referral_stats"),
-                InlineKeyboardButton(text="🔗 Share Link", callback_data="share_earn")
+                InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Neural Stats", "quantum"), callback_data="referral_stats"),
+                InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Network Expansion", "neural"), callback_data="share_earn")
             ]
         ]
         
-        # Add payout request button if threshold is met
+        # Add quantum payout request button if threshold is met
         if pending_rewards >= payout_threshold:
             keyboard_buttons.append([
-                InlineKeyboardButton(text="💸 Request Payout", callback_data="request_payout")
+                InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Quantum Withdrawal", "crypto"), callback_data="request_payout")
             ])
         
         keyboard_buttons.append([
-            InlineKeyboardButton(text=get_text(language, 'back'), callback_data="share_earn")
+            InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Neural Pathways", "back"), callback_data="share_earn")
         ])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -3444,24 +3521,37 @@ async def confirm_payout_handler(callback_query: CallbackQuery, state: FSMContex
             except Exception as e:
                 logger.error(f"Failed to notify admin {admin_id}: {e}")
         
-        # Confirmation message to user
+        # Confirmation message to user with Web3 theme
+        from web3_ui import Web3UI
+        
+        payout_metrics = {
+            'Transaction_ID': payout_id[-8:],
+            'Quantum_Amount': f'{current_balance:.2f} TON',
+            'Protocol_Status': 'Neural Processing',
+            'Timeline': '24-48 hours'
+        }
+        
+        # Build confirmation text with Web3 components
+        header_section = Web3UI.create_neural_header("QUANTUM WITHDRAWAL INITIATED", "Transaction Confirmed")
+        dashboard_section = Web3UI.create_fintech_dashboard("TRANSACTION MATRIX", payout_metrics)
+        
+        protocol_sequence = '''Neural Protocol Sequence:
+◈ Quantum Support Contact → 24 hour window
+◈ Wallet Verification → TON address required
+◈ Blockchain Transfer → Quantum vault transmission
+◈ Confirmation Signal → Completion notification'''
+        
+        protocol_section = Web3UI.create_holographic_display(protocol_sequence, "crypto")
+        alert_section = Web3UI.create_web3_alert("Monitor neural communications for quantum support updates", "quantum")
+        
         confirmation_text = f"""
-✅ **Payout Request Submitted Successfully!**
+{header_section}
 
-🎯 **Request Details:**
-├─ Request ID: `{payout_id}`
-├─ Amount: {current_balance:.2f} TON
-├─ Status: Submitted for processing
-└─ Expected: 24-48 hours
+{dashboard_section}
 
-📞 **Next Steps:**
-1. **Support Contact**: Our team will message you within 24 hours
-2. **Wallet Verification**: Provide your TON wallet address when requested
-3. **Transfer Processing**: TON will be sent to your wallet
-4. **Confirmation**: You'll receive notification when completed
+{protocol_section}
 
-🔔 **Stay Available:**
-Please check your Telegram messages regularly for updates from our support team.
+{alert_section}
 
 Thank you for being a valued I3lani partner! 🚀
         """.strip()
@@ -3565,31 +3655,51 @@ async def referral_stats_handler(callback_query: CallbackQuery):
         # Get recent referrals
         referrals = await db.get_user_referrals(user_id)
         
+        from web3_ui import Web3UI
+        
+        # Create Web3-themed referral statistics
+        neural_metrics = {
+            'Neural_Tier': tier,
+            'Mining_Rate': f'{rate} TON',
+            'Network_Nodes': referral_count,
+            'Next_Protocol': next_tier.replace(' more referrals needed', ' nodes required')
+        }
+        
+        milestone_text = '''Milestone Quantum Rewards:
+◈ 5 Network Nodes → +2.5 TON
+◈ 10 Network Nodes → +6.0 TON
+◈ 25 Network Nodes → +20.0 TON
+◈ 50 Network Nodes → +50.0 TON'''
+        
+        # Build referral stats with Web3 components
+        header_section = Web3UI.create_neural_header("NEURAL NETWORK ANALYTICS", "Referral Mining Protocol")
+        dashboard_section = Web3UI.create_fintech_dashboard("NETWORK STATISTICS", neural_metrics)
+        
+        tier_protocols = '''
+◇ INITIATE → 0.5 TON per node
+◈ NAVIGATOR → 0.8 TON per node (5+ nodes)
+◆ ARCHITECT → 1.2 TON per node (15+ nodes)
+⬢ QUANTUM → 2.0 TON per node (25+ nodes)'''
+        
+        protocols_section = Web3UI.create_quantum_section("TIER PROTOCOLS", tier_protocols, "process")
+        milestone_section = Web3UI.create_holographic_display(milestone_text, "neural")
+        
+        neural_link = f"Neural Link: https://t.me/I3lani_bot?start=ref_{user_id}"
+        alert_section = Web3UI.create_web3_alert(neural_link, "quantum")
+        expansion_section = Web3UI.create_quantum_section("RECENT NETWORK EXPANSION", '', "data")
+        
         stats_text = f"""
-📊 **REFERRAL STATISTICS**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{header_section}
 
-🎯 **Current Tier:** {tier}
-💎 **Reward Rate:** {rate} TON per referral
-👥 **Total Referrals:** {referral_count}
-📈 **Next Tier:** {next_tier}
+{dashboard_section}
 
-💎 **TIER BENEFITS:**
-• Basic: 0.5 TON per referral
-• Silver: 0.8 TON per referral (5+ refs)
-• Gold: 1.2 TON per referral (15+ refs)
-• Premium: 2.0 TON per referral (25+ refs)
+{protocols_section}
 
-🎁 **MILESTONE BONUSES:**
-• 5 Referrals: +2.5 TON bonus
-• 10 Referrals: +6.0 TON bonus
-• 25 Referrals: +20.0 TON bonus
-• 50 Referrals: +50.0 TON bonus
+{milestone_section}
 
-🔗 **Your Referral Link:**
-https://t.me/I3lani_bot?start=ref_{user_id}
+{alert_section}
 
-📈 **Recent Referrals:**
+{expansion_section}
         """.strip()
     
         if referrals:
@@ -3601,9 +3711,9 @@ https://t.me/I3lani_bot?start=ref_{user_id}
             stats_text += "\nNo referrals yet. Share your link to start earning!"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📱 Share Link", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join I3lani and earn TON!")],
-            [InlineKeyboardButton(text="💰 View Earnings", callback_data="view_earnings")],
-            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            [InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Broadcast Neural Link", "quantum"), url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join the I3lani Neural Network and mine TON!")],
+            [InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Quantum Earnings", "crypto"), callback_data="view_earnings")],
+            [InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Neural Hub", "back"), callback_data="back_to_main")]
         ])
     
         await callback_query.message.edit_text(stats_text, reply_markup=keyboard)

@@ -74,6 +74,10 @@ class AdminSystem:
                 InlineKeyboardButton(text="💸 Payout Management", callback_data="admin_payouts")
             ],
             [
+                InlineKeyboardButton(text="🛡️ Anti-Fraud Panel", callback_data="admin_fraud"),
+                InlineKeyboardButton(text="🔒 Security Center", callback_data="admin_security")
+            ],
+            [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement")
             ],

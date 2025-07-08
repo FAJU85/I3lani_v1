@@ -1120,7 +1120,72 @@ async def _get_channel_by_id(self, channel_id: str) -> Optional[Dict]:
         print(f"Error getting channel by ID: {e}")
         return None
 
+# Anti-fraud database methods
+async def log_user_interaction(self, user_id: int, interaction_type: str, details: str = ""):
+    """Log user interaction for fraud detection"""
+    async with aiosqlite.connect(self.db_path) as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_interactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                interaction_type TEXT NOT NULL,
+                details TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await conn.execute("""
+            INSERT INTO user_interactions (user_id, interaction_type, details)
+            VALUES (?, ?, ?)
+        """, (user_id, interaction_type, details))
+        
+        await conn.commit()
+
+async def log_user_action(self, user_id: int, action_type: str, details: str = ""):
+    """Log user action for fraud detection"""
+    async with aiosqlite.connect(self.db_path) as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_actions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                action_type TEXT NOT NULL,
+                details TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await conn.execute("""
+            INSERT INTO user_actions (user_id, action_type, details)
+            VALUES (?, ?, ?)
+        """, (user_id, action_type, details))
+        
+        await conn.commit()
+
+async def is_user_blocked(self, user_id: int) -> bool:
+    """Check if user is blocked for fraud"""
+    async with aiosqlite.connect(self.db_path) as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS blocked_users (
+                user_id INTEGER PRIMARY KEY,
+                reason TEXT,
+                blocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'blocked'
+            )
+        """)
+        
+        query = """
+        SELECT status FROM blocked_users 
+        WHERE user_id = ? AND status IN ('blocked', 'permanently_blocked')
+        """
+        
+        async with conn.execute(query, (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return bool(row)
+
 # Bind methods to Database class
 Database._get_user_channels = _get_user_channels
 Database._get_channel_ads_count = _get_channel_ads_count  
 Database._get_channel_by_id = _get_channel_by_id
+Database.log_user_interaction = log_user_interaction
+Database.log_user_action = log_user_action
+Database.is_user_blocked = is_user_blocked

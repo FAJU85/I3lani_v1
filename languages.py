@@ -11,18 +11,18 @@ LANGUAGES = {
         'currency_symbol': '$',
         
         # Welcome and start
-        'welcome': 'Welcome to I3lani Bot! 🚀\n\nYour premium Telegram advertising platform',
-        'choose_language': 'Choose your language:',
-        'language_selected': 'Language selected: English 🇺🇸',
+        'welcome': '⬢━━━━━━━ I3LANI NEURAL NETWORK ━━━━━━━⬢\n▲ Welcome to the Quantum Advertising Matrix ▲',
+        'choose_language': '◇━━━ NEURAL INTERFACE LANGUAGE ━━━◇',
+        'language_selected': '◈ Neural Language: English 🇺🇸',
         
         # Main menu
-        'main_menu': '🏠 Main Menu',
-        'create_ad': '📢 Create Ad',
-        'my_ads': '📊 My Ads',
-        'pricing': '💰 Pricing',
-        'share_earn': '🎁 Share & Earn',
-        'settings': '⚙️ Settings',
-        'help': '❓ Help',
+        'main_menu': '◈━━━ NEURAL PATHWAYS ━━━◈\n◇ Multi-Channel Broadcasting\n◇ Quantum Payment Processing\n◇ Partner Network Mining\n◇ Real-time Analytics\n\n▣ SELECT PROTOCOL ▣',
+        'create_ad': '◈ Neural Broadcast',
+        'my_ads': '◆ Campaign Matrix',
+        'pricing': '◇ Quantum Pricing', 
+        'share_earn': '⬢ Network Mining',
+        'settings': '◉ Neural Config',
+        'help': '◦ Support Protocol',
         
         # Ad creation
         'send_ad_content': 'Send your ad content:\n• Text message\n• Photo with caption\n• Video with caption',
@@ -42,11 +42,11 @@ LANGUAGES = {
         'duration_6_months': '6 Months (Save 20% + 1 Free) 🔥',
         
         # Payment
-        'pay_stars': '⭐ Telegram Stars',
-        'pay_ton': '💎 TON Crypto',
-        'payment_instructions': 'Payment Instructions:',
-        'memo_format': 'Memo: {memo}',
-        'payment_sent': 'Payment Sent ✅',
+        'pay_stars': '⬢ Quantum Stars',
+        'pay_ton': '◈ TON Protocol',
+        'payment_instructions': '◇━━━ QUANTUM PAYMENT PROTOCOL ━━━◇',
+        'memo_format': '◈ Neural Memo: {memo}',
+        'payment_sent': '◈ Transaction Confirmed',
         
         # Buttons
         'back': '🔙 Back',
