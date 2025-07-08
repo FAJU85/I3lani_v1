@@ -17,12 +17,12 @@ LANGUAGES = {
         
         # Main menu
         'main_menu': '◈━━━ NEURAL PATHWAYS ━━━◈\n◇ Multi-Channel Broadcasting\n◇ Quantum Payment Processing\n◇ Partner Network Mining\n◇ Real-time Analytics\n\n▣ SELECT PROTOCOL ▣',
-        'create_ad': '◈ Neural Broadcast',
-        'my_ads': '◆ Campaign Matrix',
+        'create_ad': '🚀 ▶ LAUNCH NEURAL BROADCAST',
+        'my_ads': '📊 ◆ My Quantum Matrix',
         'pricing': '◇ Quantum Pricing', 
-        'share_earn': '⬢ Network Mining',
-        'settings': '◉ Neural Config',
-        'help': '◦ Support Protocol',
+        'share_earn': '💎 ◆ Earnings Portal',
+        'settings': '⚙️ ◈ Neural Settings',
+        'help': '🆘 ◈ Quantum Support',
         
         # Ad creation
         'send_ad_content': 'Send your ad content:\n• Text message\n• Photo with caption\n• Video with caption',
@@ -115,7 +115,7 @@ Questions? Use /support to get help!""",
         
         # Main menu
         'main_menu': '🏠 القائمة الرئيسية',
-        'create_ad': '📢 إنشاء إعلان',
+        'create_ad': '🚀 ▶ إطلاق البث العصبي',
         'my_ads': '📊 إعلاناتي',
         'pricing': '💰 الأسعار',
         'share_earn': '🎁 شارك واكسب',
@@ -229,7 +229,7 @@ Questions? Use /support to get help!""",
         
         # Main menu
         'main_menu': '🏠 Главное меню',
-        'create_ad': '📢 Создать рекламу',
+        'create_ad': '🚀 ▶ ЗАПУСК НЕЙРОСЕТИ',
         'my_ads': '📊 Мои объявления',
         'pricing': '💰 Цены',
         'share_earn': '🎁 Поделиться и заработать',

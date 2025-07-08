@@ -45,63 +45,106 @@ def create_language_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
+async def create_neural_main_menu_text(language: str, user_id: int) -> str:
+    """Create enhanced neural network main menu text with visual effects"""
+    
+    # Get user stats for dynamic content
+    user_stats = await db.get_user_stats(user_id)
+    total_ads = user_stats.get('total_ads', 0) if user_stats else 0
+    
+    # Neural network ASCII art and dynamic status
+    neural_text = f"""
+<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>
+<b>⚡ I3LANI QUANTUM ADVERTISING MATRIX ⚡</b>
+<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>
+
+<pre>    ▲▲▲ NEURAL NETWORK ACTIVE ▲▲▲    </pre>
+<b>🔮 System Status:</b> <b><i>🟢 ONLINE & OPTIMIZED</i></b>
+<b>🧠 AI Engine:</b> <b><i>🟢 FULLY OPERATIONAL</i></b>
+<b>⚡ Quantum Core:</b> <b><i>🟢 SYNCHRONIZED</i></b>
+
+<b>━━━━ NEURAL BROADCAST STATISTICS ━━━━</b>
+<b>📡 Your Broadcasts:</b> <code>{total_ads}</code>
+<b>🌐 Network Reach:</b> <code>∞ UNLIMITED</code>
+<b>💫 Success Rate:</b> <code>98.7%</code>
+
+<b>━━━━━━━━ QUANTUM FEATURES ━━━━━━━━</b>
+<b>🚀</b> <i>Ultra-Fast Neural Broadcasting</i>
+<b>💎</b> <i>Multi-Channel Quantum Distribution</i>
+<b>🔗</b> <i>Blockchain-Powered Rewards</i>
+<b>🎮</b> <i>Gamified Achievement System</i>
+<b>🏆</b> <i>Real-Time Competition Rankings</i>
+
+<b>═══════════════════════════════════</b>
+<b>🎯 SELECT YOUR QUANTUM OPERATION 🎯</b>
+<b>═══════════════════════════════════</b>
+"""
+    
+    return neural_text.strip()
+
 async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
-    """Create main menu keyboard with free trial option if available"""
+    """Create enhanced neural network main menu keyboard with visual effects"""
     keyboard_rows = []
     
     # Check if user can use free trial
     can_use_trial = await db.check_free_trial_available(user_id)
     
-    # First row - main actions
+    # Free trial quantum gift for new users
     if can_use_trial:
-        # Add free trial button for new users
         keyboard_rows.append([
             InlineKeyboardButton(
-                text="[Gift] Try Free (1 Day, 2 Posts/Day)", 
+                text="🎁 ⚡ QUANTUM GIFT ⚡ Free Neural Trial (1 Day)", 
                 callback_data="free_trial"
             )
         ])
     
+    # Primary Neural Actions Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text=get_text(language, 'create_ad'), 
+            text="🚀 ▶ LAUNCH NEURAL BROADCAST", 
             callback_data="create_ad"
-        ),
+        )
+    ])
+    
+    keyboard_rows.append([
         InlineKeyboardButton(
-            text=get_text(language, 'my_ads'), 
+            text="📊 ◆ My Quantum Matrix", 
             callback_data="my_ads"
-        )
-    ])
-    
-    keyboard_rows.append([
+        ),
         InlineKeyboardButton(
-            text=get_text(language, 'share_earn'), 
+            text="💎 ◆ Earnings Portal", 
             callback_data="share_earn"
-        ),
-        InlineKeyboardButton(
-            text=get_text(language, 'channel_partners'), 
-            callback_data="join_partner_program"
         )
     ])
     
+    # Advanced Operations Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text="🎮 Gaming Hub", 
-            callback_data="gamification_hub"
+            text="🔗 ◇ Partner Network", 
+            callback_data="join_partner_program"
         ),
         InlineKeyboardButton(
-            text="🏅 Leaderboard", 
+            text="🎮 ◇ Neural Gaming Hub", 
+            callback_data="gamification_hub"
+        )
+    ])
+    
+    # Competition & Leaderboard Row
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text="🏆 ▲ QUANTUM LEADERBOARD ▲", 
             callback_data="gamification_leaderboard"
         )
     ])
     
+    # System Controls Row
     keyboard_rows.append([
         InlineKeyboardButton(
-            text=get_text(language, 'settings'), 
+            text="⚙️ ◈ Neural Settings", 
             callback_data="settings"
         ),
         InlineKeyboardButton(
-            text=get_text(language, 'help'), 
+            text="🆘 ◈ Quantum Support", 
             callback_data="help"
         )
     ])
@@ -414,14 +457,15 @@ Contact: @I3lani_support
 
 
 async def show_main_menu(message_or_query, language: str):
-    """Show main menu with typing indicator"""
+    """Show enhanced neural network main menu with visual effects"""
     # Get user_id from message or callback query
     if isinstance(message_or_query, Message):
         user_id = message_or_query.from_user.id
     else:
         user_id = message_or_query.from_user.id
     
-    text = f"{get_text(language, 'welcome')}\n\n{get_text(language, 'main_menu')}"
+    # Create enhanced neural network main menu
+    text = await create_neural_main_menu_text(language, user_id)
     keyboard = await create_main_menu_keyboard(language, user_id)
     
     if isinstance(message_or_query, Message):
@@ -430,13 +474,13 @@ async def show_main_menu(message_or_query, language: str):
             chat_id=message_or_query.chat.id,
             action="typing"
         )
-        await message_or_query.answer(text, reply_markup=keyboard)
+        await message_or_query.answer(text, reply_markup=keyboard, parse_mode='HTML')
     else:
         try:
-            await message_or_query.message.edit_text(text, reply_markup=keyboard)
+            await message_or_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
         except Exception as e:
             # If edit fails, send new message
-            await message_or_query.message.answer(text, reply_markup=keyboard)
+            await message_or_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
 
 
 @router.callback_query(F.data.startswith("lang_"))
