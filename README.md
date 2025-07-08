@@ -15,6 +15,9 @@ A sophisticated Telegram advertising bot with blockchain payment integration, mu
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/YOUR_USERNAME/YOUR_REPO_NAME)
 
+**Or use this direct link after uploading to GitHub:**
+`https://render.com/deploy?repo=https://github.com/YOUR_USERNAME/i3lani-bot`
+
 ## Manual Deployment
 
 1. Fork/Clone this repository

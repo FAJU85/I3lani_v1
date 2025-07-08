@@ -5,9 +5,10 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python deployment_server.py
+    plan: free
     envVars:
       - key: DISABLE_STARS_FLASK
-        value: 1
+        value: "1"
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: BOT_TOKEN
@@ -25,4 +26,4 @@ databases:
   - name: i3lani-db
     databaseName: i3lani
     user: i3lani_user
-    plan: free  # or 'starter' for production
+    plan: free  # PostgreSQL database included!
