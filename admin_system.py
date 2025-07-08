@@ -16,47 +16,11 @@ import os
 from config import ADMIN_IDS, CHANNELS
 from database import db
 from dynamic_pricing import get_dynamic_pricing
+from states import AdminStates
 
 logger = logging.getLogger(__name__)
 
-class AdminStates(StatesGroup):
-    # Main menu states
-    main_menu = State()
-    
-    # Channel management
-    channel_management = State()
-    add_channel = State()
-    edit_channel = State()
-    remove_channel = State()
-    
-    # Subscription management
-    subscription_management = State()
-    create_subscription = State()
-    edit_subscription = State()
-    remove_subscription = State()
-    
-    # Package management
-    pricing_management = State()
-    set_pricing = State()
-    
-    # Publishing schedules
-    publishing_schedules = State()
-    create_schedule = State()
-    edit_schedule = State()
-    
-    # Bot control
-    bot_control = State()
-    broadcast_message = State()
-    
-    # Usage agreement management
-    usage_agreement = State()
-    edit_agreement = State()
-    
-    # User management
-    user_management = State()
-    
-    # Statistics
-    statistics = State()
+# AdminStates is now imported from states.py to avoid duplication
 
 router = Router()
 
@@ -1020,6 +984,7 @@ Active channels: {len(active_channels)}
                 InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
                 InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_discover_channels")
             ],
+            [InlineKeyboardButton(text="📥 Bulk Import Channels", callback_data="admin_bulk_import")],
             [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]
         ])
         
@@ -1031,6 +996,43 @@ Active channels: {len(active_channels)}
                         [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
             ])
         )
+
+
+@router.callback_query(F.data == "admin_bulk_import")
+async def admin_bulk_import_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle bulk import channels callback"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("ERROR: Access denied.")
+        return
+    
+    text = """
+**📥 Bulk Import Channels**
+
+Send me a list of channel usernames where the bot is administrator.
+
+**Format:** One username per line
+```
+@channel1
+@channel2
+@channel3
+channel4
+```
+
+**Note:** Only channels where the bot has admin rights will be added.
+
+Send your channel list now or click Cancel to go back.
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_channels")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await state.set_state(AdminStates.bulk_import_channels)
+    await callback_query.answer()
+
 
 @router.callback_query(F.data == "admin_add_channel")
 async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -2108,3 +2110,75 @@ The new agreement will be shown to users during payment.
     
     await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
     await state.clear()
+
+
+@router.message(AdminStates.bulk_import_channels)
+async def handle_bulk_import_channels(message: Message, state: FSMContext):
+    """Handle bulk channel import message"""
+    user_id = message.from_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await message.reply("ERROR: Access denied.")
+        return
+    
+    try:
+        # Parse channel list
+        lines = message.text.strip().split('\n')
+        channels = []
+        
+        for line in lines:
+            line = line.strip()
+            if line:
+                # Clean the username
+                if not line.startswith('@'):
+                    line = '@' + line
+                channels.append(line)
+        
+        if not channels:
+            await message.reply("No channels found in your message. Please send a list of channel usernames.")
+            return
+        
+        await message.reply(f"🔍 Processing {len(channels)} channels...")
+        
+        # Import channel manager
+        from channel_manager import channel_manager
+        
+        # Process each channel
+        results = await channel_manager.discover_multiple_channels(channels)
+        
+        # Prepare results message
+        success_count = sum(1 for success in results.values() if success)
+        failed_count = len(results) - success_count
+        
+        result_text = f"""
+**📥 Bulk Import Results**
+
+Total processed: {len(results)}
+✅ Successfully added: {success_count}
+❌ Failed: {failed_count}
+
+**Details:**
+"""
+        
+        for username, success in results.items():
+            if success:
+                result_text += f"✅ {username} - Added successfully\n"
+            else:
+                result_text += f"❌ {username} - Failed (not admin or already exists)\n"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📺 View All Channels", callback_data="admin_channels")],
+            [InlineKeyboardButton(text="🔙 Back to Admin", callback_data="admin_main")]
+        ])
+        
+        await message.reply(result_text, reply_markup=keyboard, parse_mode='Markdown')
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Error processing bulk import: {e}")
+        await message.reply(
+            "Error processing channels. Please check the format and try again.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Back", callback_data="admin_channels")]
+            ])
+        )

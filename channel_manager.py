@@ -249,6 +249,7 @@ Users can now select this channel when creating ads through the bot.
         # Common channel patterns to check (these are examples - add real channels)
         potential_channels = [
             "@smshco",  # Already confirmed
+            "@i3lani",  # Main channel
             # Add more channels here as they become known
         ]
         
@@ -296,6 +297,17 @@ Users can now select this channel when creating ads through the bot.
                 continue
         
         return discovered_count
+    
+    async def discover_multiple_channels(self, usernames: List[str]) -> Dict[str, bool]:
+        """Discover multiple channels at once"""
+        results = {}
+        
+        for username in usernames:
+            username = username.strip()
+            if username:
+                results[username] = await self.discover_channel_by_username(username)
+        
+        return results
     
     async def discover_channel_by_username(self, username: str) -> bool:
         """Manually discover and add a channel by username"""

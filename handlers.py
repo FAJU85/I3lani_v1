@@ -2096,6 +2096,16 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     
     # Start monitoring payment in background
     asyncio.create_task(monitor_ton_payment(user_id, memo, total_ton, expiration_time, state))
+    
+    # Add manual confirmation for admin users (testing)
+    if user_id in ADMIN_IDS:
+        keyboard.inline_keyboard.insert(-1, [
+            InlineKeyboardButton(text="[Admin] Manual Confirm", callback_data=f"admin_confirm_ton_{memo}")
+        ])
+        try:
+            await callback_query.message.edit_text(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+        except:
+            pass
 
 
 @router.callback_query(F.data == "pay_dynamic_stars")
@@ -2309,22 +2319,38 @@ async def monitor_ton_payment(user_id: int, memo: str, amount_ton: float, expira
     while time.time() < expiration_time:
         try:
             # Check TonViewer API for transactions
-            api_url = f"https://tonapi.io/v1/blockchain/accounts/{wallet_address}/transactions"
-            response = requests.get(api_url, timeout=10)
+            api_url = f"https://tonapi.io/v2/accounts/{wallet_address}/transactions"
+            headers = {
+                'Accept': 'application/json'
+            }
+            response = requests.get(api_url, headers=headers, timeout=10)
             
             if response.status_code == 200:
-                transactions = response.json().get('transactions', [])
+                data = response.json()
+                transactions = data.get('items', [])
                 
                 # Check recent transactions for our memo
                 for tx in transactions:
-                    if tx.get('in_msg', {}).get('message') == memo:
-                        tx_amount = tx.get('in_msg', {}).get('value', 0) / 1000000000  # Convert from nanotons
+                    # Check if this is an incoming transaction
+                    if tx.get('direction') == 'in':
+                        # Get the comment/memo from the transaction
+                        comment = tx.get('in_msg', {}).get('decoded_body', {}).get('comment', '')
                         
-                        # Verify amount matches (with small tolerance for fees)
-                        if abs(tx_amount - amount_ton) < 0.01:
-                            # Payment found and verified!
-                            await handle_successful_ton_payment(user_id, memo, amount_ton, state)
-                            return
+                        # Check if memo matches
+                        if comment == memo:
+                            # Get amount in nanotons and convert to TON
+                            tx_amount_nanotons = int(tx.get('in_msg', {}).get('value', 0))
+                            tx_amount = tx_amount_nanotons / 1000000000
+                            
+                            # Verify amount matches (with small tolerance for fees)
+                            if abs(tx_amount - amount_ton) < 0.01:
+                                # Payment found and verified!
+                                logger.info(f"TON payment verified: {memo} for {amount_ton} TON")
+                                await handle_successful_ton_payment(user_id, memo, amount_ton, state)
+                                return
+            
+            else:
+                logger.warning(f"TON API request failed with status {response.status_code}")
             
             # Wait before next check
             await asyncio.sleep(check_interval)
@@ -2346,14 +2372,15 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
         # Get user data
         data = await state.get_data()
         selected_channels = data.get('selected_channels', [])
-        ad_content = data.get('ad_content', '')
+        ad_content = data.get('ad_text', '')  # Changed from ad_content to ad_text
+        photos = data.get('photos', [])
         
         # Create ad in database
         ad_id = await db.create_ad(
             user_id=user_id,
             content=ad_content,
-            media_url=data.get('media_url'),
-            content_type=data.get('content_type', 'text')
+            media_url=photos[0] if photos else None,
+            content_type='photo' if photos else 'text'
         )
         
         # Get pricing data for subscription
@@ -2391,7 +2418,7 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
         
         # Send success notification to user
         from main import bot
-        success_text = f"[[]] **Payment Confirmed!**\n\n"
+        success_text = f"[Check] **Payment Confirmed!**\n\n"
         success_text += f"**Amount:** {amount_ton} TON\n"
         success_text += f"**Payment ID:** {memo}\n\n"
         success_text += "Your ad has been successfully created and will be published to all selected channels shortly!\n\n"
@@ -2464,6 +2491,28 @@ async def cancel_payment_handler(callback_query: CallbackQuery, state: FSMContex
     except Exception as e:
         logger.error(f"Error cancelling payment: {e}")
         await callback_query.answer("Payment cancelled")
+
+
+@router.callback_query(F.data.startswith("admin_confirm_ton_"))
+async def admin_confirm_ton_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle admin manual TON payment confirmation"""
+    user_id = callback_query.from_user.id
+    
+    # Check if user is admin
+    if user_id not in ADMIN_IDS:
+        await callback_query.answer("Admin access required", show_alert=True)
+        return
+    
+    # Extract memo from callback data
+    memo = callback_query.data.replace("admin_confirm_ton_", "")
+    
+    # Get payment data from state
+    data = await state.get_data()
+    amount_ton = data.get('payment_amount_ton', 0)
+    
+    # Manually trigger successful payment handler
+    await handle_successful_ton_payment(user_id, memo, amount_ton, state)
+    await callback_query.answer("Payment manually confirmed!")
 
 
 @router.callback_query(F.data.startswith("payment_"))

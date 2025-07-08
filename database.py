@@ -444,6 +444,26 @@ Last updated: July 2025"""
             await db.commit()
             return cursor.lastrowid
     
+    async def activate_subscriptions(self, subscription_ids: List[int], duration_days: int) -> bool:
+        """Activate subscriptions after payment confirmation"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Update all subscriptions to active status
+                for subscription_id in subscription_ids:
+                    await db.execute('''
+                        UPDATE subscriptions 
+                        SET status = 'active',
+                            start_date = CURRENT_TIMESTAMP,
+                            end_date = datetime('now', '+' || ? || ' days')
+                        WHERE subscription_id = ?
+                    ''', (duration_days, subscription_id))
+                
+                await db.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error activating subscriptions: {e}")
+            return False
+    
     async def get_user_stats(self, user_id: int) -> Dict:
         """Get user statistics"""
         async with aiosqlite.connect(self.db_path) as db:

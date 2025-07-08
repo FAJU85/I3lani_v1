@@ -54,3 +54,7 @@ class AdminStates(StatesGroup):
     pricing_management = State()
     user_analytics = State()
     content_management = State()
+    bulk_import_channels = State()
+    add_channel = State()
+    statistics = State()
+    user_management = State()
