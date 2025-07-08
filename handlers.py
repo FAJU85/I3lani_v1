@@ -277,8 +277,9 @@ async def start_command(message: Message, state: FSMContext):
         if referral_code.startswith('ref_'):
             try:
                 referrer_id = int(referral_code.replace('ref_', ''))
-            except:
-                pass
+            except ValueError:
+                logger.debug(f"Invalid referral code format: {referral_code}")
+                referrer_id = None
     
     # Ensure user exists
     await ensure_user_exists(user_id, username)
@@ -302,14 +303,23 @@ async def start_command(message: Message, state: FSMContext):
 
 
 async def show_main_menu(message_or_query, language: str):
-    """Show main menu"""
+    """Show main menu with typing indicator"""
     text = f"{get_text(language, 'welcome')}\n\n{get_text(language, 'main_menu')}"
     keyboard = create_main_menu_keyboard(language)
     
     if isinstance(message_or_query, Message):
+        # Send typing action for better UX
+        await message_or_query.bot.send_chat_action(
+            chat_id=message_or_query.chat.id,
+            action="typing"
+        )
         await message_or_query.answer(text, reply_markup=keyboard)
     else:
-        await message_or_query.message.edit_text(text, reply_markup=keyboard)
+        try:
+            await message_or_query.message.edit_text(text, reply_markup=keyboard)
+        except Exception as e:
+            # If edit fails, send new message
+            await message_or_query.message.answer(text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data.startswith("lang_"))
@@ -356,8 +366,13 @@ async def package_selection_handler(callback_query: CallbackQuery, state: FSMCon
         # Check if user is eligible for free plan
         if package_type == 'free':
             # Check if user has used free plan in last 2 months
-            # For now, allow all users to use free plan
-            pass
+            user_stats = await db.get_user_stats(user_id)
+            if user_stats.get('free_ads_used', 0) >= 3:
+                await callback_query.answer(
+                    "You've reached your free ad limit. Please choose a paid plan.",
+                    show_alert=True
+                )
+                return
         
         # Store package selection in state
         await state.update_data(
@@ -868,10 +883,16 @@ Thank you for using I3lani Bot!
 
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
-    """Show channel selection for enhanced flow"""
+    """Show channel selection for enhanced flow with enhanced UX"""
     # Get user language first
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
+    
+    # Send typing action for better UX
+    await callback_query.bot.send_chat_action(
+        chat_id=callback_query.message.chat.id,
+        action="typing"
+    )
     
     # Get only active channels where bot is admin
     channels = await db.get_bot_admin_channels()
@@ -889,40 +910,82 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
         )
         return
     
-    channel_text = get_text(language, 'select_channels_text')
-    
     # Get selected channels from state
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
+    
+    # Calculate total reach
+    total_reach = 0
+    for channel in channels:
+        if channel['channel_id'] in selected_channels:
+            total_reach += channel.get('subscribers', 0)
+    
+    # Create enhanced channel text with better visuals
+    if language == 'ar':
+        channel_text = f"""📺 **اختر القنوات لإعلانك**
+
+✨ **المحدد:** {len(selected_channels)}/{len(channels)} قناة
+👥 **الوصول الإجمالي:** {total_reach:,} مشترك
+
+💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
+    elif language == 'ru':
+        channel_text = f"""📺 **Выберите каналы для рекламы**
+
+✨ **Выбрано:** {len(selected_channels)}/{len(channels)} каналов
+👥 **Общий охват:** {total_reach:,} подписчиков
+
+💡 Нажмите на каналы для выбора/отмены:"""
+    else:
+        channel_text = f"""📺 **Select Channels for Your Ad**
+
+✨ **Selected:** {len(selected_channels)}/{len(channels)} channels
+👥 **Total Reach:** {total_reach:,} subscribers
+
+💡 Click channels to select/deselect:"""
     
     keyboard_rows = []
     for channel in channels:
         # Check if channel is selected
         is_selected = channel['channel_id'] in selected_channels
-        emoji = "Yes" if is_selected else ""
+        check_emoji = "✅" if is_selected else "⭕"
+        
+        # Enhanced button with subscriber count
+        subscribers = channel.get('subscribers', 0)
+        sub_text = f" ({subscribers:,} subs)" if subscribers > 0 else ""
         
         keyboard_rows.append([InlineKeyboardButton(
-            text=f"{emoji} {channel['name']} ({channel['subscribers']:,} subscribers)",
+            text=f"{check_emoji} {channel['name']}{sub_text}",
             callback_data=f"toggle_channel_{channel['channel_id']}"
         )])
     
-    # Add select all and continue buttons
+    # Add control buttons with better styling
     keyboard_rows.append([
-        InlineKeyboardButton(text="Yes Select All", callback_data="select_all_channels"),
-        InlineKeyboardButton(text="No Deselect All", callback_data="deselect_all_channels")
+        InlineKeyboardButton(text="📍 Select All", callback_data="select_all_channels"),
+        InlineKeyboardButton(text="❌ Deselect All", callback_data="deselect_all_channels")
     ])
+    
+    # Dynamic continue button - disabled if no channels selected
+    continue_text = f"✅ Continue ({len(selected_channels)} selected)" if selected_channels else "⚠️ Select channels first"
     keyboard_rows.append([InlineKeyboardButton(
-        text="Next Continue to Payment",
-        callback_data="proceed_to_payment"
+        text=continue_text,
+        callback_data="proceed_to_payment" if selected_channels else "no_channels_warning"
     )])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
     
-    await callback_query.message.edit_text(
-        channel_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
+    try:
+        await callback_query.message.edit_text(
+            channel_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        # If edit fails, send new message
+        await callback_query.message.answer(
+            channel_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
     
     await state.set_state(AdCreationStates.channel_selection)
 

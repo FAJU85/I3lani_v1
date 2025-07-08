@@ -485,7 +485,8 @@ Active Users: {active_users}
             async with db.connection() as conn:
                 result = await conn.execute("SELECT COUNT(*) FROM users")
                 return (await result.fetchone())[0]
-        except:
+        except Exception as e:
+            logger.error(f"Error getting total users: {e}")
             return 0
 
     async def get_active_users(self) -> int:
@@ -495,7 +496,8 @@ Active Users: {active_users}
                     "SELECT COUNT(*) FROM users WHERE last_activity > datetime('now', '-7 days')"
                 )
                 return (await result.fetchone())[0]
-        except:
+        except Exception as e:
+            logger.error(f"Error getting active users: {e}")
             return 0
 
     async def get_new_users_today(self) -> int:
@@ -505,7 +507,8 @@ Active Users: {active_users}
                     "SELECT COUNT(*) FROM users WHERE created_at > datetime('now', '-1 day')"
                 )
                 return (await result.fetchone())[0]
-        except:
+        except Exception as e:
+            logger.error(f"Error getting new users today: {e}")
             return 0
 
     async def get_paid_users(self) -> int:
@@ -515,7 +518,8 @@ Active Users: {active_users}
                     "SELECT COUNT(DISTINCT user_id) FROM payments WHERE status = 'confirmed'"
                 )
                 return (await result.fetchone())[0]
-        except:
+        except Exception as e:
+            logger.error(f"Error getting paid users: {e}")
             return 0
 
     async def get_daily_revenue(self) -> float:

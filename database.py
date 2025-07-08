@@ -462,10 +462,19 @@ Last updated: July 2025"""
                 row = await cursor.fetchone()
                 total_spent = row[0] if row else 0.0
             
+            # Get free ads used this month
+            async with db.execute('''
+                SELECT COUNT(*) as free_ads_used FROM ads 
+                WHERE user_id = ? AND package_type = 'free' 
+                AND created_at > datetime('now', 'start of month')
+            ''', (user_id,)) as cursor:
+                free_ads_used = (await cursor.fetchone())[0]
+            
             return {
                 'total_ads': total_ads,
                 'active_ads': active_ads,
-                'total_spent': total_spent
+                'total_spent': total_spent,
+                'free_ads_used': free_ads_used
             }
     
     async def get_referral_stats(self, user_id: int) -> Dict:
