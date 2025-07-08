@@ -330,14 +330,6 @@ def main():
         import traceback
         traceback.print_exc()
         return None
-        logger.info("Starting Flask server in main thread...")
-        app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
-        
-    except Exception as e:
-        logger.error(f"Main application error: {e}")
-        import traceback
-        traceback.print_exc()
-        raise
 
 
 if __name__ == "__main__":
