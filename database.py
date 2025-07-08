@@ -298,6 +298,19 @@ Last updated: July 2025"""
             print(f"Error creating user: {e}")
             return False
     
+    async def set_user_language(self, user_id: int, language: str) -> bool:
+        """Set user language preference"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    UPDATE users SET language = ? WHERE user_id = ?
+                ''', (language, user_id))
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error setting user language: {e}")
+            return False
+    
     async def update_user_language(self, user_id: int, language: str) -> bool:
         """Update user language"""
         try:
