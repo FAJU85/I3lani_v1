@@ -764,3 +764,57 @@ async def init_default_packages(db_instance):
                 package['channels_included'], True
             ))
         await db.commit()
+
+# Additional Database methods for Channel Incentives
+Database.get_user_channels = lambda self, user_id: self._get_user_channels(user_id)
+Database.get_channel_ads_count = lambda self, channel_id: self._get_channel_ads_count(channel_id)
+Database.get_channel_by_id = lambda self, channel_id: self._get_channel_by_id(channel_id)
+
+async def _get_user_channels(self, user_id: int) -> List[Dict]:
+    """Get channels owned by user (where they are admin)"""
+    try:
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute('''
+                SELECT * FROM channels 
+                WHERE owner_id = ? AND is_active = 1
+                ORDER BY subscribers DESC
+            ''', (user_id,)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"Error getting user channels: {e}")
+        return []
+
+async def _get_channel_ads_count(self, channel_id: str) -> int:
+    """Get number of ads hosted in channel"""
+    try:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute('''
+                SELECT COUNT(*) FROM subscriptions 
+                WHERE channel_id = ? AND status = 'active'
+            ''', (channel_id,)) as cursor:
+                result = await cursor.fetchone()
+                return result[0] if result else 0
+    except Exception as e:
+        print(f"Error getting channel ads count: {e}")
+        return 0
+
+async def _get_channel_by_id(self, channel_id: str) -> Optional[Dict]:
+    """Get channel by ID"""
+    try:
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute('''
+                SELECT * FROM channels WHERE id = ?
+            ''', (channel_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+    except Exception as e:
+        print(f"Error getting channel by ID: {e}")
+        return None
+
+# Bind methods to Database class
+Database._get_user_channels = _get_user_channels
+Database._get_channel_ads_count = _get_channel_ads_count  
+Database._get_channel_by_id = _get_channel_by_id

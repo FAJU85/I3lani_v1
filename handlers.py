@@ -75,6 +75,10 @@ async def create_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboa
         InlineKeyboardButton(
             text=get_text(language, 'share_earn'), 
             callback_data="share_earn"
+        ),
+        InlineKeyboardButton(
+            text="🤝 Channel Partners", 
+            callback_data="join_partner_program"
         )
     ])
     
@@ -3509,6 +3513,134 @@ Link **{get_text(language, 'referral_link')}:**
 
 # Duplicate handlers removed - using main handlers with callback_data "help" and "settings"
 
+
+# Channel Incentives handlers
+@router.callback_query(F.data == "join_partner_program")
+async def join_partner_program_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle join partner program"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    from channel_incentives import incentives
+    invitation_text = await incentives.create_invitation_message(language)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Add Bot to Channel", url="https://t.me/I3lani_bot?startchannel=partner")],
+        [InlineKeyboardButton(text="🎁 Referral Program", callback_data="referral_program")],
+        [InlineKeyboardButton(text="🌟 Success Stories", callback_data="success_stories")],
+        [InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(invitation_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "view_partner_dashboard")
+async def view_partner_dashboard_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle view partner dashboard"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get user's channels where they are admin
+    channels = await db.get_user_channels(user_id)
+    
+    if not channels:
+        await callback_query.message.edit_text(
+            "You don't have any channels registered. Add I3lani Bot as administrator to your channel first!",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📢 Add Bot to Channel", url="https://t.me/I3lani_bot?startchannel=partner")],
+                [InlineKeyboardButton(text="◀️ Back", callback_data="join_partner_program")]
+            ])
+        )
+        return
+    
+    from channel_incentives import incentives
+    dashboard_text = ""
+    
+    for channel in channels:
+        channel_dashboard = await incentives.create_partner_dashboard(str(channel['id']), language)
+        dashboard_text += channel_dashboard + "\n\n"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Refresh", callback_data="view_partner_dashboard")],
+        [InlineKeyboardButton(text="💰 Request Payout", callback_data="request_payout")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="join_partner_program")]
+    ])
+    
+    await callback_query.message.edit_text(dashboard_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "referral_program")
+async def referral_program_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle referral program"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    from channel_incentives import incentives
+    referral_text = await incentives.create_referral_program(language)
+    
+    # Replace {user_id} with actual user ID
+    referral_text = referral_text.replace("{user_id}", str(user_id))
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Referral Stats", callback_data="referral_stats")],
+        [InlineKeyboardButton(text="💰 Earnings", callback_data="referral_earnings")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="join_partner_program")]
+    ])
+    
+    await callback_query.message.edit_text(referral_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "success_stories")
+async def success_stories_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle success stories"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    from channel_incentives import incentives
+    stories_text = await incentives.create_success_stories(language)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Join Now", callback_data="join_partner_program")],
+        [InlineKeyboardButton(text="◀️ Back", callback_data="join_partner_program")]
+    ])
+    
+    await callback_query.message.edit_text(stories_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+@router.callback_query(F.data == "request_payout")
+async def request_payout_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle payout request"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Calculate total earnings
+    from channel_incentives import incentives
+    channels = await db.get_user_channels(user_id)
+    total_earnings = 0
+    
+    for channel in channels:
+        rewards = await incentives.calculate_owner_rewards(str(channel['id']))
+        total_earnings += rewards.get('total_reward', 0)
+    
+    if total_earnings < 10:  # Minimum payout threshold
+        await callback_query.message.edit_text(
+            f"💰 **Payout Request**\n\nCurrent earnings: ${total_earnings:.2f}\nMinimum payout: $10.00\n\n**Keep growing your channel to reach the minimum payout!**",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Back to Dashboard", callback_data="view_partner_dashboard")]
+            ]),
+            parse_mode='Markdown'
+        )
+        return
+    
+    await callback_query.message.edit_text(
+        f"💰 **Payout Request**\n\nEarnings: ${total_earnings:.2f}\nPayout method: TON/Telegram Stars\n\n**Payout will be processed within 24 hours**\n\nSupport will contact you for wallet details.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Confirm Payout", callback_data="confirm_payout")],
+            [InlineKeyboardButton(text="◀️ Back", callback_data="view_partner_dashboard")]
+        ]),
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
 
 # Navigation handlers
 @router.callback_query(F.data.startswith("back_to_"))

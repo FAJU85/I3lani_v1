@@ -57,6 +57,11 @@ async def main():
         logger.info("Initializing channel manager...")
         channel_manager = init_channel_manager(bot, db)
         
+        # Initialize channel incentives system
+        logger.info("Initializing channel incentives system...")
+        from channel_incentives import init_incentives
+        init_incentives(db)
+        
         # Register chat member handler
         dp.my_chat_member.register(handle_my_chat_member)
         

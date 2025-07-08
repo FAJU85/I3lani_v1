@@ -116,7 +116,7 @@ Users can now select this channel when creating ads through the bot.
             try:
                 await self.bot.send_message(chat.id, welcome_message, parse_mode='Markdown')
             except Exception as e:
-                logger.debug(f"Could not send notification to {admin_id}: {e}")
+                logger.debug(f"Could not send notification: {e}")
                 pass  # Ignore if can't send message
                 
         except Exception as e:
