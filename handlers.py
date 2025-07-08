@@ -3129,63 +3129,46 @@ async def claim_registration_bonus_handler(callback_query: CallbackQuery):
 
 @router.callback_query(F.data == "view_earnings")
 async def view_earnings_handler(callback_query: CallbackQuery):
-    """Show detailed earnings dashboard"""
+    """Show comprehensive partner reward board"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    from atomic_rewards import atomic_rewards
-    if atomic_rewards is None:
-        from atomic_rewards import init_atomic_rewards
-        init_atomic_rewards(db, bot)
-    
-    # Get comprehensive statistics
-    stats = await atomic_rewards.get_reward_statistics(user_id)
-    partner_status = await db.get_partner_status(user_id)
-    
-    if not partner_status:
-        await db.create_partner_status(user_id)
+    try:
+        from atomic_rewards import atomic_rewards
+        if atomic_rewards is None:
+            from atomic_rewards import init_atomic_rewards
+            init_atomic_rewards(db, bot)
+        
+        # Get comprehensive reward board
+        reward_board = await atomic_rewards.create_comprehensive_reward_board(user_id, language)
+        
+        # Get partner status for payout button
         partner_status = await db.get_partner_status(user_id)
-    
-    earnings_text = f"""
-💰 **Earnings Dashboard**
-
-📊 **Summary:**
-- Total Earned: {stats.get('total_earned', 0):.2f} TON
-- Pending Rewards: {partner_status['pending_rewards']:.2f} TON
-- Total Payouts: {stats.get('total_payouts', 0):.2f} TON
-- Partner Tier: {partner_status['tier']}
-
-📈 **Activity:**
-- Total Referrals: {stats.get('total_referrals', 0)}
-- Registration Bonus: {"✅ Paid" if stats.get('registration_bonus_paid') else "❌ Unclaimed"}
-- Active Channels: {partner_status['active_channels']}
-
-🎁 **Recent Rewards:**
-"""
-    
-    for reward in stats.get('recent_rewards', [])[:5]:
-        earnings_text += f"- {reward['reward_type']}: {reward['amount']} TON ({reward['status']})\n"
-    
-    earnings_text += f"""
-⚡ **Payout Status:**
-- Minimum: 10.0 TON
-- Current: {partner_status['pending_rewards']:.2f} TON
-- Status: {"Ready for Payout!" if partner_status['pending_rewards'] >= 10.0 else "Keep Earning"}
-
-🚀 **Next Steps:**
-- Share your referral link to earn more
-- Add channels to your account
-- Automatic payout when you reach 10 TON
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Refresh", callback_data="view_earnings")],
-        [InlineKeyboardButton(text="🔗 Share Link", callback_data="share_earn")],
-        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
-    ])
-    
-    await callback_query.message.edit_text(earnings_text, reply_markup=keyboard)
-    await callback_query.answer()
+        if not partner_status:
+            await db.create_partner_status(user_id)
+            partner_status = await db.get_partner_status(user_id)
+        
+        # Create keyboard with conditional payout button
+        keyboard_buttons = [
+            [InlineKeyboardButton(text="🔄 Refresh Board", callback_data="view_earnings")],
+            [InlineKeyboardButton(text="📊 Referral Stats", callback_data="referral_stats")],
+            [InlineKeyboardButton(text="🔗 Share & Earn", callback_data="share_earn")]
+        ]
+        
+        # Add payout button if threshold is met
+        if partner_status and partner_status['pending_rewards'] >= 25.0:
+            keyboard_buttons.insert(1, [InlineKeyboardButton(text="💰 Request Payout", callback_data="request_payout")])
+        
+        keyboard_buttons.append([InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await callback_query.message.edit_text(reward_board, reply_markup=keyboard)
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in view_earnings_handler: {e}")
+        await callback_query.answer("Error loading reward board. Please try again.", show_alert=True)
 
 @router.callback_query(F.data == "referral_stats")
 async def referral_stats_handler(callback_query: CallbackQuery):

@@ -30,8 +30,8 @@ class AtomicRewardSystem:
             'tier_upgrade': 50.0       # 50 TON for tier upgrades
         }
         
-        # Minimum payout threshold
-        self.MIN_PAYOUT = 10.0  # 10 TON minimum
+        # Minimum payout threshold - Made challenging but achievable
+        self.MIN_PAYOUT = 25.0  # 25 TON minimum (requires 12+ premium referrals or 50+ basic referrals)
         
         # TON wallet for distributions (would be configured in production)
         self.REWARD_WALLET = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
@@ -307,6 +307,121 @@ Your referral link: https://t.me/I3lani_bot?start=ref_{user_id}
         except Exception as e:
             logger.error(f"Error getting reward statistics: {e}")
             return {}
+    
+    async def create_comprehensive_reward_board(self, user_id: int, language: str = 'en') -> str:
+        """Create comprehensive reward board for partner"""
+        
+        try:
+            # Get partner status and statistics
+            partner_status = await self.database.get_partner_status(user_id)
+            if not partner_status:
+                await self.database.create_partner_status(user_id)
+                partner_status = await self.database.get_partner_status(user_id)
+            
+            stats = await self.get_reward_statistics(user_id)
+            
+            # Calculate tier progress
+            referral_count = stats.get('total_referrals', 0)
+            if referral_count >= 50:
+                tier = "Premium"
+                tier_icon = "💎"
+                rate = 2.0
+                progress = 100
+                next_milestone = "Maximum Tier Reached"
+            elif referral_count >= 25:
+                tier = "Gold"
+                tier_icon = "🥇"
+                rate = 1.2
+                progress = (referral_count / 50) * 100
+                next_milestone = f"{50 - referral_count} refs to Premium"
+            elif referral_count >= 10:
+                tier = "Silver"
+                tier_icon = "🥈"
+                rate = 0.8
+                progress = (referral_count / 25) * 100
+                next_milestone = f"{25 - referral_count} refs to Gold"
+            else:
+                tier = "Basic"
+                tier_icon = "🥉"
+                rate = 0.5
+                progress = (referral_count / 10) * 100
+                next_milestone = f"{10 - referral_count} refs to Silver"
+            
+            # Payout progress
+            current_balance = partner_status.get('pending_rewards', 0.0) if partner_status else 0.0
+            payout_progress = min((current_balance / self.MIN_PAYOUT) * 100, 100)
+            
+            # Create progress bars
+            def create_progress_bar(percent: float, width: int = 10) -> str:
+                filled = int((percent / 100) * width)
+                return "█" * filled + "░" * (width - filled)
+            
+            # Create reward board
+            board = f"""
+🎯 **PARTNER REWARD BOARD**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 **CURRENT BALANCE**
+├─ Pending Rewards: {current_balance:.2f} TON
+├─ Minimum Payout: {self.MIN_PAYOUT} TON
+├─ Progress: {payout_progress:.1f}%
+└─ Status: {"🟢 READY FOR PAYOUT!" if current_balance >= self.MIN_PAYOUT else "🔴 Keep Earning"}
+
+📊 **PAYOUT PROGRESS**
+{create_progress_bar(payout_progress)} {payout_progress:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{tier_icon} **TIER STATUS: {tier.upper()}**
+├─ Referral Rate: {rate} TON per referral
+├─ Total Referrals: {referral_count}
+├─ Tier Progress: {progress:.1f}%
+└─ Next Milestone: {next_milestone}
+
+📈 **TIER PROGRESS**
+{create_progress_bar(progress)} {progress:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 **EARNINGS BREAKDOWN**
+├─ Total Earned: {stats.get('total_earned', 0):.2f} TON
+├─ Total Payouts: {stats.get('total_payouts', 0):.2f} TON
+├─ Registration Bonus: {"✅ Claimed" if stats.get('registration_bonus_paid') else "❌ Unclaimed"}
+└─ Active Channels: {partner_status.get('active_channels', 0) if partner_status else 0}
+
+💎 **REWARD RATES**
+├─ Basic Tier: 0.5 TON per referral
+├─ Silver Tier: 0.8 TON per referral (10+ refs)
+├─ Gold Tier: 1.2 TON per referral (25+ refs)
+└─ Premium Tier: 2.0 TON per referral (50+ refs)
+
+🎁 **MILESTONE BONUSES**
+├─ 5 Referrals: 2.5 TON bonus
+├─ 10 Referrals: 6.0 TON bonus
+├─ 25 Referrals: 20.0 TON bonus
+└─ 50 Referrals: 50.0 TON bonus
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 **QUICK ACTIONS**
+• Share your referral link to earn TON
+• Add channels to your account
+• Invite friends to join the platform
+• Monitor your progress regularly
+
+⚡ **PAYOUT THRESHOLD: {self.MIN_PAYOUT} TON**
+This threshold ensures quality partnerships and sustainable rewards.
+{"🎉 You've reached the threshold! Contact support for payout." if current_balance >= self.MIN_PAYOUT else f"💪 You need {self.MIN_PAYOUT - current_balance:.2f} more TON to reach payout threshold."}
+
+🔗 **Your Referral Link:**
+https://t.me/I3lani_bot?start=ref_{user_id}
+            """.strip()
+            
+            return board
+            
+        except Exception as e:
+            logger.error(f"Error creating reward board: {e}")
+            return "Error loading reward board. Please try again."
 
 # Global atomic reward system instance
 atomic_rewards = None
