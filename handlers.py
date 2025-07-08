@@ -1415,49 +1415,191 @@ async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContex
 
 @router.callback_query(F.data == "continue_to_duration")
 async def continue_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Continue to dynamic pricing calculator"""
+    """Continue to duration selection with dynamic interface"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
     await state.set_state(AdCreationStates.duration_selection)
     
-    text = (
-        "**Let's calculate your posting plan!**\n\n"
-        "I'll help you find the perfect advertising package like a food delivery assistant!\n\n"
-        "**Step 1: How many days** do you want your ad to run?\n"
-        "(Examples: 3 days, 7 days, 30 days)\n\n"
-        "**Step 2: How many posts per day?**\n"
-        "(Choose 1 to 24 posts per day)\n\n"
-        "**Step 3: Which channels?**\n"
-        "All channels currently cost $0 — extra toppings coming soon!\n\n"
-        "**Volume Discounts Available:**\n"
-        "- 2+ posts/day to Get discounts up to 30% off!\n"
-        "- More posts = bigger savings\n\n"
-        "Choose your plan duration:"
+    # Initialize default days if not set
+    data = await state.get_data()
+    current_days = data.get('selected_days', 1)
+    
+    # Store current days
+    await state.update_data(selected_days=current_days)
+    
+    # Show dynamic days selector with live pricing
+    await show_dynamic_days_selector(callback_query, state, current_days)
+    
+    await callback_query.answer()
+
+async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMContext, days: int = 1):
+    """Show dynamic days selector with +/- buttons and live pricing"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get selected channels data for price calculation
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Calculate pricing with current settings (1 post per day default)
+    from dynamic_pricing import DynamicPricing
+    pricing = DynamicPricing()
+    calculation = pricing.calculate_pricing(
+        days=days,
+        posts_per_day=1,  # Default to 1 post per day for preview
+        channels=[]  # Channel pricing will be calculated later
     )
     
-    # Create duration selection keyboard
+    # Create the dynamic interface text
+    text = f"""**Step 1: Choose Campaign Duration**
+
+How many days: {days}
+
+💰 **Live Price Preview** (1 post/day):
+🔷 TON: {calculation['total_ton']} TON
+⭐ Stars: {calculation['total_stars']} Stars
+
+📊 **Volume Discount Info:**
+- 1 post/day = No discount
+- 2 posts/day = 5% off  
+- 4 posts/day = 10% off
+- 8+ posts/day = 20%+ off
+
+*Note: Final price calculated after selecting posts per day*"""
+    
+    # Create +/- keyboard for days selection
+    keyboard_rows = []
+    
+    # Days adjustment row
+    minus_callback = f"days_adjust_minus_{days}" if days > 1 else "days_adjust_none"
+    plus_callback = f"days_adjust_plus_{days}"
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(text="➖", callback_data=minus_callback),
+        InlineKeyboardButton(text=f"{days} days", callback_data="days_info"),
+        InlineKeyboardButton(text="➕", callback_data=plus_callback)
+    ])
+    
+    # Quick selection buttons
+    if days != 1:
+        keyboard_rows.append([InlineKeyboardButton(text="1 Day", callback_data="days_quick_1")])
+    if days != 7:
+        keyboard_rows.append([InlineKeyboardButton(text="7 Days", callback_data="days_quick_7")])
+    if days != 30:
+        keyboard_rows.append([InlineKeyboardButton(text="30 Days", callback_data="days_quick_30")])
+    
+    # Continue button
+    keyboard_rows.append([
+        InlineKeyboardButton(text=f"Continue with {days} days", callback_data="days_confirm")
+    ])
+    
+    # Back button
+    keyboard_rows.append([
+        InlineKeyboardButton(text="Back", callback_data="back_to_start")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    try:
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    except (AttributeError, Exception):
+        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+
+
+# Days adjustment handlers
+@router.callback_query(F.data.startswith("days_adjust_minus_"))
+async def days_adjust_minus_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle minus button for days"""
+    current_days = int(callback_query.data.replace("days_adjust_minus_", ""))
+    new_days = max(1, current_days - 1)
+    await state.update_data(selected_days=new_days)
+    await show_dynamic_days_selector(callback_query, state, new_days)
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("days_adjust_plus_"))
+async def days_adjust_plus_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle plus button for days"""
+    current_days = int(callback_query.data.replace("days_adjust_plus_", ""))
+    new_days = min(365, current_days + 1)  # Max 365 days
+    await state.update_data(selected_days=new_days)
+    await show_dynamic_days_selector(callback_query, state, new_days)
+    await callback_query.answer()
+
+@router.callback_query(F.data.startswith("days_quick_"))
+async def days_quick_select_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle quick day selection buttons"""
+    days = int(callback_query.data.replace("days_quick_", ""))
+    await state.update_data(selected_days=days)
+    await show_dynamic_days_selector(callback_query, state, days)
+    await callback_query.answer()
+
+@router.callback_query(F.data == "days_adjust_none")
+async def days_adjust_none_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle disabled minus button"""
+    await callback_query.answer("Minimum 1 day required")
+
+@router.callback_query(F.data == "days_info")
+async def days_info_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle days info button"""
+    await callback_query.answer("Use +/- buttons to adjust days")
+
+@router.callback_query(F.data == "days_confirm")
+async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Confirm days selection and continue to posts per day"""
+    data = await state.get_data()
+    selected_days = data.get('selected_days', 1)
+    
+    # Move to posts per day selection
+    await show_posts_per_day_selection(callback_query, state, selected_days)
+
+async def show_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
+    """Show posts per day selection with the selected days"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    text = f"""**Step 2: How many posts per day?**
+
+Campaign Duration: {days} days
+
+Choose your posting frequency to see volume discounts:
+
+💡 **Volume Discount Tips:**
+- 1 post/day = No discount
+- 2 posts/day = 5% off
+- 4 posts/day = 10% off
+- 8 posts/day = 20% off
+- 24 posts/day = 30% off (maximum!)
+
+Select posts per day:"""
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="1 Day", callback_data="dynamic_days_1"),
-            InlineKeyboardButton(text="3 Days", callback_data="dynamic_days_3"),
-            InlineKeyboardButton(text="7 Days", callback_data="dynamic_days_7")
+            InlineKeyboardButton(text="1/day (No discount)", callback_data="dynamic_posts_1"),
+            InlineKeyboardButton(text="2/day (5% off)", callback_data="dynamic_posts_2")
         ],
         [
-            InlineKeyboardButton(text="14 Days", callback_data="dynamic_days_14"),
-            InlineKeyboardButton(text="30 Days", callback_data="dynamic_days_30"),
-            InlineKeyboardButton(text="Custom", callback_data="dynamic_days_custom")
+            InlineKeyboardButton(text="3/day (7% off)", callback_data="dynamic_posts_3"),
+            InlineKeyboardButton(text="4/day (10% off)", callback_data="dynamic_posts_4")
         ],
-        [InlineKeyboardButton(text="Back Back", callback_data="back_to_start")]
+        [
+            InlineKeyboardButton(text="6/day (15% off)", callback_data="dynamic_posts_6"),
+            InlineKeyboardButton(text="8/day (20% off)", callback_data="dynamic_posts_8")
+        ],
+        [
+            InlineKeyboardButton(text="12/day (27% off)", callback_data="dynamic_posts_12"),
+            InlineKeyboardButton(text="24/day (30% off)", callback_data="dynamic_posts_24")
+        ],
+        [
+            InlineKeyboardButton(text="Custom Amount", callback_data="dynamic_posts_custom"),
+            InlineKeyboardButton(text="Back", callback_data="continue_to_duration")
+        ]
     ])
     
     try:
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
     except (AttributeError, Exception):
         await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-    
-    await callback_query.answer()
-
 
 # Payment handlers now use dynamic pricing system
 
