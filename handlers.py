@@ -1653,7 +1653,8 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     text += f"2. Include the memo: `{memo}`\n"
     text += f"3. Payment will be verified automatically\n\n"
     text += f"**Monitor your payment:** [TonViewer]({tonviewer_link})\n\n"
-    text += f"⚠️ Payment automatically confirmed when detected on blockchain"
+    text += f"⚠️ Payment automatically confirmed when detected on blockchain\n\n"
+    text += f"With your payment, you agree to the [Usage Agreement](https://t.me/{(await bot.get_me()).username}?start=agreement)🔗"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]

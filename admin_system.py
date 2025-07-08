@@ -48,6 +48,10 @@ class AdminStates(StatesGroup):
     bot_control = State()
     broadcast_message = State()
     
+    # Usage agreement management
+    usage_agreement = State()
+    edit_agreement = State()
+    
     # User management
     user_management = State()
     
@@ -107,7 +111,7 @@ class AdminSystem:
             ],
             [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
-                InlineKeyboardButton(text="👥 User Management", callback_data="admin_users")
+                InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement")
             ],
             [
                 InlineKeyboardButton(text="STATS: Statistics", callback_data="admin_statistics"),
@@ -1970,3 +1974,133 @@ def setup_admin_handlers(dp):
     """Setup admin handlers"""
     dp.include_router(router)
     logger.info("Admin system handlers setup completed")
+
+# Usage Agreement Handlers
+@router.callback_query(F.data == "admin_agreement")
+async def admin_agreement_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle usage agreement management"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied", show_alert=True)
+        return
+    
+    try:
+        # Get current usage agreement
+        agreement = await db.get_bot_setting('usage_agreement')
+        
+        if agreement:
+            preview = agreement[:200] + "..." if len(agreement) > 200 else agreement
+            text = f"""
+📄 **Usage Agreement Management**
+
+**Current Agreement Preview:**
+{preview}
+
+**Character Count:** {len(agreement)} chars
+
+You can view the full agreement or edit it below:
+            """.strip()
+        else:
+            text = "📄 **Usage Agreement Management**\n\nNo usage agreement found. Click 'Edit Agreement' to create one."
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="👀 View Full Agreement", callback_data="view_agreement")],
+            [InlineKeyboardButton(text="✏️ Edit Agreement", callback_data="edit_agreement")],
+            [InlineKeyboardButton(text="🔄 Reset to Default", callback_data="reset_agreement")],
+            [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+        ])
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("Usage agreement management")
+        
+    except Exception as e:
+        logger.error(f"Error showing usage agreement: {e}")
+        await callback_query.answer("Error loading usage agreement", show_alert=True)
+
+@router.callback_query(F.data == "view_agreement")
+async def view_agreement_handler(callback_query: CallbackQuery, state: FSMContext):
+    """View full usage agreement"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied", show_alert=True)
+        return
+    
+    try:
+        agreement = await db.get_bot_setting('usage_agreement')
+        
+        if not agreement:
+            await callback_query.answer("No agreement found", show_alert=True)
+            return
+        
+        text = f"📄 **Usage Agreement**\n\n{agreement}"
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back", callback_data="admin_agreement")]
+        ])
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.answer("Viewing full agreement")
+            
+    except Exception as e:
+        logger.error(f"Error showing full agreement: {e}")
+        await callback_query.answer("Error loading full agreement", show_alert=True)
+
+@router.callback_query(F.data == "edit_agreement")
+async def edit_agreement_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Edit usage agreement"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("❌ Access denied", show_alert=True)
+        return
+    
+    await state.set_state(AdminStates.edit_agreement)
+    text = """
+✏️ **Edit Usage Agreement**
+
+Please send the new usage agreement text. This will be shown to users when they make payments.
+
+Send your new agreement text now:
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_agreement")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Ready to edit agreement")
+
+@router.message(AdminStates.edit_agreement)
+async def process_agreement_edit(message: Message, state: FSMContext):
+    """Process new usage agreement text"""
+    user_id = message.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await message.answer("❌ Access denied")
+        return
+    
+    new_agreement = message.text
+    if len(new_agreement) < 50:
+        await message.answer("❌ Agreement too short. Please provide at least 50 characters.")
+        return
+    
+    # Save new agreement
+    await db.set_bot_setting('usage_agreement', new_agreement, 'Terms of service and usage agreement for bot users')
+    
+    text = f"""
+✅ **Usage Agreement Updated Successfully**
+
+**New Agreement Preview:**
+{new_agreement[:200]}{'...' if len(new_agreement) > 200 else ''}
+
+**Character Count:** {len(new_agreement)} chars
+
+The new agreement will be shown to users during payment.
+    """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📄 Back to Agreement", callback_data="admin_agreement")]
+    ])
+    
+    await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    await state.clear()

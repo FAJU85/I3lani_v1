@@ -135,6 +135,16 @@ class Database:
                 )
             ''')
             
+            # Bot settings table
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS bot_settings (
+                    setting_key TEXT PRIMARY KEY,
+                    setting_value TEXT NOT NULL,
+                    description TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             await db.commit()
             
         # Initialize default channels
@@ -142,11 +152,57 @@ class Database:
         
         # Initialize default packages
         await init_default_packages(self)
+        
+        # Initialize default settings
+        await self.init_default_settings()
     
     async def init_default_channels(self):
         """Initialize default channels - Only called if no channels exist"""
         # This method now does nothing - channels are added automatically when bot becomes admin
         pass
+        
+    async def init_default_settings(self):
+        """Initialize default bot settings"""
+        # Check if usage agreement exists, if not create default
+        agreement = await self.get_bot_setting('usage_agreement')
+        if not agreement:
+            default_agreement = """📋 Usage Agreement
+
+By using I3lani Bot's advertising services, you agree to:
+
+1. 📝 Content Guidelines
+   - No illegal, harmful, or offensive content
+   - No spam or misleading advertisements
+   - Respect intellectual property rights
+
+2. 💳 Payment Terms
+   - All payments are processed securely
+   - No refunds after ad approval and publishing
+   - Prices are subject to change
+
+3. 🔒 Privacy & Data
+   - Your data is protected and not shared
+   - We store only necessary information
+   - You can request data deletion
+
+4. 📢 Publishing Rights
+   - We reserve the right to reject inappropriate content
+   - Ads are published according to selected plan
+   - No guarantee of specific results
+
+5. 🚫 Prohibited Uses
+   - No cryptocurrency scams or fraud
+   - No adult content or illegal services
+   - No hate speech or discrimination
+
+For support, contact: @i3lani_support
+Last updated: July 2025"""
+            
+            await self.set_bot_setting(
+                'usage_agreement', 
+                default_agreement,
+                'Terms of service and usage agreement for bot users'
+            )
     
     async def get_user(self, user_id: int) -> Optional[Dict]:
         """Get user by ID"""
@@ -532,6 +588,41 @@ class Database:
                     'channels_included': row[5]
                 }
             return None
+            
+    async def get_bot_setting(self, setting_key: str) -> Optional[str]:
+        """Get bot setting value"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                'SELECT setting_value FROM bot_settings WHERE setting_key = ?',
+                (setting_key,)
+            )
+            row = await cursor.fetchone()
+            return row[0] if row else None
+            
+    async def set_bot_setting(self, setting_key: str, setting_value: str, description: str = None) -> bool:
+        """Set bot setting value"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, description, updated_at)
+                VALUES (?, ?, ?, ?)
+            ''', (setting_key, setting_value, description, datetime.now().isoformat()))
+            await db.commit()
+            return True
+            
+    async def get_all_bot_settings(self) -> List[Dict]:
+        """Get all bot settings"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute('SELECT * FROM bot_settings ORDER BY setting_key')
+            rows = await cursor.fetchall()
+            return [
+                {
+                    'setting_key': row[0],
+                    'setting_value': row[1],
+                    'description': row[2],
+                    'updated_at': row[3]
+                }
+                for row in rows
+            ]
 
 
 # Global database instance

@@ -380,6 +380,8 @@ async def handle_stars_payment(callback_query: CallbackQuery, state: FSMContext)
 
 Payment invoice has been sent to you.
 Please complete the payment to activate your campaign.
+
+With your payment, you agree to the Usage Agreement🔗
             """.strip()
             
             await callback_query.message.edit_text(
