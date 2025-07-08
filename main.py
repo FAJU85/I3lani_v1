@@ -66,6 +66,15 @@ def acquire_lock():
 async def main():
     """Main application entry point"""
     
+    # Force cleanup any existing bot processes
+    import subprocess
+    try:
+        subprocess.run(["pkill", "-f", "aiogram"], capture_output=True)
+        subprocess.run(["pkill", "-f", "I3lani"], capture_output=True)
+        await asyncio.sleep(2)  # Wait for cleanup
+    except:
+        pass
+    
     # Acquire lock to prevent multiple instances
     lock_fd = acquire_lock()
     logger.info("🔒 Bot instance lock acquired successfully")

@@ -15,13 +15,13 @@ LANGUAGES = {
         'currency_symbol': '$',
         
         # Welcome and start
-        'welcome': '⬢━━━━━━━ I3LANI NEURAL NETWORK ━━━━━━━⬢\n▲ Welcome to the Quantum Advertising Matrix ▲',
-        'choose_language': '◇━━━ NEURAL INTERFACE LANGUAGE ━━━◇',
+        'welcome': '⬢━━━ I3LANI NEURAL NETWORK ━━━⬢\n▲ Welcome to Quantum Advertising ▲',
+        'choose_language': '◇━ NEURAL INTERFACE ━◇',
         'language_selected': '◈ Neural Language: English 🇺🇸',
         'language_changed': '✅ Language changed to English successfully!',
         
         # Main menu
-        'main_menu': '◈━━━ NEURAL PATHWAYS ━━━◈\n◇ Multi-Channel Broadcasting\n◇ Quantum Payment Processing\n◇ Partner Network Mining\n◇ Real-time Analytics\n\n▣ SELECT PROTOCOL ▣',
+        'main_menu': '◈━━ NEURAL PATHWAYS ━━◈\n◇ Multi-Channel Broadcasting\n◇ Quantum Payment Processing\n◇ Partner Network Mining\n◇ Real-time Analytics\n\n▣ SELECT PROTOCOL ▣',
         'create_ad': '🚀 ▶ LAUNCH NEURAL BROADCAST',
         'my_ads': '📊 ◆ My Quantum Matrix',
         'pricing': '◇ Quantum Pricing', 
@@ -46,16 +46,16 @@ LANGUAGES = {
         'refresh': '🔄 Refresh',
         
         # Ad creation
-        'send_ad_content': '◇━━━ NEURAL CONTENT UPLOAD ━━━◇\n\nUpload your advertisement:\n• 📝 Text message\n• 📸 Photo with caption\n• 🎥 Video with caption\n\n▣ TRANSMIT DATA ▣',
-        'ad_received': '◈ Neural Content Received Successfully! ✅',
-        'choose_channels': '◇━━━ QUANTUM CHANNEL MATRIX ━━━◇\n\nSelect broadcasting channels:',
-        'select_duration': '◇━━━ TEMPORAL FREQUENCY SELECTOR ━━━◇\n\nChoose campaign duration:',
-        'choose_payment': '◇━━━ QUANTUM PAYMENT PROTOCOL ━━━◇\n\nSelect payment method:',
+        'send_ad_content': '◇━━ NEURAL UPLOAD ━━◇\n\nUpload your advertisement:\n• 📝 Text message\n• 📸 Photo with caption\n• 🎥 Video with caption\n\n▣ TRANSMIT DATA ▣',
+        'ad_received': '◈ Neural Content Received! ✅',
+        'choose_channels': '◇━━ QUANTUM CHANNELS ━━◇\n\nSelect broadcasting channels:',
+        'select_duration': '◇━━ FREQUENCY SELECTOR ━━◇\n\nChoose campaign duration:',
+        'choose_payment': '◇━━ PAYMENT PROTOCOL ━━◇\n\nSelect payment method:',
         'upload_photo': '📸 ◇ Upload Neural Image',
         'upload_video': '🎥 ◇ Upload Quantum Video',
         'add_text': '📝 ◇ Add Neural Text',
         'provide_contact': '📞 ◇ Neural Contact Protocol',
-        'contact_info_prompt': '◇━━━ CONTACT NEXUS ━━━◇\n\nHow should customers reach you?\n\nExamples:\n• Phone: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ TRANSMIT CONTACT DATA ▣',
+        'contact_info_prompt': '◇━━ CONTACT NEXUS ━━◇\n\nHow should customers reach you?\n\nExamples:\n• Phone: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ TRANSMIT DATA ▣',
         
         # Channels
         'tech_news': 'Tech News (45K) 🔥',
@@ -135,13 +135,13 @@ Questions? Use /support to get help!""",
         'currency_symbol': 'ر.س',
         
         # Welcome and start
-        'welcome': '⬢━━━━━━━ شبكة I3LANI العصبية ━━━━━━━⬢\n▲ مرحباً بك في مصفوفة الإعلانات الكمية ▲',
-        'choose_language': '◇━━━ لغة الواجهة العصبية ━━━◇',
+        'welcome': '⬢━━━ شبكة I3LANI العصبية ━━━⬢\n▲ مرحباً بك في الإعلانات الكمية ▲',
+        'choose_language': '◇━ الواجهة العصبية ━◇',
         'language_selected': '◈ اللغة العصبية: العربية 🇸🇦',
         'language_changed': '✅ تم تغيير اللغة إلى العربية بنجاح!',
         
         # Main menu
-        'main_menu': '◈━━━ المسارات العصبية ━━━◈\n◇ البث متعدد القنوات\n◇ معالجة الدفع الكمية\n◇ تعدين شبكة الشركاء\n◇ التحليلات الفورية\n\n▣ اختر البروتوكول ▣',
+        'main_menu': '◈━━ المسارات العصبية ━━◈\n◇ البث متعدد القنوات\n◇ معالجة الدفع الكمية\n◇ تعدين شبكة الشركاء\n◇ التحليلات الفورية\n\n▣ اختر البروتوكول ▣',
         'create_ad': '🚀 ▶ إطلاق البث العصبي',
         'my_ads': '📊 ◆ مصفوفتي الكمية',
         'pricing': '◇ التسعير الكمي', 
@@ -166,16 +166,16 @@ Questions? Use /support to get help!""",
         'refresh': '🔄 تحديث',
         
         # Ad creation
-        'send_ad_content': '◇━━━ تحميل المحتوى العصبي ━━━◇\n\nارفع إعلانك:\n• 📝 رسالة نصية\n• 📸 صورة مع وصف\n• 🎥 فيديو مع وصف\n\n▣ إرسال البيانات ▣',
+        'send_ad_content': '◇━━ تحميل عصبي ━━◇\n\nارفع إعلانك:\n• 📝 رسالة نصية\n• 📸 صورة مع وصف\n• 🎥 فيديو مع وصف\n\n▣ إرسال البيانات ▣',
         'ad_received': '◈ تم استلام المحتوى العصبي بنجاح! ✅',
-        'choose_channels': '◇━━━ مصفوفة القنوات الكمية ━━━◇\n\nاختر قنوات البث:',
-        'select_duration': '◇━━━ محدد التردد الزمني ━━━◇\n\nاختر مدة الحملة:',
-        'choose_payment': '◇━━━ بروتوكول الدفع الكمي ━━━◇\n\nاختر طريقة الدفع:',
+        'choose_channels': '◇━━ القنوات الكمية ━━◇\n\nاختر قنوات البث:',
+        'select_duration': '◇━━ محدد التردد ━━◇\n\nاختر مدة الحملة:',
+        'choose_payment': '◇━━ بروتوكول الدفع ━━◇\n\nاختر طريقة الدفع:',
         'upload_photo': '📸 ◇ رفع صورة عصبية',
         'upload_video': '🎥 ◇ رفع فيديو كمي',
         'add_text': '📝 ◇ إضافة نص عصبي',
         'provide_contact': '📞 ◇ بروتوكول الاتصال العصبي',
-        'contact_info_prompt': '◇━━━ شبكة الاتصال ━━━◇\n\nكيف يمكن للعملاء التواصل معك؟\n\nأمثلة:\n• هاتف: +966501234567\n• واتساب: +966501234567\n• بريد: user@email.com\n• تليجرام: @username\n\n▣ إرسال بيانات الاتصال ▣',
+        'contact_info_prompt': '◇━━ شبكة الاتصال ━━◇\n\nكيف يمكن للعملاء التواصل معك؟\n\nأمثلة:\n• هاتف: +966501234567\n• واتساب: +966501234567\n• بريد: user@email.com\n• تليجرام: @username\n\n▣ إرسال البيانات ▣',
         
         # Categories
         'vehicles': '🚗 المركبات',
@@ -271,13 +271,13 @@ Questions? Use /support to get help!""",
         'currency_symbol': '₽',
         
         # Welcome and start
-        'welcome': '⬢━━━━━━━ I3LANI НЕЙРОСЕТЬ ━━━━━━━⬢\n▲ Добро пожаловать в Квантовую Рекламную Матрицу ▲',
-        'choose_language': '◇━━━ ЯЗЫК НЕЙРОИНТЕРФЕЙСА ━━━◇',
+        'welcome': '⬢━━━ I3LANI НЕЙРОСЕТЬ ━━━⬢\n▲ Добро пожаловать в Квантовую Рекламу ▲',
+        'choose_language': '◇━ НЕЙРОИНТЕРФЕЙС ━◇',
         'language_selected': '◈ Нейроязык: Русский 🇷🇺',
         'language_changed': '✅ Язык успешно изменен на русский!',
         
         # Main menu
-        'main_menu': '◈━━━ НЕЙРОПУТИ ━━━◈\n◇ Многоканальное вещание\n◇ Квантовая обработка платежей\n◇ Майнинг партнерской сети\n◇ Аналитика в реальном времени\n\n▣ ВЫБЕРИТЕ ПРОТОКОЛ ▣',
+        'main_menu': '◈━━ НЕЙРОПУТИ ━━◈\n◇ Многоканальное вещание\n◇ Квантовая обработка платежей\n◇ Майнинг партнерской сети\n◇ Аналитика в реальном времени\n\n▣ ВЫБЕРИТЕ ПРОТОКОЛ ▣',
         'create_ad': '🚀 ▶ ЗАПУСК НЕЙРОВЕЩАНИЯ',
         'my_ads': '📊 ◆ Моя Квантовая Матрица',
         'pricing': '◇ Квантовые Цены', 
@@ -302,16 +302,16 @@ Questions? Use /support to get help!""",
         'refresh': '🔄 Обновить',
         
         # Ad creation
-        'send_ad_content': '◇━━━ ЗАГРУЗКА НЕЙРОКОНТЕНТА ━━━◇\n\nЗагрузите вашу рекламу:\n• 📝 Текстовое сообщение\n• 📸 Фото с описанием\n• 🎥 Видео с описанием\n\n▣ ПЕРЕДАТЬ ДАННЫЕ ▣',
+        'send_ad_content': '◇━━ НЕЙРОЗАГРУЗКА ━━◇\n\nЗагрузите вашу рекламу:\n• 📝 Текстовое сообщение\n• 📸 Фото с описанием\n• 🎥 Видео с описанием\n\n▣ ПЕРЕДАТЬ ДАННЫЕ ▣',
         'ad_received': '◈ Нейроконтент успешно получен! ✅',
-        'choose_channels': '◇━━━ КВАНТОВАЯ МАТРИЦА КАНАЛОВ ━━━◇\n\nВыберите каналы для трансляции:',
-        'select_duration': '◇━━━ СЕЛЕКТОР ВРЕМЕННОЙ ЧАСТОТЫ ━━━◇\n\nВыберите продолжительность кампании:',
-        'choose_payment': '◇━━━ КВАНТОВЫЙ ПРОТОКОЛ ОПЛАТЫ ━━━◇\n\nВыберите способ оплаты:',
+        'choose_channels': '◇━━ КВАНТОВЫЕ КАНАЛЫ ━━◇\n\nВыберите каналы для трансляции:',
+        'select_duration': '◇━━ СЕЛЕКТОР ЧАСТОТЫ ━━◇\n\nВыберите продолжительность кампании:',
+        'choose_payment': '◇━━ ПРОТОКОЛ ОПЛАТЫ ━━◇\n\nВыберите способ оплаты:',
         'upload_photo': '📸 ◇ Загрузить Нейроизображение',
         'upload_video': '🎥 ◇ Загрузить Квантовое Видео',
         'add_text': '📝 ◇ Добавить Нейротекст',
         'provide_contact': '📞 ◇ Протокол Нейроконтактов',
-        'contact_info_prompt': '◇━━━ КОНТАКТНАЯ СЕТЬ ━━━◇\n\nКак клиенты могут связаться с вами?\n\nПримеры:\n• Телефон: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ ПЕРЕДАТЬ КОНТАКТНЫЕ ДАННЫЕ ▣',
+        'contact_info_prompt': '◇━━ КОНТАКТНАЯ СЕТЬ ━━◇\n\nКак клиенты могут связаться с вами?\n\nПримеры:\n• Телефон: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ ПЕРЕДАТЬ ДАННЫЕ ▣',
         
         # Channels
         'tech_news': 'Технические новости (45K) 🔥',
