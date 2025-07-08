@@ -462,41 +462,75 @@ Tip Tip: Make your ad engaging and clear!
 
 @router.message(AdCreationStates.upload_content)
 async def upload_content_handler(message: Message, state: FSMContext):
-    """Handle content upload in streamlined flow"""
+    """Handle text content after photos in streamlined flow"""
     user_id = message.from_user.id
     language = await get_user_language(user_id)
     
-    # Determine content type and extract content
-    content_type = message.content_type
-    content = ""
-    media_url = None
-    
-    if content_type == "text":
-        content = message.text
-    elif content_type == "photo":
-        content = message.caption or ""
-        media_url = message.photo[-1].file_id
-    elif content_type == "video":
-        content = message.caption or ""
-        media_url = message.video.file_id
-    else:
-        await message.answer("Unsupported content type. Please send text, photo, or video.")
+    # Only accept text at this stage (photos already handled)
+    if message.content_type != "text":
+        await message.answer("Please send text for your ad.")
         return
     
-    # Store content in state and initialize selected channels
+    content = message.text
+    data = await state.get_data()
+    
+    # Store content and any previously uploaded photos
     await state.update_data(
-        content=content,
-        media_url=media_url,
-        content_type=content_type,
-        selected_channels=[]
+        ad_content=content,
+        content_type='text'
     )
     
-    # Create ad in database
-    ad_id = await db.create_ad(user_id, content, media_url, content_type)
-    await state.update_data(ad_id=ad_id)
+    # Now ask for contact information
+    await state.set_state(AdCreationStates.provide_contact_info)
     
-    # Move to channel selection
-    await state.set_state(AdCreationStates.channel_selection)
+    if language == 'ar':
+        contact_text = """
+📞 **معلومات الاتصال**
+
+كيف يمكن للعملاء التواصل معك؟
+
+أمثلة:
+- هاتف: +966501234567
+- واتساب: +966501234567
+- بريد: user@email.com
+- تليجرام: @username
+
+أرسل معلومات الاتصال:
+        """.strip()
+    elif language == 'ru':
+        contact_text = """
+📞 **Контактная информация**
+
+Как клиенты могут связаться с вами?
+
+Примеры:
+- Телефон: +966501234567
+- WhatsApp: +966501234567
+- Email: user@email.com
+- Telegram: @username
+
+Отправьте контактную информацию:
+        """.strip()
+    else:
+        contact_text = """
+📞 **Contact Information**
+
+How should customers reach you?
+
+Examples:
+- Phone: +966501234567
+- WhatsApp: +966501234567
+- Email: user@email.com
+- Telegram: @username
+
+Send your contact information:
+        """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Back to Text", callback_data="back_to_text")]
+    ])
+    
+    await message.answer(contact_text, reply_markup=keyboard, parse_mode='Markdown')
     
     # Show channel selection - create proper channel selection message
     user_id = message.from_user.id
@@ -675,31 +709,116 @@ Send your contact information:
     await callback_query.answer("Photos skipped")
 
 
-@router.callback_query(F.data == "done_photos")
-async def done_photos_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Complete photo upload step"""
-    await state.set_state(AdCreationStates.provide_contact_info)
+@router.callback_query(F.data == "skip_photos_to_text")
+async def skip_photos_to_text_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Skip photo upload and go to text input"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    contact_text = """
-**Phone** **Provide Contact Information**
+    await state.set_state(AdCreationStates.upload_content)
+    
+    if language == 'ar':
+        text = """
+✍️ **اكتب نص إعلانك**
 
-How should customers reach you?
+اكتب تفاصيل إعلانك بوضوح
+يمكنك تضمين:
+- وصف المنتج/الخدمة
+- السعر
+- المميزات
 
-Examples:
-- Phone: +966501234567
-- WhatsApp: +966501234567
-- Email: user@email.com
-- Telegram: @username
+أرسل النص الآن:
+        """.strip()
+    elif language == 'ru':
+        text = """
+✍️ **Напишите текст объявления**
 
-Send your contact information:
-    """.strip()
+Опишите ваш товар или услугу
+Можете включить:
+- Описание
+- Цену
+- Преимущества
+
+Отправьте текст:
+        """.strip()
+    else:
+        text = """
+✍️ **Write Your Ad Text**
+
+Write your ad details clearly
+You can include:
+- Product/service description
+- Price
+- Features
+
+Send your text now:
+        """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back Back to Photos", callback_data="back_to_photos")]
+        [InlineKeyboardButton(text="🔙 Back to Photos", callback_data="create_ad")]
     ])
     
-    await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
-    await callback_query.answer("Photos completed")
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "done_photos")
+async def done_photos_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Complete photo upload and go to text input"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.set_state(AdCreationStates.upload_content)
+    
+    data = await state.get_data()
+    photos_count = len(data.get('uploaded_photos', []))
+    
+    if language == 'ar':
+        text = f"""
+✍️ **اكتب نص إعلانك**
+
+تم تحميل {photos_count} صورة ✅
+
+الآن اكتب تفاصيل إعلانك:
+- وصف المنتج/الخدمة
+- السعر
+- المميزات
+
+أرسل النص الآن:
+        """.strip()
+    elif language == 'ru':
+        text = f"""
+✍️ **Напишите текст объявления**
+
+Загружено {photos_count} фото ✅
+
+Теперь напишите детали:
+- Описание товара/услуги
+- Цену
+- Преимущества
+
+Отправьте текст:
+        """.strip()
+    else:
+        text = f"""
+✍️ **Write Your Ad Text**
+
+{photos_count} photos uploaded ✅
+
+Now write your ad details:
+- Product/service description
+- Price
+- Features
+
+Send your text now:
+        """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Back to Photos", callback_data="back_to_photos")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Now write your ad text")
 
 
 @router.message(AdCreationStates.upload_photos, F.text.in_(["/skip", "/done"]))
@@ -1101,29 +1220,48 @@ Question **Need Help?** Use /support to contact us!
 
 @router.callback_query(F.data == "create_ad")
 async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Start enhanced ad creation process"""
+    """Start enhanced ad creation process - photos first"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Skip free ads check and go directly to content upload
-    await state.set_state(AdCreationStates.upload_content)
+    # Start with photo upload instead of content
+    await state.set_state(AdCreationStates.upload_photos)
     
     if language == 'ar':
         text = """
-Content **إنشاء إعلان جديد**
+📸 **إنشاء إعلان جديد**
 
-أرسل محتوى إعلانك:
-- نص فقط
-- صورة مع نص
-- فيديو مع نص
+هل تريد إضافة صور لإعلانك؟
+يمكنك إضافة حتى 5 صور
 
-Tip نصيحة: اجعل إعلانك جذابًا وواضحًا!
+أرسل الصور الآن أو اضغط "تخطي" للمتابعة بدون صور
         """.strip()
     elif language == 'ru':
         text = """
-Content **Создать новое объявление**
+📸 **Создать новое объявление**
 
-Отправьте содержимое вашего объявления:
+Хотите добавить фотографии?
+Можно добавить до 5 фотографий
+
+Отправьте фото или нажмите "Пропустить"
+        """.strip()
+    else:
+        text = """
+📸 **Create New Ad**
+
+Would you like to add photos to your ad?
+You can add up to 5 photos
+
+Send photos now or click "Skip" to continue without photos
+        """.strip()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⏭️ Skip Photos", callback_data="skip_photos_to_text")],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()вьте содержимое вашего объявления:
 - Только текст
 - Изображение с текстом
 - Видео с текстом
@@ -1800,6 +1938,36 @@ async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FS
     
     # Create Stars payment using Bot's send_invoice method
     try:
+        # Delete the current message before sending invoice to avoid confusion
+        try:
+            await callback_query.message.delete()
+        except:
+            pass
+        
+        # Send new message first
+        info_text = f"""
+⭐ **Stars Payment**
+
+**Amount:** {stars_amount} ⭐ (${total_usd:.2f})
+
+Sending payment invoice...
+
+💡 **Note:** If you change your mind, simply ignore the invoice and go back.
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Back to Options", callback_data="show_payment_options")],
+            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+        ])
+        
+        info_msg = await callback_query.bot.send_message(
+            chat_id=callback_query.message.chat.id,
+            text=info_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        # Send the Stars invoice
         await callback_query.message.bot.send_invoice(
             chat_id=callback_query.message.chat.id,
             title=f"I3lani Bot - Dynamic Ad Campaign",
@@ -1815,23 +1983,6 @@ async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FS
             is_flexible=False
         )
         
-        # Update message to show invoice sent
-        text = f"""
-✅ **Stars Invoice Sent**
-
-**Amount:** {stars_amount} ⭐ (${total_usd:.2f})
-
-Please complete the payment using the invoice above.
-Your ad campaign will start immediately after payment confirmation.
-
-If you change your mind, you can cancel at any time before paying.
-        """.strip()
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
-        ])
-        
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
         await callback_query.answer("✅ Stars invoice sent!")
         
     except Exception as e:
