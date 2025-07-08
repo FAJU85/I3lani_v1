@@ -485,7 +485,7 @@ async def upload_content_handler(message: Message, state: FSMContext):
     
     if language == 'ar':
         contact_text = """
-📞 **معلومات الاتصال**
+**معلومات الاتصال**
 
 كيف يمكن للعملاء التواصل معك؟
 
@@ -499,7 +499,7 @@ async def upload_content_handler(message: Message, state: FSMContext):
         """.strip()
     elif language == 'ru':
         contact_text = """
-📞 **Контактная информация**
+**Контактная информация**
 
 Как клиенты могут связаться с вами?
 
@@ -513,7 +513,7 @@ async def upload_content_handler(message: Message, state: FSMContext):
         """.strip()
     else:
         contact_text = """
-📞 **Contact Information**
+**Contact Information**
 
 How should customers reach you?
 
@@ -527,7 +527,7 @@ Send your contact information:
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Back to Text", callback_data="back_to_text")]
+        [InlineKeyboardButton(text="Back to Text", callback_data="back_to_text")]
     ])
     
     await message.answer(contact_text, reply_markup=keyboard, parse_mode='Markdown')
@@ -565,7 +565,7 @@ Select the channels where you want to publish your advertisement:"""
     keyboard_rows = []
     for channel in channels:
         is_selected = channel['channel_id'] in selected_channels
-        status = "✓ " if is_selected else ""
+        status = "[] " if is_selected else ""
         keyboard_rows.append([InlineKeyboardButton(
             text=f"{status}{channel['name']} ({channel['subscribers']:,} subscribers)",
             callback_data=f"toggle_channel_{channel['channel_id']}"
@@ -719,7 +719,7 @@ async def skip_photos_to_text_handler(callback_query: CallbackQuery, state: FSMC
     
     if language == 'ar':
         text = """
-✍️ **اكتب نص إعلانك**
+ **اكتب نص إعلانك**
 
 اكتب تفاصيل إعلانك بوضوح
 يمكنك تضمين:
@@ -731,7 +731,7 @@ async def skip_photos_to_text_handler(callback_query: CallbackQuery, state: FSMC
         """.strip()
     elif language == 'ru':
         text = """
-✍️ **Напишите текст объявления**
+ **Напишите текст объявления**
 
 Опишите ваш товар или услугу
 Можете включить:
@@ -743,7 +743,7 @@ async def skip_photos_to_text_handler(callback_query: CallbackQuery, state: FSMC
         """.strip()
     else:
         text = """
-✍️ **Write Your Ad Text**
+ **Write Your Ad Text**
 
 Write your ad details clearly
 You can include:
@@ -755,7 +755,7 @@ Send your text now:
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Back to Photos", callback_data="create_ad")]
+        [InlineKeyboardButton(text=" Back to Photos", callback_data="create_ad")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -775,9 +775,9 @@ async def done_photos_handler(callback_query: CallbackQuery, state: FSMContext):
     
     if language == 'ar':
         text = f"""
-✍️ **اكتب نص إعلانك**
+ **اكتب نص إعلانك**
 
-تم تحميل {photos_count} صورة ✅
+تم تحميل {photos_count} صورة [[]]
 
 الآن اكتب تفاصيل إعلانك:
 - وصف المنتج/الخدمة
@@ -788,9 +788,9 @@ async def done_photos_handler(callback_query: CallbackQuery, state: FSMContext):
         """.strip()
     elif language == 'ru':
         text = f"""
-✍️ **Напишите текст объявления**
+ **Напишите текст объявления**
 
-Загружено {photos_count} фото ✅
+Загружено {photos_count} фото [[]]
 
 Теперь напишите детали:
 - Описание товара/услуги
@@ -801,9 +801,9 @@ async def done_photos_handler(callback_query: CallbackQuery, state: FSMContext):
         """.strip()
     else:
         text = f"""
-✍️ **Write Your Ad Text**
+ **Write Your Ad Text**
 
-{photos_count} photos uploaded ✅
+{photos_count} photos uploaded [[]]
 
 Now write your ad details:
 - Product/service description
@@ -814,7 +814,7 @@ Send your text now:
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Back to Photos", callback_data="back_to_photos")]
+        [InlineKeyboardButton(text=" Back to Photos", callback_data="back_to_photos")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1041,32 +1041,32 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
     
     # Create enhanced channel text with better visuals
     if language == 'ar':
-        channel_text = f"""📺 **اختر القنوات لإعلانك**
+        channel_text = f"""[TV] **اختر القنوات لإعلانك**
 
-✨ **المحدد:** {len(selected_channels)}/{len(channels)} قناة
-👥 **الوصول الإجمالي:** {total_reach:,} مشترك
+[*] **المحدد:** {len(selected_channels)}/{len(channels)} قناة
+[Users] **الوصول الإجمالي:** {total_reach:,} مشترك
 
-💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
+[!] انقر على القنوات للاختيار/إلغاء الاختيار:"""
     elif language == 'ru':
-        channel_text = f"""📺 **Выберите каналы для рекламы**
+        channel_text = f"""[TV] **Выберите каналы для рекламы**
 
-✨ **Выбрано:** {len(selected_channels)}/{len(channels)} каналов
-👥 **Общий охват:** {total_reach:,} подписчиков
+[*] **Выбрано:** {len(selected_channels)}/{len(channels)} каналов
+[Users] **Общий охват:** {total_reach:,} подписчиков
 
-💡 Нажмите на каналы для выбора/отмены:"""
+[!] Нажмите на каналы для выбора/отмены:"""
     else:
-        channel_text = f"""📺 **Select Channels for Your Ad**
+        channel_text = f"""[TV] **Select Channels for Your Ad**
 
-✨ **Selected:** {len(selected_channels)}/{len(channels)} channels
-👥 **Total Reach:** {total_reach:,} subscribers
+[*] **Selected:** {len(selected_channels)}/{len(channels)} channels
+[Users] **Total Reach:** {total_reach:,} subscribers
 
-💡 Click channels to select/deselect:"""
+[!] Click channels to select/deselect:"""
     
     keyboard_rows = []
     for channel in channels:
         # Check if channel is selected
         is_selected = channel['channel_id'] in selected_channels
-        check_emoji = "✅" if is_selected else "⭕"
+        check_emoji = "[[]]" if is_selected else "[O]"
         
         # Enhanced button with subscriber count
         subscribers = channel.get('subscribers', 0)
@@ -1079,12 +1079,12 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
     
     # Add control buttons with better styling
     keyboard_rows.append([
-        InlineKeyboardButton(text="📍 Select All", callback_data="select_all_channels"),
-        InlineKeyboardButton(text="❌ Deselect All", callback_data="deselect_all_channels")
+        InlineKeyboardButton(text="[Location] Select All", callback_data="select_all_channels"),
+        InlineKeyboardButton(text="[X] Deselect All", callback_data="deselect_all_channels")
     ])
     
     # Dynamic continue button - disabled if no channels selected
-    continue_text = f"✅ Continue ({len(selected_channels)} selected)" if selected_channels else "⚠️ Select channels first"
+    continue_text = f"[[]] Continue ({len(selected_channels)} selected)" if selected_channels else "[!] Select channels first"
     keyboard_rows.append([InlineKeyboardButton(
         text=continue_text,
         callback_data="proceed_to_payment" if selected_channels else "no_channels_warning"
@@ -1229,7 +1229,7 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     
     if language == 'ar':
         text = """
-📸 **إنشاء إعلان جديد**
+[Photo] **إنشاء إعلان جديد**
 
 هل تريد إضافة صور لإعلانك؟
 يمكنك إضافة حتى 5 صور
@@ -1238,7 +1238,7 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         """.strip()
     elif language == 'ru':
         text = """
-📸 **Создать новое объявление**
+[Photo] **Создать новое объявление**
 
 Хотите добавить фотографии?
 Можно добавить до 5 фотографий
@@ -1247,7 +1247,7 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         """.strip()
     else:
         text = """
-📸 **Create New Ad**
+[Photo] **Create New Ad**
 
 Would you like to add photos to your ad?
 You can add up to 5 photos
@@ -1256,32 +1256,8 @@ Send photos now or click "Skip" to continue without photos
         """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⏭️ Skip Photos", callback_data="skip_photos_to_text")],
-        [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_main")]
-    ])
-    
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
-    await callback_query.answer()вьте содержимое вашего объявления:
-- Только текст
-- Изображение с текстом
-- Видео с текстом
-
-Tip Совет: Сделайте объявление привлекательным и понятным!
-        """.strip()
-    else:
-        text = """
-Content **Create New Advertisement**
-
-Send your ad content:
-- Text only
-- Image with text
-- Video with text
-
-Tip Tip: Make your ad engaging and clear for best results!
-        """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back Back to Menu", callback_data="back_to_main")]
+        [InlineKeyboardButton(text="⏭ Skip Photos", callback_data="skip_photos_to_text")],
+        [InlineKeyboardButton(text=" Back", callback_data="back_to_main")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -1353,8 +1329,8 @@ You have used all 3 free ads for this month.
             """.strip(),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🟫 Bronze $10", callback_data="select_package_bronze")],
-                [InlineKeyboardButton(text="🥈 Silver $29", callback_data="select_package_silver")],
-                [InlineKeyboardButton(text="🥇 Gold $47", callback_data="select_package_gold")],
+                [InlineKeyboardButton(text="[Silver] Silver $29", callback_data="select_package_silver")],
+                [InlineKeyboardButton(text="[Gold] Gold $47", callback_data="select_package_gold")],
                 [InlineKeyboardButton(text="Back Back", callback_data="back_to_start")]
             ])
         )
@@ -1412,7 +1388,7 @@ async def refresh_channel_selection_keyboard(callback_query: CallbackQuery, stat
         keyboard_rows = []
         for channel in channels:
             is_selected = channel['channel_id'] in selected_channels
-            status = "✓ " if is_selected else ""
+            status = "[] " if is_selected else ""
             keyboard_rows.append([InlineKeyboardButton(
                 text=f"{status}{channel['name']} ({channel['subscribers']:,} subscribers)",
                 callback_data=f"toggle_channel_{channel['channel_id']}"
@@ -1679,9 +1655,9 @@ How many days: {days}
     plus_callback = f"days_adjust_plus_{days}"
     
     keyboard_rows.append([
-        InlineKeyboardButton(text="➖", callback_data=minus_callback),
+        InlineKeyboardButton(text="[-]", callback_data=minus_callback),
         InlineKeyboardButton(text=f"{days} days", callback_data="days_info"),
-        InlineKeyboardButton(text="➕", callback_data=plus_callback)
+        InlineKeyboardButton(text="[+]", callback_data=plus_callback)
     ])
     
     # Quick selection buttons
@@ -1767,7 +1743,7 @@ Campaign Duration: {days} days
 
 Choose your posting frequency to see volume discounts:
 
-💡 **Volume Discount Tips:**
+VOLUME DISCOUNT TIPS:
 - 1 post/day = No discount
 - 2 posts/day = 5% off
 - 4 posts/day = 10% off
@@ -1854,12 +1830,12 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     text += f"2. Include the memo: `{memo}`\n"
     text += f"3. Payment will be verified automatically\n\n"
     text += f"**Monitor your payment:** [TonViewer]({tonviewer_link})\n\n"
-    text += f"⚠️ Payment automatically confirmed when detected on blockchain\n\n"
-    text += f"With your payment, you agree to the Usage Agreement🔗"
+    text += f"[!] Payment automatically confirmed when detected on blockchain\n\n"
+    text += f"With your payment, you agree to the Usage Agreement[Link]"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")],
-        [InlineKeyboardButton(text="🔄 Try Different Payment", callback_data="show_payment_options")]
+        [InlineKeyboardButton(text="[X] Cancel Payment", callback_data="cancel_payment")],
+        [InlineKeyboardButton(text="[Refresh] Try Different Payment", callback_data="show_payment_options")]
     ])
     
     try:
@@ -1890,24 +1866,25 @@ async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMCon
     total_usd = calculation['total_usd']
     
     # Show payment confirmation message with cancellation option
+    usd_formatted = f"{total_usd:.2f}"
     text = f"""
-⭐ **Telegram Stars Payment**
+[Star] **Telegram Stars Payment**
 
-**Amount:** {stars_price} ⭐ (${total_usd:.2f})
+**Amount:** {stars_price} [Star] (${usd_formatted})
 **Campaign Details:** {calculation.get('days', 1)} days, {calculation.get('posts_per_day', 1)} posts/day
 **Channels:** {len(calculation.get('selected_channels', []))} selected
 
 **Payment Options:**
-• Click 'Pay Now' to send Stars invoice
-• Click 'Cancel' to return to pricing
+- Click 'Pay Now' to send Stars invoice
+- Click 'Cancel' to return to pricing
 
-With your payment, you agree to the Usage Agreement🔗
+With your payment, you agree to the Usage Agreement[Link]
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⭐ Pay Now", callback_data="confirm_stars_payment")],
-        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")],
-        [InlineKeyboardButton(text="🔄 Recalculate", callback_data="recalculate_dynamic")]
+        [InlineKeyboardButton(text="[Star] Pay Now", callback_data="confirm_stars_payment")],
+        [InlineKeyboardButton(text="[X] Cancel Payment", callback_data="cancel_payment")],
+        [InlineKeyboardButton(text="[Refresh] Recalculate", callback_data="recalculate_dynamic")]
     ])
     
     # Store Stars payment data for later confirmation
@@ -1945,19 +1922,20 @@ async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FS
             pass
         
         # Send new message first
+        usd_formatted = f"{total_usd:.2f}"
         info_text = f"""
-⭐ **Stars Payment**
+[Star] **Stars Payment**
 
-**Amount:** {stars_amount} ⭐ (${total_usd:.2f})
+**Amount:** {stars_amount} [Star] (${usd_formatted})
 
 Sending payment invoice...
 
-💡 **Note:** If you change your mind, simply ignore the invoice and go back.
+[!] **Note:** If you change your mind, simply ignore the invoice and go back.
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Back to Options", callback_data="show_payment_options")],
-            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            [InlineKeyboardButton(text=" Back to Options", callback_data="show_payment_options")],
+            [InlineKeyboardButton(text="[Home] Main Menu", callback_data="back_to_main")]
         ])
         
         info_msg = await callback_query.bot.send_message(
@@ -1983,11 +1961,11 @@ Sending payment invoice...
             is_flexible=False
         )
         
-        await callback_query.answer("✅ Stars invoice sent!")
+        await callback_query.answer("[[]] Stars invoice sent!")
         
     except Exception as e:
         logger.error(f"Error creating Stars payment: {e}")
-        await callback_query.answer("❌ Error creating Stars payment. Please try again.", show_alert=True)
+        await callback_query.answer("[X] Error creating Stars payment. Please try again.", show_alert=True)
 
 
 @router.callback_query(F.data == "cancel_payment")
@@ -2001,20 +1979,20 @@ async def cancel_payment_handler(callback_query: CallbackQuery, state: FSMContex
     pricing_calculation = data.get('pricing_calculation', {})
     
     text = """
-❌ **Payment Cancelled**
+[X] **Payment Cancelled**
 
 Your payment has been cancelled. You can:
-• Recalculate pricing with different options
-• Return to main menu
-• Try payment again
+- Recalculate pricing with different options
+- Return to main menu
+- Try payment again
 
 No charges have been made to your account.
     """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Recalculate Pricing", callback_data="recalculate_dynamic")],
-        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
-        [InlineKeyboardButton(text="🔙 Back to Payment", callback_data="show_payment_options")]
+        [InlineKeyboardButton(text="[Refresh] Recalculate Pricing", callback_data="recalculate_dynamic")],
+        [InlineKeyboardButton(text="[Home] Main Menu", callback_data="back_to_main")],
+        [InlineKeyboardButton(text=" Back to Payment", callback_data="show_payment_options")]
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -2037,17 +2015,21 @@ async def show_payment_options_handler(callback_query: CallbackQuery, state: FSM
     from dynamic_pricing import get_dynamic_pricing
     pricing = get_dynamic_pricing()
     
+    base_cost = f"{calculation['base_cost']:.2f}"
+    discount_amount = f"{calculation['discount_amount']:.2f}"
+    final_price = f"{calculation['total_usd']:.2f}"
+    
     text = f"""
-💰 **Payment Summary**
+[Money] **Payment Summary**
 
-**Campaign:** {calculation['days']} days × {calculation['posts_per_day']} posts/day
+**Campaign:** {calculation['days']} days x {calculation['posts_per_day']} posts/day
 **Channels:** {len(calculation.get('selected_channels', []))} selected
 **Total Posts:** {calculation['total_posts']}
 
 **Pricing:**
-• Base: ${calculation['base_cost']:.2f}
-• Discount: -{calculation['discount_percent']}% (${calculation['discount_amount']:.2f})
-• **Final Price:** ${calculation['total_usd']:.2f}
+- Base: ${base_cost}
+- Discount: -{calculation['discount_percent']}% (${discount_amount})
+- **Final Price:** ${final_price}
 
 **Choose your payment method:**
     """.strip()
@@ -2160,7 +2142,7 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
         
         # Send success notification to user
         from main import bot
-        success_text = f"✅ **Payment Confirmed!**\n\n"
+        success_text = f"[[]] **Payment Confirmed!**\n\n"
         success_text += f"**Amount:** {amount_ton} TON\n"
         success_text += f"**Payment ID:** {memo}\n\n"
         success_text += "Your ad has been successfully created and will be published to all selected channels shortly!\n\n"
@@ -2196,8 +2178,8 @@ async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext)
         expiration_text += "Would you like to try again?"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Try Again", callback_data="pay_dynamic_ton")],
-            [InlineKeyboardButton(text="❌ Cancel", callback_data="back_to_main")]
+            [InlineKeyboardButton(text="[Refresh] Try Again", callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text="[X] Cancel", callback_data="back_to_main")]
         ])
         
         await bot.send_message(
@@ -2221,7 +2203,7 @@ async def cancel_payment_handler(callback_query: CallbackQuery, state: FSMContex
     """Handle payment cancellation"""
     await state.update_data(payment_status="cancelled")
     
-    text = "❌ Payment cancelled. You can create a new ad anytime."
+    text = "[X] Payment cancelled. You can create a new ad anytime."
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Create New Ad", callback_data="create_ad")],
         [InlineKeyboardButton(text="Back to Main Menu", callback_data="back_to_main")]
