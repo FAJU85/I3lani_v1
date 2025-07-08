@@ -1,6 +1,10 @@
 """
-Multi-language support for I3lani Telegram Bot
+Comprehensive Multi-language support for I3lani Telegram Bot
+Supports all bot interactions with complete translation coverage
 """
+
+# Default language for new users
+DEFAULT_LANGUAGE = 'en'
 
 LANGUAGES = {
     'en': {
@@ -14,6 +18,7 @@ LANGUAGES = {
         'welcome': '⬢━━━━━━━ I3LANI NEURAL NETWORK ━━━━━━━⬢\n▲ Welcome to the Quantum Advertising Matrix ▲',
         'choose_language': '◇━━━ NEURAL INTERFACE LANGUAGE ━━━◇',
         'language_selected': '◈ Neural Language: English 🇺🇸',
+        'language_changed': '✅ Language changed to English successfully!',
         
         # Main menu
         'main_menu': '◈━━━ NEURAL PATHWAYS ━━━◈\n◇ Multi-Channel Broadcasting\n◇ Quantum Payment Processing\n◇ Partner Network Mining\n◇ Real-time Analytics\n\n▣ SELECT PROTOCOL ▣',
@@ -23,13 +28,34 @@ LANGUAGES = {
         'share_earn': '💎 ◆ Earnings Portal',
         'settings': '⚙️ ◈ Neural Settings',
         'help': '🆘 ◈ Quantum Support',
+        'channel_partners': '🔗 ◇ Partner Network',
+        'gaming_hub': '🎮 ◇ Neural Gaming Hub',
+        'leaderboard': '🏆 ▲ QUANTUM LEADERBOARD ▲',
+        
+        # Navigation
+        'back': '⬅️ Back',
+        'back_to_main': '⬅️ Back to Main',
+        'back_to_channels': '⬅️ Back to Channels', 
+        'back_to_photos': '⬅️ Back to Photos',
+        'continue': '➡️ Continue',
+        'continue_to_channels': '➡️ Continue to Channels',
+        'cancel': '❌ Cancel',
+        'confirm': '✅ Confirm',
+        'try_again': '🔄 Try Again',
+        'contact_support': '📞 Contact Support',
+        'refresh': '🔄 Refresh',
         
         # Ad creation
-        'send_ad_content': 'Send your ad content:\n• Text message\n• Photo with caption\n• Video with caption',
-        'ad_received': 'Ad content received! ✅',
-        'choose_channels': 'Choose channels for your ad:',
-        'select_duration': 'Select duration:',
-        'choose_payment': 'Choose payment method:',
+        'send_ad_content': '◇━━━ NEURAL CONTENT UPLOAD ━━━◇\n\nUpload your advertisement:\n• 📝 Text message\n• 📸 Photo with caption\n• 🎥 Video with caption\n\n▣ TRANSMIT DATA ▣',
+        'ad_received': '◈ Neural Content Received Successfully! ✅',
+        'choose_channels': '◇━━━ QUANTUM CHANNEL MATRIX ━━━◇\n\nSelect broadcasting channels:',
+        'select_duration': '◇━━━ TEMPORAL FREQUENCY SELECTOR ━━━◇\n\nChoose campaign duration:',
+        'choose_payment': '◇━━━ QUANTUM PAYMENT PROTOCOL ━━━◇\n\nSelect payment method:',
+        'upload_photo': '📸 ◇ Upload Neural Image',
+        'upload_video': '🎥 ◇ Upload Quantum Video',
+        'add_text': '📝 ◇ Add Neural Text',
+        'provide_contact': '📞 ◇ Neural Contact Protocol',
+        'contact_info_prompt': '◇━━━ CONTACT NEXUS ━━━◇\n\nHow should customers reach you?\n\nExamples:\n• Phone: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ TRANSMIT CONTACT DATA ▣',
         
         # Channels
         'tech_news': 'Tech News (45K) 🔥',
@@ -109,25 +135,47 @@ Questions? Use /support to get help!""",
         'currency_symbol': 'ر.س',
         
         # Welcome and start
-        'welcome': 'مرحباً بك في بوت إعلاني! 🚀\n\nمنصة إعلانات تيليجرام المميزة',
-        'choose_language': 'اختر لغتك:',
-        'language_selected': 'تم اختيار اللغة: العربية 🇸🇦',
+        'welcome': '⬢━━━━━━━ شبكة I3LANI العصبية ━━━━━━━⬢\n▲ مرحباً بك في مصفوفة الإعلانات الكمية ▲',
+        'choose_language': '◇━━━ لغة الواجهة العصبية ━━━◇',
+        'language_selected': '◈ اللغة العصبية: العربية 🇸🇦',
+        'language_changed': '✅ تم تغيير اللغة إلى العربية بنجاح!',
         
         # Main menu
-        'main_menu': '🏠 القائمة الرئيسية',
+        'main_menu': '◈━━━ المسارات العصبية ━━━◈\n◇ البث متعدد القنوات\n◇ معالجة الدفع الكمية\n◇ تعدين شبكة الشركاء\n◇ التحليلات الفورية\n\n▣ اختر البروتوكول ▣',
         'create_ad': '🚀 ▶ إطلاق البث العصبي',
-        'my_ads': '📊 إعلاناتي',
-        'pricing': '💰 الأسعار',
-        'share_earn': '🎁 شارك واكسب',
-        'settings': '⚙️ الإعدادات',
-        'help': '❓ المساعدة',
+        'my_ads': '📊 ◆ مصفوفتي الكمية',
+        'pricing': '◇ التسعير الكمي', 
+        'share_earn': '💎 ◆ بوابة الأرباح',
+        'settings': '⚙️ ◈ الإعدادات العصبية',
+        'help': '🆘 ◈ الدعم الكمي',
+        'channel_partners': '🔗 ◇ شبكة الشركاء',
+        'gaming_hub': '🎮 ◇ مركز الألعاب العصبية',
+        'leaderboard': '🏆 ▲ لوحة المتصدرين الكمية ▲',
+        
+        # Navigation
+        'back': '⬅️ رجوع',
+        'back_to_main': '⬅️ العودة للرئيسية',
+        'back_to_channels': '⬅️ العودة للقنوات',
+        'back_to_photos': '⬅️ العودة للصور',
+        'continue': '➡️ متابعة',
+        'continue_to_channels': '➡️ متابعة للقنوات',
+        'cancel': '❌ إلغاء',
+        'confirm': '✅ تأكيد',
+        'try_again': '🔄 حاول مرة أخرى',
+        'contact_support': '📞 اتصل بالدعم',
+        'refresh': '🔄 تحديث',
         
         # Ad creation
-        'send_ad_content': 'أرسل محتوى الإعلان:\n• رسالة نصية\n• صورة مع وصف\n• فيديو مع وصف',
-        'ad_received': 'تم استلام محتوى الإعلان! ✅',
-        'choose_channels': 'اختر القنوات لإعلانك:',
-        'select_duration': 'اختر المدة:',
-        'choose_payment': 'اختر طريقة الدفع:',
+        'send_ad_content': '◇━━━ تحميل المحتوى العصبي ━━━◇\n\nارفع إعلانك:\n• 📝 رسالة نصية\n• 📸 صورة مع وصف\n• 🎥 فيديو مع وصف\n\n▣ إرسال البيانات ▣',
+        'ad_received': '◈ تم استلام المحتوى العصبي بنجاح! ✅',
+        'choose_channels': '◇━━━ مصفوفة القنوات الكمية ━━━◇\n\nاختر قنوات البث:',
+        'select_duration': '◇━━━ محدد التردد الزمني ━━━◇\n\nاختر مدة الحملة:',
+        'choose_payment': '◇━━━ بروتوكول الدفع الكمي ━━━◇\n\nاختر طريقة الدفع:',
+        'upload_photo': '📸 ◇ رفع صورة عصبية',
+        'upload_video': '🎥 ◇ رفع فيديو كمي',
+        'add_text': '📝 ◇ إضافة نص عصبي',
+        'provide_contact': '📞 ◇ بروتوكول الاتصال العصبي',
+        'contact_info_prompt': '◇━━━ شبكة الاتصال ━━━◇\n\nكيف يمكن للعملاء التواصل معك؟\n\nأمثلة:\n• هاتف: +966501234567\n• واتساب: +966501234567\n• بريد: user@email.com\n• تليجرام: @username\n\n▣ إرسال بيانات الاتصال ▣',
         
         # Categories
         'vehicles': '🚗 المركبات',
@@ -223,25 +271,47 @@ Questions? Use /support to get help!""",
         'currency_symbol': '₽',
         
         # Welcome and start
-        'welcome': 'Добро пожаловать в I3lani Bot! 🚀\n\nВаша премиальная платформа рекламы в Telegram',
-        'choose_language': 'Выберите язык:',
-        'language_selected': 'Язык выбран: Русский 🇷🇺',
+        'welcome': '⬢━━━━━━━ I3LANI НЕЙРОСЕТЬ ━━━━━━━⬢\n▲ Добро пожаловать в Квантовую Рекламную Матрицу ▲',
+        'choose_language': '◇━━━ ЯЗЫК НЕЙРОИНТЕРФЕЙСА ━━━◇',
+        'language_selected': '◈ Нейроязык: Русский 🇷🇺',
+        'language_changed': '✅ Язык успешно изменен на русский!',
         
         # Main menu
-        'main_menu': '🏠 Главное меню',
-        'create_ad': '🚀 ▶ ЗАПУСК НЕЙРОСЕТИ',
-        'my_ads': '📊 Мои объявления',
-        'pricing': '💰 Цены',
-        'share_earn': '🎁 Поделиться и заработать',
-        'settings': '⚙️ Настройки',
-        'help': '❓ Помощь',
+        'main_menu': '◈━━━ НЕЙРОПУТИ ━━━◈\n◇ Многоканальное вещание\n◇ Квантовая обработка платежей\n◇ Майнинг партнерской сети\n◇ Аналитика в реальном времени\n\n▣ ВЫБЕРИТЕ ПРОТОКОЛ ▣',
+        'create_ad': '🚀 ▶ ЗАПУСК НЕЙРОВЕЩАНИЯ',
+        'my_ads': '📊 ◆ Моя Квантовая Матрица',
+        'pricing': '◇ Квантовые Цены', 
+        'share_earn': '💎 ◆ Портал Заработка',
+        'settings': '⚙️ ◈ Нейронастройки',
+        'help': '🆘 ◈ Квантовая Поддержка',
+        'channel_partners': '🔗 ◇ Партнерская Сеть',
+        'gaming_hub': '🎮 ◇ Нейроигровой Центр',
+        'leaderboard': '🏆 ▲ КВАНТОВАЯ ДОСКА ЛИДЕРОВ ▲',
+        
+        # Navigation
+        'back': '⬅️ Назад',
+        'back_to_main': '⬅️ В главное меню',
+        'back_to_channels': '⬅️ К каналам',
+        'back_to_photos': '⬅️ К фото',
+        'continue': '➡️ Продолжить',
+        'continue_to_channels': '➡️ К каналам',
+        'cancel': '❌ Отмена',
+        'confirm': '✅ Подтвердить',
+        'try_again': '🔄 Попробовать снова',
+        'contact_support': '📞 Связаться с поддержкой',
+        'refresh': '🔄 Обновить',
         
         # Ad creation
-        'send_ad_content': 'Отправьте содержание рекламы:\n• Текстовое сообщение\n• Фото с описанием\n• Видео с описанием',
-        'ad_received': 'Содержание рекламы получено! ✅',
-        'choose_channels': 'Выберите каналы для рекламы:',
-        'select_duration': 'Выберите продолжительность:',
-        'choose_payment': 'Выберите способ оплаты:',
+        'send_ad_content': '◇━━━ ЗАГРУЗКА НЕЙРОКОНТЕНТА ━━━◇\n\nЗагрузите вашу рекламу:\n• 📝 Текстовое сообщение\n• 📸 Фото с описанием\n• 🎥 Видео с описанием\n\n▣ ПЕРЕДАТЬ ДАННЫЕ ▣',
+        'ad_received': '◈ Нейроконтент успешно получен! ✅',
+        'choose_channels': '◇━━━ КВАНТОВАЯ МАТРИЦА КАНАЛОВ ━━━◇\n\nВыберите каналы для трансляции:',
+        'select_duration': '◇━━━ СЕЛЕКТОР ВРЕМЕННОЙ ЧАСТОТЫ ━━━◇\n\nВыберите продолжительность кампании:',
+        'choose_payment': '◇━━━ КВАНТОВЫЙ ПРОТОКОЛ ОПЛАТЫ ━━━◇\n\nВыберите способ оплаты:',
+        'upload_photo': '📸 ◇ Загрузить Нейроизображение',
+        'upload_video': '🎥 ◇ Загрузить Квантовое Видео',
+        'add_text': '📝 ◇ Добавить Нейротекст',
+        'provide_contact': '📞 ◇ Протокол Нейроконтактов',
+        'contact_info_prompt': '◇━━━ КОНТАКТНАЯ СЕТЬ ━━━◇\n\nКак клиенты могут связаться с вами?\n\nПримеры:\n• Телефон: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ ПЕРЕДАТЬ КОНТАКТНЫЕ ДАННЫЕ ▣',
         
         # Channels
         'tech_news': 'Технические новости (45K) 🔥',
@@ -325,17 +395,64 @@ Questions? Use /support to get help!""",
 }
 
 
-def get_text(language_code: str, key: str, **kwargs) -> str:
-    """Get localized text"""
-    lang = LANGUAGES.get(language_code, LANGUAGES['en'])
-    text = lang.get(key, LANGUAGES['en'].get(key, key))
+def get_text(language_code: str, key: str, default: str = None, **kwargs) -> str:
+    """
+    Get localized text with comprehensive fallback support
     
-    if kwargs:
+    Args:
+        language_code: The language code (en, ar, ru)
+        key: The translation key
+        default: Default text if key not found
+        **kwargs: Format arguments for the text
+    
+    Returns:
+        Localized text string
+    """
+    # Get the language dictionary
+    lang = LANGUAGES.get(language_code, LANGUAGES[DEFAULT_LANGUAGE])
+    
+    # Try to get the text
+    text = lang.get(key)
+    
+    # Fallback chain: requested lang -> English -> default -> key
+    if text is None:
+        text = LANGUAGES[DEFAULT_LANGUAGE].get(key)
+    if text is None and default:
+        text = default
+    if text is None:
+        text = key  # Last resort: return the key itself
+    
+    # Apply formatting if kwargs provided
+    if kwargs and text:
         try:
             return text.format(**kwargs)
-        except:
+        except (KeyError, ValueError):
+            # If formatting fails, return unformatted text
             return text
+    
     return text
+
+def get_user_language_fallback(user_id: int = None) -> str:
+    """Get user language with fallback to default"""
+    # This can be called from handlers that have access to user_id
+    return DEFAULT_LANGUAGE  # For now, always return default
+
+def is_rtl_language(language_code: str) -> bool:
+    """Check if language is right-to-left"""
+    rtl_languages = ['ar', 'he', 'fa', 'ur']
+    return language_code in rtl_languages
+
+def get_language_info(language_code: str) -> dict:
+    """Get complete language information"""
+    lang = LANGUAGES.get(language_code, LANGUAGES[DEFAULT_LANGUAGE])
+    return {
+        'code': lang['code'],
+        'name': lang['name'],
+        'flag': lang['flag'],
+        'currency': lang['currency'],
+        'currency_symbol': lang['currency_symbol'],
+        'is_rtl': is_rtl_language(language_code)
+    }
 
 
 def get_currency_info(language_code: str) -> dict:

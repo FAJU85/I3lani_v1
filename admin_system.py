@@ -1069,9 +1069,10 @@ async def admin_discover_channels_callback(callback_query: CallbackQuery, state:
     await callback_query.answer()
     
     text = """
-**Discovering Existing Channels**
+**🚀 Comprehensive Channel Discovery**
 
-Scanning for channels where the bot is already an administrator...
+Scanning for ALL channels where the bot is administrator...
+This may take a few moments.
     """.strip()
     
     # Show loading message
@@ -1081,23 +1082,35 @@ Scanning for channels where the bot is already an administrator...
     from channel_manager import channel_manager
     
     if channel_manager:
-        # Sync existing channels
-        await channel_manager.sync_existing_channels()
+        # Force comprehensive discovery
+        discovery_results = await channel_manager.force_full_channel_discovery()
         
         # Get updated channel list
         channels = await db.get_channels(active_only=False)
         active_channels = [ch for ch in channels if ch.get('is_active', False)]
         
         result_text = f"""
-**🔍 Channel Discovery Complete**
+**🎯 Comprehensive Discovery Results**
 
-Total channels: {len(channels)}
-Active channels: {len(active_channels)}
+**Scan Summary:**
+• Channels Scanned: {discovery_results.get('total_scanned', 0)}
+• Newly Discovered: {discovery_results.get('newly_discovered', 0)}
+• Already Known: {discovery_results.get('already_known', 0)}
+• Failed Attempts: {discovery_results.get('failed_attempts', 0)}
+
+**Current Status:**
+• Total Channels: {len(channels)}
+• Active Channels: {len(active_channels)}
 
 """
         
+        if discovery_results.get('newly_discovered', 0) > 0:
+            result_text += "**🎉 Newly Discovered Channels:**\n"
+            for channel in discovery_results.get('discovered_channels', []):
+                result_text += f"• **{channel['name']}** ({channel['username']}) - {channel['subscribers']:,} subscribers\n"
+        
         if active_channels:
-            result_text += "**✅ Active Channels:**\n"
+            result_text += "\n**✅ All Active Channels:**\n"
             for i, channel in enumerate(active_channels, 1):
                 result_text += f"{i}. **{channel['name']}** - {channel['subscribers']:,} subscribers\n"
         
@@ -1107,17 +1120,17 @@ Active channels: {len(active_channels)}
             for channel in inactive_channels[:3]:  # Show first 3
                 result_text += f"• {channel['name']} (not accessible)\n"
         
-        if not channels:
-            result_text += "**No channels found.**\n\n"
-            result_text += "**To add channels automatically:**\n"
-            result_text += "1. Add the bot as administrator to your channel\n"
-            result_text += "2. Give the bot permission to post messages\n"
-            result_text += "3. Use 'Add Channel' or restart discovery\n"
+        if len(channels) == 0:
+            result_text += "\n**No channels found.**\n\n"
+            result_text += "**To add channels:**\n"
+            result_text += "1. Add bot as admin to your channel\n"
+            result_text += "2. Give bot permission to post messages\n"
+            result_text += "3. Use 'Force Discovery' or 'Add Channel'\n"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
-                InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_discover_channels")
+                InlineKeyboardButton(text="🔄 Force Discovery", callback_data="admin_discover_channels"),
+                InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel")
             ],
             [InlineKeyboardButton(text="📥 Bulk Import Channels", callback_data="admin_bulk_import")],
             [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]

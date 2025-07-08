@@ -485,12 +485,12 @@ async def show_main_menu(message_or_query, language: str):
 
 @router.callback_query(F.data.startswith("lang_"))
 async def language_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle language selection"""
+    """Handle language selection with comprehensive translation support"""
     try:
         language_code = callback_query.data.replace("lang_", "")
         user_id = callback_query.from_user.id
         
-        # Update user language
+        # Update user language in database
         await db.set_user_language(user_id, language_code)
         
         # Clear state and show main menu

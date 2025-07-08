@@ -243,60 +243,98 @@ Users can now select this channel when creating ads through the bot.
             logger.error(f"Error syncing existing channels: {e}")
     
     async def _discover_channels_by_patterns(self) -> int:
-        """Attempt to discover channels using common patterns and known usernames"""
+        """Comprehensive channel discovery using multiple methods"""
         discovered_count = 0
         
-        # Common channel patterns to check (these are examples - add real channels)
-        potential_channels = [
+        # Method 1: Check known channels
+        known_channels = [
             "@smshco",  # Already confirmed
             "@i3lani",  # Main channel
-            # Add more channels here as they become known
         ]
         
-        for channel_username in potential_channels:
-            try:
-                # Check if channel already exists in database
-                channels = await self.db.get_channels(active_only=False)
-                if any(ch.get('telegram_channel_id') == channel_username for ch in channels):
-                    continue
-                
-                # Try to get channel info
-                chat = await self.bot.get_chat(channel_username)
-                bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
-                
-                if bot_member.status == 'administrator' and bot_member.can_post_messages:
-                    # Get subscriber count
-                    member_count = await self.bot.get_chat_member_count(chat.id)
-                    
-                    # Auto-detect category based on channel info
-                    category = self._detect_channel_category(chat.title or "", chat.description or "")
-                    
-                    # Calculate pricing
-                    base_price = self._calculate_base_price(member_count, category)
-                    
-                    # Add to database
-                    success = await self.db.add_channel_automatically(
-                        channel_id=channel_username.replace("@", ""),
-                        channel_name=chat.title or channel_username,
-                        telegram_channel_id=channel_username,
-                        subscribers=member_count,
-                        active_subscribers=int(member_count * 0.45),
-                        total_posts=await self._estimate_post_count(chat.id),
-                        category=category,
-                        description=chat.description or f"Auto-discovered {category} channel",
-                        base_price_usd=base_price
-                    )
-                    
-                    if success:
-                        logger.info(f"✅ Auto-discovered and added channel: {chat.title} ({channel_username})")
-                        logger.info(f"   Subscribers: {member_count:,}, Category: {category}, Price: ${base_price}")
-                        discovered_count += 1
-                
-            except Exception as e:
-                logger.debug(f"Channel {channel_username} not accessible or not admin: {e}")
-                continue
+        for channel_username in known_channels:
+            if await self._try_discover_single_channel(channel_username):
+                discovered_count += 1
+        
+        # Method 2: Try common channel patterns and variations
+        # This helps find channels with common naming patterns
+        patterns = await self._generate_potential_channel_patterns()
+        
+        for pattern in patterns:
+            if await self._try_discover_single_channel(pattern):
+                discovered_count += 1
+                if discovered_count >= 50:  # Limit to prevent excessive API calls
+                    break
         
         return discovered_count
+    
+    async def _generate_potential_channel_patterns(self) -> List[str]:
+        """Generate potential channel usernames based on common patterns"""
+        patterns = []
+        
+        # Common prefixes and suffixes for channels
+        base_names = ["i3lani", "shop", "news", "tech", "business", "deals", "offers"]
+        suffixes = ["", "_channel", "_official", "_news", "_deals", "_shop", "_tech", "_main"]
+        prefixes = ["", "official_", "the_"]
+        
+        for base in base_names:
+            for prefix in prefixes:
+                for suffix in suffixes:
+                    username = f"@{prefix}{base}{suffix}"
+                    if len(username) <= 32:  # Telegram username limit
+                        patterns.append(username)
+        
+        # Also try some numbered variations
+        for base in ["i3lani", "shop"]:
+            for i in range(1, 10):
+                patterns.extend([f"@{base}{i}", f"@{base}_{i}"])
+        
+        return patterns[:100]  # Limit to first 100 patterns
+    
+    async def _try_discover_single_channel(self, channel_username: str) -> bool:
+        """Try to discover and add a single channel"""
+        try:
+            # Check if channel already exists in database
+            channels = await self.db.get_channels(active_only=False)
+            if any(ch.get('telegram_channel_id') == channel_username for ch in channels):
+                return False
+            
+            # Try to get channel info
+            chat = await self.bot.get_chat(channel_username)
+            bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
+            
+            if bot_member.status == 'administrator' and bot_member.can_post_messages:
+                # Get subscriber count
+                member_count = await self.bot.get_chat_member_count(chat.id)
+                
+                # Auto-detect category based on channel info
+                category = self._detect_channel_category(chat.title or "", chat.description or "")
+                
+                # Calculate pricing
+                base_price = self._calculate_base_price(member_count, category)
+                
+                # Add to database
+                success = await self.db.add_channel_automatically(
+                    channel_id=channel_username.replace("@", ""),
+                    channel_name=chat.title or channel_username,
+                    telegram_channel_id=channel_username,
+                    subscribers=member_count,
+                    active_subscribers=int(member_count * 0.45),
+                    total_posts=await self._estimate_post_count(chat.id),
+                    category=category,
+                    description=chat.description or f"Auto-discovered {category} channel",
+                    base_price_usd=base_price
+                )
+                
+                if success:
+                    logger.info(f"✅ Auto-discovered and added channel: {chat.title} ({channel_username})")
+                    logger.info(f"   Subscribers: {member_count:,}, Category: {category}, Price: ${base_price}")
+                    return True
+                
+        except Exception as e:
+            logger.debug(f"Channel {channel_username} not accessible or not admin: {e}")
+        
+        return False
     
     async def discover_multiple_channels(self, usernames: List[str]) -> Dict[str, bool]:
         """Discover multiple channels at once"""
@@ -308,6 +346,88 @@ Users can now select this channel when creating ads through the bot.
                 results[username] = await self.discover_channel_by_username(username)
         
         return results
+    
+    async def force_full_channel_discovery(self) -> Dict[str, any]:
+        """Force a comprehensive channel discovery scan"""
+        try:
+            logger.info("🚀 Starting comprehensive channel discovery...")
+            
+            results = {
+                'total_scanned': 0,
+                'newly_discovered': 0,
+                'already_known': 0,
+                'failed_attempts': 0,
+                'discovered_channels': []
+            }
+            
+            # Get existing channels to avoid duplicates
+            existing_channels = await self.db.get_channels(active_only=False)
+            existing_usernames = {ch.get('telegram_channel_id') for ch in existing_channels}
+            
+            # Generate comprehensive list of potential channels
+            potential_channels = await self._generate_potential_channel_patterns()
+            
+            # Add known channels
+            potential_channels.extend(["@smshco", "@i3lani", "@shop_smart", "@i3lani_news"])
+            
+            for channel_username in potential_channels:
+                results['total_scanned'] += 1
+                
+                if channel_username in existing_usernames:
+                    results['already_known'] += 1
+                    continue
+                
+                try:
+                    # Try to get channel info
+                    chat = await self.bot.get_chat(channel_username)
+                    bot_member = await self.bot.get_chat_member(chat.id, self.bot.id)
+                    
+                    if bot_member.status == 'administrator' and bot_member.can_post_messages:
+                        # Get subscriber count
+                        member_count = await self.bot.get_chat_member_count(chat.id)
+                        
+                        # Auto-detect category
+                        category = self._detect_channel_category(chat.title or "", chat.description or "")
+                        
+                        # Calculate pricing
+                        base_price = self._calculate_base_price(member_count, category)
+                        
+                        # Add to database
+                        success = await self.db.add_channel_automatically(
+                            channel_id=channel_username.replace("@", ""),
+                            channel_name=chat.title or channel_username,
+                            telegram_channel_id=channel_username,
+                            subscribers=member_count,
+                            active_subscribers=int(member_count * 0.45),
+                            total_posts=await self._estimate_post_count(chat.id),
+                            category=category,
+                            description=chat.description or f"Force-discovered {category} channel",
+                            base_price_usd=base_price
+                        )
+                        
+                        if success:
+                            results['newly_discovered'] += 1
+                            results['discovered_channels'].append({
+                                'username': channel_username,
+                                'name': chat.title,
+                                'subscribers': member_count,
+                                'category': category
+                            })
+                            logger.info(f"🎯 Force-discovered: {chat.title} ({channel_username}) - {member_count:,} subscribers")
+                        
+                except Exception as e:
+                    results['failed_attempts'] += 1
+                    logger.debug(f"Channel {channel_username} not accessible or not admin: {e}")
+                
+                # Add small delay to prevent rate limiting
+                await asyncio.sleep(0.1)
+            
+            logger.info(f"🏁 Discovery complete: {results['newly_discovered']} new channels found out of {results['total_scanned']} scanned")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in force channel discovery: {e}")
+            return {'error': str(e)}
     
     async def discover_channel_by_username(self, username: str) -> bool:
         """Manually discover and add a channel by username"""
