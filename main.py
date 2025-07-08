@@ -11,7 +11,6 @@ import threading
 from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from flask import Flask, jsonify, request
 
 from config import BOT_TOKEN
 from database import init_db, db
@@ -42,7 +41,7 @@ bot_instance = None
 bot_started = False
 
 # Note: Flask server is handled by deployment_server.py for Cloud Run deployment
-# This file is for direct bot execution only
+# This file is for direct bot execution only - NO FLASK SERVER COMPONENTS
 
 def acquire_lock():
     """Acquire lock to prevent multiple bot instances"""
