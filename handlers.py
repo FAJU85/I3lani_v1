@@ -8,6 +8,8 @@ from aiogram.fsm.context import FSMContext
 from typing import List, Dict
 import logging
 import time
+import asyncio
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -1622,8 +1624,8 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     # Generate payment memo
     memo = payment_processor.generate_memo()
     
-    # TON wallet address (replace with your actual wallet address)
-    ton_wallet = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    # TON wallet address (user-provided wallet address)
+    ton_wallet = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
     
     # Create payment expiration timestamp (20 minutes from now)
     import time
@@ -1720,7 +1722,7 @@ async def monitor_ton_payment(user_id: int, memo: str, amount_ton: float, expira
     start_time = time.time()
     check_interval = 30  # Check every 30 seconds
     
-    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    wallet_address = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
     
     while time.time() < expiration_time:
         try:
@@ -1847,7 +1849,7 @@ async def check_ton_payment_handler(callback_query: CallbackQuery, state: FSMCon
     amount_ton = data.get('payment_amount_ton', 0)
     
     # Manually check payment status
-    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    wallet_address = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
     
     try:
         # Check TonViewer API for transactions
@@ -1881,7 +1883,7 @@ async def check_ton_payment_handler(callback_query: CallbackQuery, state: FSMCon
 @router.callback_query(F.data.startswith("copy_wallet_"))
 async def copy_wallet_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle wallet address copy"""
-    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    wallet_address = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
     
     await callback_query.answer(f"Wallet address copied: {wallet_address}")
 
@@ -1908,7 +1910,7 @@ async def refresh_ton_status_handler(callback_query: CallbackQuery, state: FSMCo
     remaining_time = int((expiration_time - time.time()) / 60)  # Minutes
     
     # Update the message with current status
-    wallet_address = "UQD4VBhAYFAUEtKRZFTW-zk5CrZM2WR_9g0DgMUMUyDfnHhb"
+    wallet_address = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
     tonviewer_link = f"https://tonviewer.com/{wallet_address}"
     
     text = f"**TON Payment Required**\n\n"
