@@ -2102,8 +2102,12 @@ async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext)
     data = await state.get_data()
     selected_days = data.get('selected_days', 1)
     
-    # Move to frequency tier selection
-    await show_frequency_tier_selection(callback_query, state)
+    # Calculate pricing and show payment summary
+    pricing = FrequencyPricingSystem()
+    pricing_data = pricing.calculate_pricing(selected_days)
+    await state.update_data(pricing_data=pricing_data)
+    
+    await show_frequency_payment_summary(callback_query, state, pricing_data)
 
 # Frequency Pricing System Handlers
 @router.callback_query(F.data.startswith("freq_tier_"))

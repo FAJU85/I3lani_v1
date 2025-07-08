@@ -13,13 +13,13 @@ from languages import get_text
 logger = logging.getLogger(__name__)
 
 class AtomicRewardSystem:
-    """Handles atomic TON reward distribution with instant processing"""
+    """Handles atomic TON reward distribution with instant processing (TON ONLY - NO OTHER CURRENCIES)"""
     
     def __init__(self, database: Database, bot):
         self.database = database
         self.bot = bot
         
-        # TON reward rates
+        # TON reward rates (ALL REWARDS ARE IN TON ONLY - NO OTHER CURRENCIES)
         self.REWARD_RATES = {
             'registration': 5.0,        # 5 TON for new partner registration
             'referral': 2.0,           # 2 TON per successful referral
@@ -247,28 +247,28 @@ class AtomicRewardSystem:
         try:
             language = await self.database.get_user_language(user_id)
             
-            # Get reward type display name
+            # Get reward type display name (TON ONLY)
             reward_names = {
-                'registration': 'Registration Bonus',
-                'referral': 'Referral Reward',
-                'channel_add': 'Channel Addition',
-                'subscriber_growth': 'Subscriber Growth',
-                'ad_host': 'Ad Hosting',
-                'monthly_bonus': 'Monthly Bonus',
-                'tier_upgrade': 'Tier Upgrade'
+                'registration': 'Registration Bonus (TON)',
+                'referral': 'Referral Reward (TON)',
+                'channel_add': 'Channel Addition (TON)',
+                'subscriber_growth': 'Subscriber Growth (TON)',
+                'ad_host': 'Ad Hosting (TON)',
+                'monthly_bonus': 'Monthly Bonus (TON)',
+                'tier_upgrade': 'Tier Upgrade (TON)'
             }
             
             reward_name = reward_names.get(reward_type, reward_type.title())
             
             notification_text = f"""
-⚡ **Instant Reward Received!**
+⚡ **Instant TON Reward Received!**
 
-💰 **Reward Details:**
+💎 **TON Reward Details:**
 - Type: {reward_name}
-- Amount: {amount} TON
+- Amount: {amount} TON only
 - Status: {"Paid Out" if instant_payout else "Pending"}
 
-🚀 **Your Progress:**
+🚀 **Your TON Progress:**
 """
             
             if instant_payout:
@@ -281,11 +281,11 @@ class AtomicRewardSystem:
             
             notification_text += f"""
 💡 **Next Steps:**
-- Minimum payout: {self.MIN_PAYOUT} TON
-- Keep earning to reach instant payout threshold
-- Check your partner dashboard for details
+- Minimum payout: {self.MIN_PAYOUT} TON only
+- Keep earning TON to reach instant payout threshold
+- Check your partner dashboard for TON details
 
-🔗 **Share & Earn More:**
+🔗 **Share & Earn More TON:**
 Your referral link: https://t.me/I3lani_bot?start=ref_{user_id}
             """.strip()
             
