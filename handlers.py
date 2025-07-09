@@ -78,18 +78,15 @@ async def create_regular_main_menu_text(language: str, user_id: int) -> str:
     features_text = get_text(language, 'main_menu_features')
     ready_text = get_text(language, 'main_menu_ready')
     
-    # Build the complete menu text
+    # Build the complete menu text - simple and clear
     menu_text = f"""<b>{welcome_text}</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 <b>{status_text}</b>
 
-<b>📊 Dashboard:</b>
+<b>📊 Your Account:</b>
 • 📢 Total Campaigns: <code>{total_ads}</code>
 • 🎯 Account Status: <b>ACTIVE</b>
 • 🌟 Performance: <b>OPTIMIZED</b>
-
-<b>{features_text}</b>
 
 <b>{ready_text}</b>"""
     
@@ -593,23 +590,15 @@ async def show_main_menu(message_or_query, language: str):
     # Add typing simulation for better UX
     await ui_effects.typing_simulation(bot, chat_id, "Loading your personalized interface...")
     
-    # Check if user is a partner to determine interface style
-    is_partner = await is_user_partner(user_id)
+    # Always show regular interface for all users (as requested by user)
+    # Neural network interface was confusing, so we use simple, clear language
+    text = await create_regular_main_menu_text(language, user_id)
+    keyboard = await create_regular_main_menu_keyboard(language, user_id)
+    logger.info(f"👤 Regular interface for user {user_id}")
     
-    if is_partner:
-        # Show neural network interface for partners/affiliates
-        text = await create_neural_main_menu_text(language, user_id)
-        keyboard = await create_partner_main_menu_keyboard(language, user_id)
-        logger.info(f"🧠 Partner neural interface for user {user_id}")
-    else:
-        # Show standard interface for regular users
-        text = await create_regular_main_menu_text(language, user_id)
-        keyboard = await create_regular_main_menu_keyboard(language, user_id)
-        logger.info(f"👤 Regular interface for user {user_id}")
-    
-    # Enhance text with dynamic elements
-    user_stats = await db.get_user_stats(user_id) if db else {}
-    text = ui_effects.create_dynamic_menu_text(text, user_stats)
+    # Keep text simple and clear without dynamic enhancements
+    # user_stats = await db.get_user_stats(user_id) if db else {}
+    # text = ui_effects.create_dynamic_menu_text(text, user_stats)
     
     logger.info(f"📝 Main menu text preview: {text[:50]}...")
     

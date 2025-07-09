@@ -22,7 +22,7 @@ LANGUAGES = {
         
         # Main menu
         'main_menu': '📱 I3lani Bot - Main Menu\n\nManage your advertising campaigns easily and effectively.\n\nPlease select an option:',
-        'main_menu_welcome': '🎯 I3lani Advertising Platform\n\nProfessional advertising made simple.\n\nYour trusted platform for multi-channel advertising campaigns.',
+        'main_menu_welcome': '🎯 I3lani Advertising Platform\n\nProfessional advertising made simple.',
         'main_menu_status': 'Status: 🟢 ONLINE & READY',
         'main_menu_features': '🚀 Platform Features:\n• ✨ Smart ad creation tools\n• 📈 Multi-channel distribution\n• 💎 Real-time analytics\n• 🔥 Professional targeting',
         'main_menu_ready': '💼 Ready to grow your business?',
@@ -256,7 +256,7 @@ Questions? Use /support to get help!""",
         
         # Main menu
         'main_menu': '📱 بوت I3lani - القائمة الرئيسية\n\nأدر حملاتك الإعلانية بسهولة وفعالية.\n\nيرجى اختيار خيار:',
-        'main_menu_welcome': '🎯 منصة I3lani للإعلانات\n\nالإعلان المهني أصبح بسيطاً.\n\nمنصتك الموثوقة للحملات الإعلانية متعددة القنوات.',
+        'main_menu_welcome': '🎯 منصة I3lani للإعلانات\n\nالإعلان المهني أصبح بسيطاً.',
         'main_menu_status': 'الحالة: 🟢 متصل وجاهز',
         'main_menu_features': '🚀 ميزات المنصة:\n• ✨ أدوات إنشاء إعلانات ذكية\n• 📈 توزيع متعدد القنوات\n• 💎 تحليلات فورية\n• 🔥 استهداف مهني',
         'main_menu_ready': '💼 هل أنت مستعد لتنمية عملك؟',
