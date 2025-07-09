@@ -75,11 +75,20 @@ LANGUAGES = {
         'error_updating_language': 'Error updating language',
         'invalid_package_selected': 'Invalid package selected',
         'send_ad_text_prompt': 'Please send text for your ad.',
+        'ad_text_prompt': 'Please send text for your ad.',
         'no_channels_available': 'No channels available for advertising. Please contact support.',
         'send_more_photos': 'Send more photos',
         'ready_for_channels': 'Ready for channel selection',
         'write_ad_text': 'Now write your ad text',
         'error_confirming_ad': 'Error confirming ad. Please try again.',
+        
+        # Photo upload messages
+        'max_photos_reached': 'Maximum 5 photos allowed. Click Done to continue.',
+        'photo_uploaded': '📸 Photo {count}/5 uploaded.',
+        'done_photos': '✅ Done with Photos',
+        'add_more_photos': '📸 Add More',
+        'add_more_photos_text': '📸 **Add More Photos**\n\nSend additional photos (max 5 total):',
+        'provide_contact_info': '📞 **Provide Contact Information**\n\nHow should customers reach you?\n\nExamples:\n- Phone: +966501234567\n- WhatsApp: +966501234567\n- Email: user@email.com\n- Telegram: @username\n\nContent ready! Let\'s proceed to channel selection.',
         
         # Channels
         'tech_news': 'Tech News (45K) 🔥',
@@ -262,11 +271,20 @@ Questions? Use /support to get help!""",
         'error_updating_language': 'خطأ في تحديث اللغة',
         'invalid_package_selected': 'تم اختيار حزمة غير صالحة',
         'send_ad_text_prompt': 'يرجى إرسال نص إعلانك.',
+        'ad_text_prompt': 'يرجى إرسال نص إعلانك.',
         'no_channels_available': 'لا توجد قنوات متاحة للإعلان. يرجى الاتصال بالدعم.',
         'send_more_photos': 'أرسل المزيد من الصور',
         'ready_for_channels': 'جاهز لاختيار القنوات',
         'write_ad_text': 'الآن اكتب نص إعلانك',
         'error_confirming_ad': 'خطأ في تأكيد الإعلان. يرجى المحاولة مرة أخرى.',
+        
+        # Photo upload messages
+        'max_photos_reached': 'الحد الأقصى 5 صور مسموح. اضغط تم للمتابعة.',
+        'photo_uploaded': '📸 تم رفع الصورة {count}/5.',
+        'done_photos': '✅ تم مع الصور',
+        'add_more_photos': '📸 إضافة المزيد',
+        'add_more_photos_text': '📸 **إضافة المزيد من الصور**\n\nأرسل صور إضافية (الحد الأقصى 5 صور):',
+        'provide_contact_info': '📞 **توفير معلومات الاتصال**\n\nكيف يمكن للعملاء التواصل معك؟\n\nأمثلة:\n- هاتف: +966501234567\n- واتساب: +966501234567\n- بريد: user@email.com\n- تليجرام: @username\n\nالمحتوى جاهز! لننتقل إلى اختيار القنوات.',
         
         # Categories
         'vehicles': '🚗 المركبات',
@@ -465,11 +483,20 @@ Questions? Use /support to get help!""",
         'error_updating_language': 'Ошибка обновления языка',
         'invalid_package_selected': 'Выбран недопустимый пакет',
         'send_ad_text_prompt': 'Пожалуйста, отправьте текст для вашего объявления.',
+        'ad_text_prompt': 'Пожалуйста, отправьте текст для вашего объявления.',
         'no_channels_available': 'Нет доступных каналов для рекламы. Обратитесь в службу поддержки.',
         'send_more_photos': 'Отправьте больше фотографий',
         'ready_for_channels': 'Готов к выбору каналов',
         'write_ad_text': 'Теперь напишите текст объявления',
         'error_confirming_ad': 'Ошибка при подтверждении объявления. Попробуйте снова.',
+        
+        # Photo upload messages
+        'max_photos_reached': 'Максимум 5 фотографий разрешено. Нажмите Готово для продолжения.',
+        'photo_uploaded': '📸 Фотография {count}/5 загружена.',
+        'done_photos': '✅ Готово с фотографиями',
+        'add_more_photos': '📸 Добавить больше',
+        'add_more_photos_text': '📸 **Добавить больше фотографий**\n\nОтправьте дополнительные фотографии (максимум 5):',
+        'provide_contact_info': '📞 **Предоставить контактную информацию**\n\nКак клиенты могут связаться с вами?\n\nПримеры:\n- Телефон: +966501234567\n- WhatsApp: +966501234567\n- Email: user@email.com\n- Telegram: @username\n\nКонтент готов! Переходим к выбору каналов.',
         
         # Channels
         'tech_news': 'Технические новости (45K) 🔥',

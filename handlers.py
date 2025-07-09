@@ -822,7 +822,7 @@ async def upload_content_handler(message: Message, state: FSMContext):
     
     # Only accept text at this stage (photos already handled)
     if message.content_type != "text":
-        await message.answer("Please send text for your ad.")
+        await message.answer(get_text(language, 'ad_text_prompt'))
         return
     
     content = message.text
@@ -960,14 +960,17 @@ Select the channels where you want to publish your advertisement:"""
 async def handle_photo_upload(message: Message, state: FSMContext):
     """Handle photo uploads"""
     try:
+        user_id = message.from_user.id
+        language = await get_user_language(user_id)
+        
         data = await state.get_data()
         uploaded_photos = data.get('uploaded_photos', [])
         
         if len(uploaded_photos) >= 5:
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Yes Done with Photos", callback_data="done_photos")]
+                [InlineKeyboardButton(text=get_text(language, 'done_photos'), callback_data="done_photos")]
             ])
-            await message.reply("Maximum 5 photos allowed. Click Done to continue.", reply_markup=keyboard)
+            await message.reply(get_text(language, 'max_photos_reached'), reply_markup=keyboard)
             return
         
         # Store photo file_id
@@ -981,13 +984,13 @@ async def handle_photo_upload(message: Message, state: FSMContext):
         # Create button interface to replace /done command
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="Yes Done with Photos", callback_data="done_photos"),
-                InlineKeyboardButton(text=" Add More", callback_data="add_more_photos")
+                InlineKeyboardButton(text=get_text(language, 'done_photos'), callback_data="done_photos"),
+                InlineKeyboardButton(text=get_text(language, 'add_more_photos'), callback_data="add_more_photos")
             ],
-            [InlineKeyboardButton(text=" Skip Photos", callback_data="skip_photos")]
+            [InlineKeyboardButton(text=get_text(language, 'skip_photos'), callback_data="skip_photos")]
         ])
         
-        await message.reply(f" Photo {len(uploaded_photos)}/5 uploaded.", reply_markup=keyboard)
+        await message.reply(get_text(language, 'photo_uploaded', count=len(uploaded_photos)), reply_markup=keyboard)
         
     except Exception as e:
         logger.error(f"Photo upload error: {e}")
@@ -997,69 +1000,50 @@ async def handle_photo_upload(message: Message, state: FSMContext):
 @router.callback_query(F.data == "continue_from_photos")
 async def continue_from_photos(callback_query: CallbackQuery, state: FSMContext):
     """Continue from photo upload step"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
     await state.set_state(AdCreationStates.provide_contact_info)
-    
-    contact_text = """
-**Phone** **Provide Contact Information**
-
-How should customers reach you?
-
-Examples:
-- Phone: +966501234567
-- WhatsApp: +966501234567
-- Email: user@email.com
-- Telegram: @username
-
-Content ready! Let's proceed to channel selection.
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Continue to Channels", callback_data="continue_to_channels")],
-        [InlineKeyboardButton(text="◀️ Back to Photos", callback_data="back_to_photos")]
-    ])
-    
-    await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
-    await callback_query.answer()
-
-
-@router.callback_query(F.data == "add_more_photos") 
-async def add_more_photos(callback_query: CallbackQuery, state: FSMContext):
-    """Allow user to add more photos"""
-    await callback_query.message.edit_text(
-        " **Add More Photos**\n\nSend additional photos (max 5 total):",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Yes Done with Photos", callback_data="continue_from_photos")]
-        ])
-    )
-    await callback_query.answer("Send more photos")
-
-
-@router.callback_query(F.data == "skip_photos")
-async def skip_photos_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Skip photo upload step"""
-    await state.set_state(AdCreationStates.provide_contact_info)
-    
-    contact_text = """
-**Phone** **Provide Contact Information**
-
-How should customers reach you?
-
-Examples:
-- Phone: +966501234567
-- WhatsApp: +966501234567
-- Email: user@email.com
-- Telegram: @username
-
-Content ready! Let's proceed to channel selection.
-    """.strip()
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
         [InlineKeyboardButton(text=get_text(language, 'back_to_photos'), callback_data="back_to_photos")]
     ])
     
-    await callback_query.message.edit_text(contact_text, reply_markup=keyboard)
-    await callback_query.answer("Ready for channel selection")
+    await callback_query.message.edit_text(get_text(language, 'provide_contact_info'), reply_markup=keyboard)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "add_more_photos") 
+async def add_more_photos(callback_query: CallbackQuery, state: FSMContext):
+    """Allow user to add more photos"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await callback_query.message.edit_text(
+        get_text(language, 'add_more_photos_text'),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=get_text(language, 'done_photos'), callback_data="continue_from_photos")]
+        ])
+    )
+    await callback_query.answer(get_text(language, 'send_more_photos'))
+
+
+@router.callback_query(F.data == "skip_photos")
+async def skip_photos_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Skip photo upload step"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.set_state(AdCreationStates.provide_contact_info)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
+        [InlineKeyboardButton(text=get_text(language, 'back_to_photos'), callback_data="back_to_photos")]
+    ])
+    
+    await callback_query.message.edit_text(get_text(language, 'provide_contact_info'), reply_markup=keyboard)
+    await callback_query.answer(get_text(language, 'ready_for_channels'))
 
 
 @router.callback_query(F.data == "skip_photos_to_text")
