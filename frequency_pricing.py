@@ -39,6 +39,10 @@ class FrequencyPricingSystem:
 
     def get_tier_for_days(self, days: int) -> Dict:
         """Get the pricing tier for given number of days"""
+        # Handle invalid input - ensure minimum 1 day
+        if days < 1:
+            days = 1
+        
         # Find the appropriate tier (highest tier that doesn't exceed days)
         applicable_tiers = [tier_days for tier_days in self.frequency_tiers.keys() if tier_days <= days]
         
@@ -61,6 +65,10 @@ class FrequencyPricingSystem:
         """
         
         try:
+            # Handle invalid input - ensure minimum 1 day
+            if days < 1:
+                days = 1
+            
             # Log the pricing calculation step
             if user_id:
                 log_info(StepNames.CALCULATE_PRICE, user_id, f"Calculating price for {days} days", {

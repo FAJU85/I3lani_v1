@@ -435,11 +435,11 @@ def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text=get_text(language, 'pay_stars'), 
-            callback_data="payment_stars"
+            callback_data="pay_freq_stars"
         )],
         [InlineKeyboardButton(
             text=get_text(language, 'pay_ton'), 
-            callback_data="payment_ton"
+            callback_data="pay_freq_ton"
         )],
         [InlineKeyboardButton(
             text=get_text(language, 'back'), 
@@ -4245,143 +4245,24 @@ async def admin_confirm_ton_handler(callback_query: CallbackQuery, state: FSMCon
 
 @router.callback_query(F.data.startswith("payment_"))
 async def payment_method_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle payment method selection"""
+    """Handle payment method selection - redirect to new smart pricing system"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
         
         payment_method = callback_query.data.replace("payment_", "")
         
-        # Get state data
-        data = await state.get_data()
-        ad_id = data['ad_id']
-        selected_channels = data['selected_channels']
-        total_price_usd = data.get('total_price_usd', 0)
-        total_price_stars = data.get('total_price_stars', 0)
-        channel_pricing_details = data.get('channel_pricing_details', [])
+        # Redirect to new smart pricing system
+        if payment_method == "ton":
+            await pay_frequency_ton_handler(callback_query, state)
+            return
+        elif payment_method == "stars":
+            await pay_frequency_stars_handler(callback_query, state)
+            return
         
-        # Handle Telegram Stars payment with real API
-        if payment_method == "stars":
-            from aiogram.types import LabeledPrice
-            
-            # Use the pre-calculated Stars amount
-            stars_amount = total_price_stars
-            
-            # Create payment payload for tracking
-            payload = f"ad_{ad_id}_user_{user_id}_time_{int(time.time())}"
-            
-            # Store payment data in state for later processing
-            await state.update_data(payment_payload=payload, stars_amount=stars_amount)
-            
-            # Create and send Telegram Stars invoice
-            try:
-                await callback_query.bot.send_invoice(
-                    chat_id=user_id,
-                    title="I3lani Advertisement Campaign",
-                    description=f"Ad campaign for {len(selected_channels)} channels - ${total_price_usd:.2f} USD",
-                    payload=payload,
-                    provider_token="",  # Empty for Telegram Stars
-                    currency="XTR",  # Telegram Stars currency code
-                    prices=[LabeledPrice(label="Campaign", amount=stars_amount)],
-                    need_name=False,
-                    need_phone_number=False,
-                    need_email=False,
-                    need_shipping_address=False,
-                    send_phone_number_to_provider=False,
-                    send_email_to_provider=False,
-                    is_flexible=False
-                )
-                
-                duration_months = data.get('duration_months', 1)
-                posts_per_day = data.get('posts_per_day', 1)
-                total_posts = data.get('total_posts', 30)
-                discount_percent = data.get('discount_percent', 0)
-                
-                plan_text = f"{duration_months} month(s)" if duration_months == 1 else f"{duration_months} months"
-                
-                payment_summary = f"Star **Telegram Stars Payment - Progressive Plan**\n\n"
-                payment_summary += f" **Plan:** {plan_text}\n"
-                payment_summary += f"Stats **Frequency:** {posts_per_day} posts/day\n"
-                payment_summary += f"Growth **Total Posts:** {total_posts * len(selected_channels):,} posts\n"
-                if discount_percent > 0:
-                    payment_summary += f"Price **Discount:** {discount_percent}% OFF\n"
-                payment_summary += f" **Total:** {stars_amount:,} Stars (${total_price_usd:.2f} USD)\n"
-                payment_summary += f" **Channels:** {len(selected_channels)} (No per-channel fee)\n\n"
-                
-                payment_summary += f"Tip **Plan covers all selected channels:**\n"
-                for detail in channel_pricing_details:
-                    payment_summary += f"- {detail['name']}: {detail['posts_per_day']} posts/day\n"
-                
-                payment_summary += f"\nYes **Invoice sent!** Please complete payment using the invoice above.\n\nYour progressive posting plan will activate automatically after payment confirmation."
-                
-                await callback_query.message.edit_text(
-                    payment_summary,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channels")]
-                    ]),
-                    parse_mode='Markdown'
-                )
-                
-                await callback_query.answer("Stars invoice sent!")
-                return
-                
-            except Exception as e:
-                logger.error(f"Stars invoice creation failed: {e}")
-                await callback_query.answer("Stars payment temporarily unavailable. Please try TON.")
-                return
-        
-        # Handle TON payment
-        elif payment_method == "ton":
-            # Create subscriptions for TON payment
-            subscription_ids = []
-            for channel_id in selected_channels:
-                # Find channel price
-                channel_price = 5.0  # Default
-                for detail in channel_pricing_details:
-                    if any(ch['channel_id'] == channel_id for ch in data.get('all_channels', [])):
-                        channel_price = detail['price_usd']
-                        break
-                
-                subscription_id = await db.create_subscription(
-                    user_id=user_id,
-                    ad_id=ad_id,
-                    channel_id=channel_id,
-                    duration_months=1,  # Default 1 month
-                    total_price=channel_price,
-                    currency='USD'
-                )
-                subscription_ids.append(subscription_id)
-            
-            # Create payment invoice for TON
-            invoice = await payment_processor.create_payment_invoice(
-                user_id=user_id,
-                subscription_id=subscription_ids[0],
-                amount=total_price_usd,
-                currency='USD',
-                payment_method=payment_method
-            )
-            
-            # Show TON payment instructions
-            instructions = invoice['instructions']
-            
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(
-                    text="Yes Payment Sent", 
-                    callback_data=f"confirm_payment_{invoice['payment_id']}"
-                )],
-                [InlineKeyboardButton(
-                    text="Back Back", 
-                    callback_data="back_to_duration"
-                )]
-            ])
-            
-            await state.set_state(AdCreationStates.payment_confirmation)
-            await callback_query.message.edit_text(
-                instructions,
-                reply_markup=keyboard,
-                parse_mode='Markdown'
-            )
-            await callback_query.answer("TON payment instructions sent!")
+        # If we reach here, show error
+        await callback_query.answer("❌ Payment method not supported. Please use the new pricing system.")
+        return
         
     except Exception as e:
         logger.error(f"Payment method handler error: {e}")
