@@ -1,0 +1,53 @@
+## 🐞 Bug Report – Ad Summary Step Language & Payment Button Issues
+
+**🔖 Step Identifier:** CreateAd_Step_7_ShowSummary, Payment_Step_1_ChooseMethod  
+**📁 Affected Files/Modules:** `handlers/create_ad.py`, `payments.py`, possibly button callback handlers  
+**📌 Description:**  
+Several issues occur in the ad summary step:
+- The **ad plan summary** is shown in **English** even when the user’s selected language is Arabic.
+- The following buttons do **not work** (no response or no action):
+  - **Pay with TON**
+  - **Pay with Stars**
+  - **Change Duration**
+
+---
+
+### ✅ Steps to Reproduce:
+1. Start the bot and select Arabic as your language.
+2. Proceed to create an ad and reach the summary step.
+3. Observe:
+   - The summary message is in English.
+   - The buttons for payment and changing duration do not respond.
+
+---
+
+### 🎯 Expected Behavior:
+- The ad summary and all buttons should display in the user’s **selected language** (Arabic, in this case).
+- All action buttons should function as intended:
+  - **Pay with TON:** initiates TON payment flow.
+  - **Pay with Stars:** initiates internal payment flow.
+  - **Change Duration:** returns the user to the duration selection step.
+
+---
+
+### 🚫 Actual Behavior:
+- Summary is always in English.
+- Payment and duration change buttons do nothing when pressed.
+
+---
+
+### 📎 Notes:
+- The language inconsistency suggests the summary step does not fetch or apply the user’s language preference.
+- Broken buttons may indicate missing or misconfigured callback handlers, or issues with callback data.
+- Confirm that callback data is correctly set and corresponding handlers are registered.
+
+---
+
+### 🛠 Suggested Fix:
+- Ensure the summary and all button texts are generated using the user’s selected language:
+  ```python
+  lang = get_user_lang(user_id)
+  text = get_text(lang, "summary_prompt")
+  ```
+- Audit and fix all button callback data; ensure handlers for TON, Stars, and Change Duration are correctly implemented and registered.
+- Test for both languages and all payment methods to confirm correct flow.

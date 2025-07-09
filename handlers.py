@@ -2271,8 +2271,41 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
         channels=[]  # Channel pricing will be calculated later
     )
     
-    # Create the dynamic interface text
-    text = f"""**Step 1: Choose Campaign Duration**
+    # Create the dynamic interface text using translations
+    if language == 'ar':
+        text = f"""**الخطوة 1: اختر مدة الحملة**
+
+عدد الأيام: {days}
+
+**معاينة السعر المباشر** (1 منشور/يوم):
+- TON: {calculation['total_ton']} TON
+- Stars: {calculation['total_stars']} Stars
+
+**معلومات خصم الحجم:**
+- 1 منشور/يوم = بدون خصم
+- 2 منشور/يوم = 5% خصم
+- 4 منشور/يوم = 10% خصم
+- 8+ منشور/يوم = 20%+ خصم
+
+*ملاحظة: السعر النهائي يحسب بعد اختيار المنشورات لكل يوم*"""
+    elif language == 'ru':
+        text = f"""**Шаг 1: Выберите длительность кампании**
+
+Количество дней: {days}
+
+**Предварительный просмотр цены** (1 пост/день):
+- TON: {calculation['total_ton']} TON
+- Stars: {calculation['total_stars']} Stars
+
+**Информация о скидке за объем:**
+- 1 пост/день = Без скидки
+- 2 поста/день = 5% скидка
+- 4 поста/день = 10% скидка
+- 8+ постов/день = 20%+ скидка
+
+*Примечание: Финальная цена рассчитывается после выбора постов в день*"""
+    else:
+        text = f"""**Step 1: Choose Campaign Duration**
 
 How many days: {days}
 
@@ -2288,35 +2321,54 @@ How many days: {days}
 
 *Note: Final price calculated after selecting posts per day*"""
     
-    # Create +/- keyboard for days selection
+    # Create +/- keyboard for days selection with translations
     keyboard_rows = []
     
     # Days adjustment row
     minus_callback = f"days_adjust_minus_{days}" if days > 1 else "days_adjust_none"
     plus_callback = f"days_adjust_plus_{days}"
     
+    # Days label with translation
+    if language == 'ar':
+        days_label = f"{days} أيام"
+    elif language == 'ru':
+        days_label = f"{days} дней"
+    else:
+        days_label = f"{days} days"
+    
     keyboard_rows.append([
         InlineKeyboardButton(text="[-]", callback_data=minus_callback),
-        InlineKeyboardButton(text=f"{days} days", callback_data="days_info"),
+        InlineKeyboardButton(text=days_label, callback_data="days_info"),
         InlineKeyboardButton(text="[+]", callback_data=plus_callback)
     ])
     
-    # Quick selection buttons
+    # Quick selection buttons with translations
     if days != 1:
-        keyboard_rows.append([InlineKeyboardButton(text="1 Day", callback_data="days_quick_1")])
+        button_text = "1 يوم" if language == 'ar' else "1 день" if language == 'ru' else "1 Day"
+        keyboard_rows.append([InlineKeyboardButton(text=button_text, callback_data="days_quick_1")])
     if days != 7:
-        keyboard_rows.append([InlineKeyboardButton(text="7 Days", callback_data="days_quick_7")])
+        button_text = "7 أيام" if language == 'ar' else "7 дней" if language == 'ru' else "7 Days"
+        keyboard_rows.append([InlineKeyboardButton(text=button_text, callback_data="days_quick_7")])
     if days != 30:
-        keyboard_rows.append([InlineKeyboardButton(text="30 Days", callback_data="days_quick_30")])
+        button_text = "30 يوم" if language == 'ar' else "30 дней" if language == 'ru' else "30 Days"
+        keyboard_rows.append([InlineKeyboardButton(text=button_text, callback_data="days_quick_30")])
     
-    # Continue button
+    # Continue button with translations
+    if language == 'ar':
+        continue_text = f"متابعة مع {days} أيام"
+    elif language == 'ru':
+        continue_text = f"Продолжить с {days} дней"
+    else:
+        continue_text = f"Continue with {days} days"
+    
     keyboard_rows.append([
-        InlineKeyboardButton(text=f"Continue with {days} days", callback_data="days_confirm")
+        InlineKeyboardButton(text=continue_text, callback_data="days_confirm")
     ])
     
-    # Back button
+    # Back button with translations
+    back_text = "رجوع" if language == 'ar' else "Назад" if language == 'ru' else "Back"
     keyboard_rows.append([
-        InlineKeyboardButton(text="Back", callback_data="back_to_start")
+        InlineKeyboardButton(text=back_text, callback_data="back_to_start")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
@@ -2480,7 +2532,85 @@ async def show_frequency_payment_summary(callback_query: CallbackQuery, state: F
         if channel:
             channel_names.append(channel['name'])
     
-    text = f"""✅ **Your Ad Plan Summary:**
+    # Create translated text
+    if language == 'ar':
+        text = f"""✅ **ملخص خطة إعلانك:**
+
+📅 **المدة:** {pricing_data['days']} أيام
+📝 **منشورات يومياً:** {pricing_data['posts_per_day']} منشورات
+💰 **الخصم:** {pricing_data['discount_percent']}%
+💵 **السعر النهائي:** ${pricing_data['final_cost_usd']:.2f}
+
+💎 **بعملة TON:** {pricing_data['cost_ton']:.3f} TON
+⭐ **بنجوم تليجرام:** {pricing_data['cost_stars']:,} Stars
+
+📺 **القنوات المختارة:**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+📊 **تفاصيل الحملة:**
+• معدل يومي: ${pricing_data['daily_price']:.2f}/يوم ({pricing_data['posts_per_day']} منشورات)
+• إجمالي المنشورات: {pricing_data['total_posts']:,} منشورات
+• التكلفة الأساسية: ${pricing_data['base_cost_usd']:.2f}
+• توفر: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% خصم)
+
+📌 **بإجراء هذا الدفع، أنت توافق على شروط الاستخدام.**
+
+💡 **المزيد من الأيام = المزيد من المنشورات يومياً + خصومات أكبر!**"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 دفع بـ TON", callback_data="pay_freq_ton"),
+                InlineKeyboardButton(text="⭐ دفع بالنجوم", callback_data="pay_freq_stars")
+            ],
+            [
+                InlineKeyboardButton(text="📝 تغيير المدة", callback_data="freq_change_duration"),
+                InlineKeyboardButton(text="📺 تغيير القنوات", callback_data="continue_to_channels")
+            ],
+            [
+                InlineKeyboardButton(text="◀️ العودة للرئيسية", callback_data="back_to_main")
+            ]
+        ])
+        
+    elif language == 'ru':
+        text = f"""✅ **Сводка вашего рекламного плана:**
+
+📅 **Длительность:** {pricing_data['days']} дней
+📝 **Постов в день:** {pricing_data['posts_per_day']} постов
+💰 **Скидка:** {pricing_data['discount_percent']}%
+💵 **Финальная цена:** ${pricing_data['final_cost_usd']:.2f}
+
+💎 **В TON:** {pricing_data['cost_ton']:.3f} TON
+⭐ **В Telegram Stars:** {pricing_data['cost_stars']:,} Stars
+
+📺 **Выбранные каналы:**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+📊 **Детали кампании:**
+• Дневная ставка: ${pricing_data['daily_price']:.2f}/день ({pricing_data['posts_per_day']} постов)
+• Всего постов: {pricing_data['total_posts']:,} постов
+• Базовая стоимость: ${pricing_data['base_cost_usd']:.2f}
+• Экономия: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% скидка)
+
+📌 **Совершая этот платеж, вы соглашаетесь с Условиями использования.**
+
+💡 **Больше дней = Больше постов в день + Больше скидок!**"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Оплатить TON", callback_data="pay_freq_ton"),
+                InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_freq_stars")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Изменить длительность", callback_data="freq_change_duration"),
+                InlineKeyboardButton(text="📺 Изменить каналы", callback_data="continue_to_channels")
+            ],
+            [
+                InlineKeyboardButton(text="◀️ Главное меню", callback_data="back_to_main")
+            ]
+        ])
+        
+    else:
+        text = f"""✅ **Your Ad Plan Summary:**
 
 📅 **Duration:** {pricing_data['days']} days
 📝 **Posts per day:** {pricing_data['posts_per_day']} posts
@@ -2501,22 +2631,21 @@ async def show_frequency_payment_summary(callback_query: CallbackQuery, state: F
 
 📌 **By making this payment, you agree to the Usage Agreement.**
 
-💡 **More days = More posts per day + Bigger discounts!**
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
-            InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
-        ],
-        [
-            InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
-            InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
-        ],
-        [
-            InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
-        ]
-    ])
+💡 **More days = More posts per day + Bigger discounts!**"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
+                InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
+                InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
+            ],
+            [
+                InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
+            ]
+        ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
@@ -2536,7 +2665,85 @@ async def show_frequency_payment_summary_message(message: Message, state: FSMCon
         if channel:
             channel_names.append(channel['name'])
     
-    text = f"""✅ **Your Ad Plan Summary:**
+    # Create translated text - same as show_frequency_payment_summary
+    if language == 'ar':
+        text = f"""✅ **ملخص خطة إعلانك:**
+
+📅 **المدة:** {pricing_data['days']} أيام
+📝 **منشورات يومياً:** {pricing_data['posts_per_day']} منشورات
+💰 **الخصم:** {pricing_data['discount_percent']}%
+💵 **السعر النهائي:** ${pricing_data['final_cost_usd']:.2f}
+
+💎 **بعملة TON:** {pricing_data['cost_ton']:.3f} TON
+⭐ **بنجوم تليجرام:** {pricing_data['cost_stars']:,} Stars
+
+📺 **القنوات المختارة:**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+📊 **تفاصيل الحملة:**
+• معدل يومي: ${pricing_data['daily_price']:.2f}/يوم ({pricing_data['posts_per_day']} منشورات)
+• إجمالي المنشورات: {pricing_data['total_posts']:,} منشورات
+• التكلفة الأساسية: ${pricing_data['base_cost_usd']:.2f}
+• توفر: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% خصم)
+
+📌 **بإجراء هذا الدفع، أنت توافق على شروط الاستخدام.**
+
+💡 **المزيد من الأيام = المزيد من المنشورات يومياً + خصومات أكبر!**"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 دفع بـ TON", callback_data="pay_freq_ton"),
+                InlineKeyboardButton(text="⭐ دفع بالنجوم", callback_data="pay_freq_stars")
+            ],
+            [
+                InlineKeyboardButton(text="📝 تغيير المدة", callback_data="freq_change_duration"),
+                InlineKeyboardButton(text="📺 تغيير القنوات", callback_data="continue_to_channels")
+            ],
+            [
+                InlineKeyboardButton(text="◀️ العودة للرئيسية", callback_data="back_to_main")
+            ]
+        ])
+        
+    elif language == 'ru':
+        text = f"""✅ **Сводка вашего рекламного плана:**
+
+📅 **Длительность:** {pricing_data['days']} дней
+📝 **Постов в день:** {pricing_data['posts_per_day']} постов
+💰 **Скидка:** {pricing_data['discount_percent']}%
+💵 **Финальная цена:** ${pricing_data['final_cost_usd']:.2f}
+
+💎 **В TON:** {pricing_data['cost_ton']:.3f} TON
+⭐ **В Telegram Stars:** {pricing_data['cost_stars']:,} Stars
+
+📺 **Выбранные каналы:**
+{chr(10).join(f"• {name}" for name in channel_names)}
+
+📊 **Детали кампании:**
+• Дневная ставка: ${pricing_data['daily_price']:.2f}/день ({pricing_data['posts_per_day']} постов)
+• Всего постов: {pricing_data['total_posts']:,} постов
+• Базовая стоимость: ${pricing_data['base_cost_usd']:.2f}
+• Экономия: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% скидка)
+
+📌 **Совершая этот платеж, вы соглашаетесь с Условиями использования.**
+
+💡 **Больше дней = Больше постов в день + Больше скидок!**"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Оплатить TON", callback_data="pay_freq_ton"),
+                InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_freq_stars")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Изменить длительность", callback_data="freq_change_duration"),
+                InlineKeyboardButton(text="📺 Изменить каналы", callback_data="continue_to_channels")
+            ],
+            [
+                InlineKeyboardButton(text="◀️ Главное меню", callback_data="back_to_main")
+            ]
+        ])
+        
+    else:
+        text = f"""✅ **Your Ad Plan Summary:**
 
 📅 **Duration:** {pricing_data['days']} days
 📝 **Posts per day:** {pricing_data['posts_per_day']} posts
@@ -2557,29 +2764,28 @@ async def show_frequency_payment_summary_message(message: Message, state: FSMCon
 
 📌 **By making this payment, you agree to the Usage Agreement.**
 
-💡 **More days = More posts per day + Bigger discounts!**
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
-            InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
-        ],
-        [
-            InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
-            InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
-        ],
-        [
-            InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
-        ]
-    ])
+💡 **More days = More posts per day + Bigger discounts!**"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
+                InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
+                InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
+            ],
+            [
+                InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
+            ]
+        ])
     
     await message.reply(text, reply_markup=keyboard, parse_mode='Markdown')
 
 @router.callback_query(F.data == "freq_change_duration")
 async def frequency_change_duration_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle duration change request"""
-    await show_frequency_tier_selection(callback_query, state)
+    await show_dynamic_days_selector(callback_query, state, 1)
 
 @router.callback_query(F.data == "pay_freq_ton")
 async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -2625,12 +2831,220 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
     # Process Stars payment
     await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
 
+
+async def process_ton_payment(callback_query: CallbackQuery, state: FSMContext, amount_ton: float):
+    """Process TON payment with blockchain verification"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get TON wallet address from config
+    from config import TON_WALLET_ADDRESS
+    wallet_address = TON_WALLET_ADDRESS or "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
+    
+    # Generate unique memo for this payment
+    import time
+    memo = f"AD{user_id}_{int(time.time())}"
+    
+    # Create payment instructions with translations
+    if language == 'ar':
+        payment_text = f"""💎 **دفع TON**
+
+**المبلغ:** {amount_ton:.3f} TON
+**عنوان المحفظة:** `{wallet_address}`
+**كود التحقق:** `{memo}`
+
+**التعليمات:**
+1. افتح محفظة TON
+2. أرسل {amount_ton:.3f} TON تماماً
+3. اكتب `{memo}` في خانة التعليق
+4. سيتم التحقق تلقائياً خلال 30 ثانية
+
+⏰ ينتهي الدفع خلال 20 دقيقة
+
+مع دفعك، أنت توافق على شروط الاستخدام 🔗"""
+    elif language == 'ru':
+        payment_text = f"""💎 **Оплата TON**
+
+**Сумма:** {amount_ton:.3f} TON
+**Адрес кошелька:** `{wallet_address}`
+**Код проверки:** `{memo}`
+
+**Инструкции:**
+1. Откройте кошелек TON
+2. Отправьте точно {amount_ton:.3f} TON
+3. Введите `{memo}` в поле комментария
+4. Автоматическая проверка в течение 30 секунд
+
+⏰ Оплата истекает через 20 минут
+
+Совершая платеж, вы соглашаетесь с Условиями использования 🔗"""
+    else:
+        payment_text = f"""💎 **TON Payment**
+
+**Amount:** {amount_ton:.3f} TON
+**Wallet Address:** `{wallet_address}`
+**Verification Code:** `{memo}`
+
+**Instructions:**
+1. Open TON wallet
+2. Send exactly {amount_ton:.3f} TON
+3. Write `{memo}` in comment field
+4. Automatic verification within 30 seconds
+
+⏰ Payment expires in 20 minutes
+
+With your payment, you agree to the Usage Agreement 🔗"""
+    
+    # Create keyboard with cancel option
+    if language == 'ar':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ إلغاء الدفع", callback_data="cancel_payment")]
+        ])
+    elif language == 'ru':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отменить платеж", callback_data="cancel_payment")]
+        ])
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
+        ])
+    
+    # Store payment data
+    await state.update_data(
+        payment_method='ton',
+        payment_amount=amount_ton,
+        payment_memo=memo,
+        payment_wallet=wallet_address,
+        payment_expiry=int(time.time()) + 1200  # 20 minutes
+    )
+    
+    # Send payment instructions
+    await callback_query.message.edit_text(
+        payment_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    
+    # Start payment monitoring (this would be handled by background workers)
+    # For now, we'll just show the payment interface
+    await callback_query.answer()
+
+
+async def process_stars_payment(callback_query: CallbackQuery, state: FSMContext, amount_stars: int):
+    """Process Telegram Stars payment"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Create payment preview with translations
+    if language == 'ar':
+        preview_text = f"""⭐ **دفع Telegram Stars**
+
+**المبلغ:** {amount_stars:,} Stars
+
+هل تريد المتابعة مع هذا الدفع؟
+
+مع دفعك، أنت توافق على شروط الاستخدام 🔗"""
+        confirm_text = "تأكيد الدفع"
+        cancel_text = "إلغاء"
+    elif language == 'ru':
+        preview_text = f"""⭐ **Оплата Telegram Stars**
+
+**Сумма:** {amount_stars:,} Stars
+
+Хотите продолжить с этим платежом?
+
+Совершая платеж, вы соглашаетесь с Условиями использования 🔗"""
+        confirm_text = "Подтвердить оплату"
+        cancel_text = "Отмена"
+    else:
+        preview_text = f"""⭐ **Telegram Stars Payment**
+
+**Amount:** {amount_stars:,} Stars
+
+Do you want to proceed with this payment?
+
+With your payment, you agree to the Usage Agreement 🔗"""
+        confirm_text = "Confirm Payment"
+        cancel_text = "Cancel"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=confirm_text, callback_data="confirm_stars_payment")],
+        [InlineKeyboardButton(text=cancel_text, callback_data="cancel_payment")]
+    ])
+    
+    # Store payment data
+    await state.update_data(
+        payment_method='stars',
+        payment_amount=amount_stars
+    )
+    
+    await callback_query.message.edit_text(
+        preview_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.callback_query(F.data == "pay_freq_stars")
+async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle Stars payment for frequency pricing"""
+    user_id = callback_query.from_user.id
+    
+    # Check if user is admin for free posting privilege
+    from config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        # Admin gets free posting!
+        await process_admin_free_posting(callback_query, state)
+        return
+    
+    data = await state.get_data()
+    pricing_data = data.get('pricing_data', {})
+    
+    if not pricing_data:
+        await callback_query.answer("❌ Pricing data not found")
+        return
+    
+    # Process Stars payment
+    await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
+
 async def show_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
     """Show posts per day selection with the selected days"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    text = f"""**Step 2: How many posts per day?**
+    # Create translated text
+    if language == 'ar':
+        text = f"""**الخطوة 2: كم عدد المنشورات لكل يوم؟**
+
+مدة الحملة: {days} أيام
+
+اختر تكرار النشر لرؤية خصومات الحجم:
+
+نصائح خصم الحجم:
+- 1 منشور/يوم = بدون خصم
+- 2 منشور/يوم = 5% خصم
+- 4 منشور/يوم = 10% خصم
+- 8 منشور/يوم = 20% خصم
+- 24 منشور/يوم = 30% خصم (الحد الأقصى!)
+
+اختر المنشورات لكل يوم:"""
+    elif language == 'ru':
+        text = f"""**Шаг 2: Сколько постов в день?**
+
+Длительность кампании: {days} дней
+
+Выберите частоту публикации для скидок за объем:
+
+СОВЕТЫ ПО СКИДКАМ ЗА ОБЪЕМ:
+- 1 пост/день = Без скидки
+- 2 поста/день = 5% скидка
+- 4 поста/день = 10% скидка
+- 8 постов/день = 20% скидка
+- 24 поста/день = 30% скидка (максимум!)
+
+Выберите посты в день:"""
+    else:
+        text = f"""**Step 2: How many posts per day?**
 
 Campaign Duration: {days} days
 
@@ -2645,28 +3059,76 @@ VOLUME DISCOUNT TIPS:
 
 Select posts per day:"""
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="1/day (No discount)", callback_data="dynamic_posts_1"),
-            InlineKeyboardButton(text="2/day (5% off)", callback_data="dynamic_posts_2")
-        ],
-        [
-            InlineKeyboardButton(text="3/day (7% off)", callback_data="dynamic_posts_3"),
-            InlineKeyboardButton(text="4/day (10% off)", callback_data="dynamic_posts_4")
-        ],
-        [
-            InlineKeyboardButton(text="6/day (15% off)", callback_data="dynamic_posts_6"),
-            InlineKeyboardButton(text="8/day (20% off)", callback_data="dynamic_posts_8")
-        ],
-        [
-            InlineKeyboardButton(text="12/day (27% off)", callback_data="dynamic_posts_12"),
-            InlineKeyboardButton(text="24/day (30% off)", callback_data="dynamic_posts_24")
-        ],
-        [
-            InlineKeyboardButton(text="Custom Amount", callback_data="dynamic_posts_custom"),
-            InlineKeyboardButton(text="Back", callback_data="continue_to_duration")
-        ]
-    ])
+    # Create keyboard buttons with translations
+    if language == 'ar':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1/يوم (بدون خصم)", callback_data="dynamic_posts_1"),
+                InlineKeyboardButton(text="2/يوم (5% خصم)", callback_data="dynamic_posts_2")
+            ],
+            [
+                InlineKeyboardButton(text="3/يوم (7% خصم)", callback_data="dynamic_posts_3"),
+                InlineKeyboardButton(text="4/يوم (10% خصم)", callback_data="dynamic_posts_4")
+            ],
+            [
+                InlineKeyboardButton(text="6/يوم (15% خصم)", callback_data="dynamic_posts_6"),
+                InlineKeyboardButton(text="8/يوم (20% خصم)", callback_data="dynamic_posts_8")
+            ],
+            [
+                InlineKeyboardButton(text="12/يوم (27% خصم)", callback_data="dynamic_posts_12"),
+                InlineKeyboardButton(text="24/يوم (30% خصم)", callback_data="dynamic_posts_24")
+            ],
+            [
+                InlineKeyboardButton(text="كمية مخصصة", callback_data="dynamic_posts_custom"),
+                InlineKeyboardButton(text="رجوع", callback_data="continue_to_duration")
+            ]
+        ])
+    elif language == 'ru':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1/день (Без скидки)", callback_data="dynamic_posts_1"),
+                InlineKeyboardButton(text="2/день (5% скидка)", callback_data="dynamic_posts_2")
+            ],
+            [
+                InlineKeyboardButton(text="3/день (7% скидка)", callback_data="dynamic_posts_3"),
+                InlineKeyboardButton(text="4/день (10% скидка)", callback_data="dynamic_posts_4")
+            ],
+            [
+                InlineKeyboardButton(text="6/день (15% скидка)", callback_data="dynamic_posts_6"),
+                InlineKeyboardButton(text="8/день (20% скидка)", callback_data="dynamic_posts_8")
+            ],
+            [
+                InlineKeyboardButton(text="12/день (27% скидка)", callback_data="dynamic_posts_12"),
+                InlineKeyboardButton(text="24/день (30% скидка)", callback_data="dynamic_posts_24")
+            ],
+            [
+                InlineKeyboardButton(text="Произвольное количество", callback_data="dynamic_posts_custom"),
+                InlineKeyboardButton(text="Назад", callback_data="continue_to_duration")
+            ]
+        ])
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="1/day (No discount)", callback_data="dynamic_posts_1"),
+                InlineKeyboardButton(text="2/day (5% off)", callback_data="dynamic_posts_2")
+            ],
+            [
+                InlineKeyboardButton(text="3/day (7% off)", callback_data="dynamic_posts_3"),
+                InlineKeyboardButton(text="4/day (10% off)", callback_data="dynamic_posts_4")
+            ],
+            [
+                InlineKeyboardButton(text="6/day (15% off)", callback_data="dynamic_posts_6"),
+                InlineKeyboardButton(text="8/day (20% off)", callback_data="dynamic_posts_8")
+            ],
+            [
+                InlineKeyboardButton(text="12/day (27% off)", callback_data="dynamic_posts_12"),
+                InlineKeyboardButton(text="24/day (30% off)", callback_data="dynamic_posts_24")
+            ],
+            [
+                InlineKeyboardButton(text="Custom Amount", callback_data="dynamic_posts_custom"),
+                InlineKeyboardButton(text="Back", callback_data="continue_to_duration")
+            ]
+        ])
     
     try:
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
