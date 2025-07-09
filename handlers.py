@@ -12,6 +12,7 @@ import logging
 import time
 import asyncio
 import requests
+from logger import log_success, log_error, log_info, StepNames
 
 logger = logging.getLogger(__name__)
 
@@ -484,9 +485,15 @@ def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
 
 @router.message(Command("start"))
 async def start_command(message: Message, state: FSMContext):
-    """Start command handler with comprehensive anti-fraud protection"""
+    """Start command handler with comprehensive anti-fraud protection and step logging"""
     user_id = message.from_user.id if message.from_user else 0
     username = message.from_user.username if message.from_user else None
+    
+    # Log start command step
+    log_info(StepNames.START_COMMAND, user_id, "User started bot", {
+        'username': username,
+        'user_id': user_id
+    })
     
     # Initialize anti-fraud system
     from anti_fraud import AntiFraudSystem
@@ -498,6 +505,7 @@ async def start_command(message: Message, state: FSMContext):
     
     # Check if user is blocked
     if await db.is_user_blocked(user_id):
+        log_info(StepNames.START_COMMAND, user_id, "Blocked user attempted access")
         blocked_message = """
 🚫 **Account Restricted**
 

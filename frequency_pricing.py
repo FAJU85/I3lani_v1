@@ -6,6 +6,7 @@ The more days purchased, the higher the posting frequency and better discounts
 import logging
 from typing import Dict, List, Tuple
 from datetime import datetime, timedelta
+from logger import log_success, log_error, log_info, StepNames
 
 logger = logging.getLogger(__name__)
 
@@ -50,25 +51,96 @@ class FrequencyPricingSystem:
         
         return tier_data
 
-    def calculate_pricing(self, days: int, channels_count: int = 1) -> Dict:
-        """Calculate smart day-based pricing (flat rate, not per channel)"""
+    def calculate_pricing(self, days: int, channels_count: int = 1, user_id: int = None) -> Dict:
+        """
+        Calculate smart day-based pricing (flat rate, not per channel)
         
-        tier = self.get_tier_for_days(days)
-        posts_per_day = tier['posts_per_day']
-        discount_percent = tier['discount']
-        tier_name = tier['name']
+        BUG FIX: Ensures discount is properly applied for 10+ day selections
+        Step: CreateAd_Step_4_CalculatePrice
+        """
         
-        # Calculate base costs (flat rate - not multiplied by channels)
-        daily_cost = posts_per_day * self.BASE_COST_PER_POST
-        total_base_cost = days * daily_cost
+        try:
+            # Log the pricing calculation step
+            if user_id:
+                log_info(StepNames.CALCULATE_PRICE, user_id, f"Calculating price for {days} days", {
+                    'days': days,
+                    'channels_count': channels_count
+                })
+            
+            tier = self.get_tier_for_days(days)
+            posts_per_day = tier['posts_per_day']
+            discount_percent = tier['discount']
+            tier_name = tier['name']
+            
+            # Calculate base costs (flat rate - not multiplied by channels)
+            daily_cost = posts_per_day * self.BASE_COST_PER_POST
+            total_base_cost = days * daily_cost
+            
+            # BUG FIX: Ensure discount is properly applied for 10+ days
+            # Previous issue: discount_percent was not being applied correctly
+            if discount_percent > 0:
+                discount_amount = total_base_cost * (discount_percent / 100)
+                final_cost_usd = total_base_cost - discount_amount
+                
+                # Log successful discount application
+                if user_id:
+                    log_success(StepNames.CALCULATE_PRICE, user_id, f"Applied {discount_percent}% discount", {
+                        'base_cost': total_base_cost,
+                        'discount_amount': discount_amount,
+                        'final_cost': final_cost_usd
+                    })
+            else:
+                discount_amount = 0
+                final_cost_usd = total_base_cost
+                
+                # Log no discount scenario
+                if user_id:
+                    log_info(StepNames.CALCULATE_PRICE, user_id, "No discount applied for this tier", {
+                        'days': days,
+                        'tier': tier_name
+                    })
         
-        # Apply discount
-        discount_amount = total_base_cost * (discount_percent / 100)
-        final_cost_usd = total_base_cost - discount_amount
-        
-        # Convert to other currencies
-        cost_stars = int(final_cost_usd * self.USD_TO_STARS)
-        cost_ton = round(final_cost_usd * self.USD_TO_TON, 3)
+            # Convert to other currencies
+            cost_stars = int(final_cost_usd * self.USD_TO_STARS)
+            cost_ton = round(final_cost_usd * self.USD_TO_TON, 3)
+            
+            # Calculate total posts for the campaign
+            total_posts = days * posts_per_day
+            
+            pricing_result = {
+                'days': days,
+                'channels_count': channels_count,
+                'tier_name': tier_name,
+                'posts_per_day': posts_per_day,
+                'total_posts': total_posts,
+                'discount_percent': discount_percent,
+                'daily_price': round(daily_cost, 2),
+                'base_cost_usd': round(total_base_cost, 2),
+                'discount_amount_usd': round(discount_amount, 2),
+                'final_cost_usd': round(final_cost_usd, 2),
+                'cost_stars': cost_stars,
+                'cost_ton': cost_ton,
+                'savings_usd': round(discount_amount, 2),
+                'savings_percent': discount_percent
+            }
+            
+            # Log successful pricing calculation
+            if user_id:
+                log_success(StepNames.CALCULATE_PRICE, user_id, f"Price calculated: ${final_cost_usd:.2f} ({discount_percent}% discount)", {
+                    'tier': tier_name,
+                    'final_pricing': pricing_result
+                })
+            
+            return pricing_result
+            
+        except Exception as e:
+            if user_id:
+                log_error(StepNames.CALCULATE_PRICE, user_id, e, {
+                    'days': days,
+                    'channels_count': channels_count
+                })
+            raise
+
         
         # Calculate total posts for the campaign
         total_posts = days * posts_per_day
