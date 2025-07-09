@@ -9,6 +9,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from viral_referral_game import get_viral_game
 from database import db, get_user_language
+from languages import get_text
 
 logger = logging.getLogger(__name__)
 

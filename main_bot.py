@@ -123,6 +123,12 @@ async def init_bot():
         setup_admin_handlers(dp)
         setup_stars_handlers(dp)
         
+        # Initialize haptic visual effects system
+        logger.info("Initializing haptic visual effects system...")
+        from haptic_integration import get_haptic_integration
+        haptic_integration = get_haptic_integration(bot)
+        logger.info("Haptic visual effects system initialized")
+        
         # Initialize channel manager
         logger.info("Initializing channel manager...")
         channel_manager = init_channel_manager(bot, db)
@@ -169,6 +175,17 @@ async def init_bot():
         
         from viral_referral_handlers import viral_router
         dp.include_router(viral_router)
+        
+        # Register haptic callback handler
+        @dp.callback_query()
+        async def haptic_callback_handler(callback_query):
+            """Handle haptic callback queries"""
+            if callback_query.data and callback_query.data.startswith('haptic_'):
+                handled = await haptic_integration.handle_haptic_callback(callback_query)
+                if handled:
+                    # Continue processing the original callback
+                    return
+        
         logger.info("Viral referral game system initialized")
         
         logger.info("Troubleshooting system initialized")
