@@ -58,86 +58,53 @@ async def is_user_partner(user_id: int) -> bool:
         return False
 
 async def create_regular_main_menu_text(language: str, user_id: int) -> str:
-    """Create standard main menu text for regular users"""
+    """Create standard main menu text for regular users using translation system"""
     
     # Get user stats for dynamic content
     user_stats = await db.get_user_stats(user_id)
     total_ads = user_stats.get('total_ads', 0) if user_stats else 0
     
-    # Add dynamic status indicators
-    status_indicators = {
-        'en': '🟢 ONLINE & READY',
-        'ar': '🟢 متصل وجاهز',
-        'ru': '🟢 ОНЛАЙН И ГОТОВ'
-    }
+    # Check for admin customized text first
+    try:
+        custom_text = await db.get_custom_ui_text('main_menu_welcome', language)
+        if custom_text:
+            return custom_text.format(total_ads=total_ads)
+    except:
+        pass  # Fall back to default text if database query fails
     
-    welcome_text = {
-        'en': f"""
-<b>🎯 I3lani Advertising Platform</b>
+    # Use translation system for consistent language experience
+    welcome_text = get_text(language, 'main_menu_welcome')
+    status_text = get_text(language, 'main_menu_status')
+    features_text = get_text(language, 'main_menu_features')
+    ready_text = get_text(language, 'main_menu_ready')
+    
+    # Build the complete menu text
+    menu_text = f"""<b>{welcome_text}</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<b>Status:</b> {status_indicators['en']}
-<b>🔹 Professional advertising made simple</b>
+<b>{status_text}</b>
 
-<b>📊 Your Dashboard:</b>
+<b>📊 Dashboard:</b>
 • 📢 Total Campaigns: <code>{total_ads}</code>
 • 🎯 Account Status: <b>ACTIVE</b>
 • 🌟 Performance: <b>OPTIMIZED</b>
 
-<b>🚀 Platform Features:</b>
-• ✨ Smart ad creation tools
-• 📈 Multi-channel distribution  
-• 💎 Real-time analytics
-• 🔥 Professional targeting
+<b>{features_text}</b>
 
-<b>💼 Ready to grow your business?</b>
-        """,
-        'ar': f"""
-<b>🎯 منصة I3lani للإعلانات</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>الحالة:</b> {status_indicators['ar']}
-<b>🔹 الإعلان المهني أصبح بسيطاً</b>
-
-<b>📊 لوحة التحكم:</b>
-• 📢 إجمالي الحملات: <code>{total_ads}</code>
-• 🎯 حالة الحساب: <b>نشط</b>
-• 🌟 الأداء: <b>محسّن</b>
-
-<b>🚀 ميزات المنصة:</b>
-• ✨ أدوات إنشاء إعلانات ذكية
-• 📈 توزيع متعدد القنوات
-• 💎 تحليلات فورية
-• 🔥 استهداف مهني
-
-<b>💼 هل أنت مستعد لتنمية عملك؟</b>
-        """,
-        'ru': f"""
-<b>🎯 Рекламная платформа I3lani</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Статус:</b> {status_indicators['ru']}
-<b>🔹 Профессиональная реклама стала простой</b>
-
-<b>📊 Ваша панель:</b>
-• 📢 Всего кампаний: <code>{total_ads}</code>
-• 🎯 Статус аккаунта: <b>АКТИВЕН</b>
-• 🌟 Производительность: <b>ОПТИМИЗИРОВАНА</b>
-
-<b>🚀 Возможности платформы:</b>
-• ✨ Умные инструменты создания рекламы
-• 📈 Многоканальное распространение
-• 💎 Аналитика в реальном времени
-• 🔥 Профессиональное таргетинг
-
-<b>💼 Готовы развивать свой бизнес?</b>
-        """
-    }
+<b>{ready_text}</b>"""
     
-    return welcome_text.get(language, welcome_text['en']).strip()
+    return menu_text.strip()
 
 async def create_neural_main_menu_text(language: str, user_id: int) -> str:
     """Create neural network main menu text for partners only"""
+    
+    # Check for admin customized text first
+    try:
+        custom_text = await db.get_custom_ui_text('main_menu_neural', language)
+        if custom_text:
+            return custom_text
+    except:
+        pass  # Fall back to default text if database query fails
     
     # Use translation system for partner main menu text
     return get_text(language, 'main_menu')
@@ -2930,6 +2897,109 @@ With your payment, you agree to the Usage Agreement 🔗"""
     )
     await callback_query.answer()
 
+@router.callback_query(F.data == "confirm_stars_payment")
+async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle Stars payment confirmation"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Get data from state
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        ad_content = data.get('ad_text', '') or data.get('ad_content', '')
+        photos = data.get('photos', [])
+        pricing_data = data.get('pricing_data', {})
+        payment_amount = data.get('payment_amount', 0)
+        
+        # Create ad in database
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=ad_content,
+            media_url=photos[0] if photos else None,
+            content_type='photo' if photos else 'text'
+        )
+        
+        # Get pricing data
+        days = pricing_data.get('days', 1)
+        posts_per_day = pricing_data.get('posts_per_day', 1)
+        total_posts = days * posts_per_day
+        
+        # Create subscription for each selected channel
+        subscription_ids = []
+        for channel_id in selected_channels:
+            subscription_id = await db.create_subscription(
+                user_id=user_id,
+                ad_id=ad_id,
+                channel_id=channel_id,
+                duration_months=days,
+                total_price=payment_amount,
+                currency='STARS',
+                posts_per_day=posts_per_day,
+                total_posts=total_posts
+            )
+            subscription_ids.append(subscription_id)
+        
+        # Create payment record
+        payment_id = await db.create_payment(
+            user_id=user_id,
+            subscription_id=subscription_ids[0] if subscription_ids else None,
+            amount=payment_amount,
+            currency='STARS',
+            payment_method='telegram_stars',
+            memo=f'STARS{subscription_ids[0]:04d}' if subscription_ids else 'STARS_PAYMENT'
+        )
+        
+        # Activate subscriptions
+        await db.activate_subscriptions(subscription_ids, days)
+        
+        # Publish immediately
+        from publishing_scheduler import scheduler
+        if scheduler:
+            await scheduler.publish_immediately_after_payment(
+                user_id=user_id,
+                ad_id=ad_id,
+                selected_channels=selected_channels,
+                subscription_data=data
+            )
+        
+        # Send payment receipt
+        payment_data = {
+            'payment_method': 'stars',
+            'amount': payment_amount,
+            'memo': f'STARS{subscription_ids[0]:04d}' if subscription_ids else 'STARS_PAYMENT',
+            'selected_channels': selected_channels,
+            'days': days,
+            'posts_per_day': posts_per_day,
+            'ad_id': ad_id
+        }
+        await send_payment_receipt(user_id, payment_data, language)
+        
+        # Send publishing reports for each channel
+        channels = await db.get_channels()
+        for channel_id in selected_channels:
+            channel = next((ch for ch in channels if ch['channel_id'] == channel_id), None)
+            if channel:
+                ad_data = {
+                    'ad_id': ad_id,
+                    'ad_text': ad_content,
+                    'channel_id': channel_id
+                }
+                await send_ad_publishing_report(user_id, ad_data, channel['name'], language)
+        
+        # Clear state
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Error confirming Stars payment: {e}")
+        await callback_query.answer("❌ Payment confirmation failed")
+        await callback_query.message.edit_text(
+            "❌ Payment confirmation failed. Please try again or contact support.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+        )
+
 @router.callback_query(F.data == "pay_freq_stars")
 async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle Stars payment for frequency pricing"""
@@ -3820,25 +3890,29 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
                 subscription_data=data
             )
         
-        # Send success notification to user
-        from main import bot
-        success_text = f"[Check] **Payment Confirmed!**\n\n"
-        success_text += f"**Amount:** {amount_ton} TON\n"
-        success_text += f"**Payment ID:** {memo}\n\n"
-        success_text += "Your ad has been successfully created and will be published to all selected channels shortly!\n\n"
-        success_text += "Thank you for using I3lani Bot!"
+        # Send payment receipt to user
+        payment_data = {
+            'payment_method': 'ton',
+            'amount': amount_ton,
+            'memo': memo,
+            'selected_channels': selected_channels,
+            'days': days,
+            'posts_per_day': posts_per_day,
+            'ad_id': ad_id
+        }
+        await send_payment_receipt(user_id, payment_data, language)
         
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")],
-            [InlineKeyboardButton(text="My Ads", callback_data="my_ads")]
-        ])
-        
-        await bot.send_message(
-            chat_id=user_id,
-            text=success_text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
-        )
+        # Send publishing reports for each channel
+        channels = await db.get_channels()
+        for channel_id in selected_channels:
+            channel = next((ch for ch in channels if ch['channel_id'] == channel_id), None)
+            if channel:
+                ad_data = {
+                    'ad_id': ad_id,
+                    'ad_text': ad_content,
+                    'channel_id': channel_id
+                }
+                await send_ad_publishing_report(user_id, ad_data, channel['name'], language)
         
     except Exception as e:
         logger.error(f"Error processing successful TON payment: {e}")
@@ -3926,6 +4000,169 @@ async def process_admin_free_posting(callback_query: CallbackQuery, state: FSMCo
         logger.error(f"Admin free posting error: {e}")
         await callback_query.answer("❌ Error processing admin posting")
         await show_main_menu(callback_query, await get_user_language(callback_query.from_user.id))
+
+async def send_payment_receipt(user_id: int, payment_data: dict, language: str):
+    """Send payment receipt to user after successful payment"""
+    try:
+        from main import bot
+    except ImportError:
+        from main_bot import bot
+    import datetime
+    
+    try:
+        # Get current timestamp
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Build receipt message using translations
+        receipt_title = get_text(language, 'payment_receipt_title')
+        payment_received = get_text(language, 'payment_received')
+        payment_method_label = get_text(language, 'payment_method')
+        amount_paid_label = get_text(language, 'amount_paid')
+        payment_date_label = get_text(language, 'payment_date')
+        payment_id_label = get_text(language, 'payment_id')
+        ad_details_label = get_text(language, 'ad_details')
+        selected_channels_label = get_text(language, 'selected_channels')
+        campaign_duration_label = get_text(language, 'campaign_duration')
+        posts_per_day_label = get_text(language, 'posts_per_day')
+        total_posts_label = get_text(language, 'total_posts')
+        thank_you = get_text(language, 'receipt_thank_you')
+        support = get_text(language, 'receipt_support')
+        
+        # Format payment method
+        payment_method = payment_data.get('payment_method', 'TON')
+        if payment_method == 'ton':
+            payment_method_text = get_text(language, 'pay_ton')
+        else:
+            payment_method_text = get_text(language, 'pay_stars')
+        
+        # Format amount
+        amount = payment_data.get('amount', 0)
+        amount_text = f"{amount} {payment_method.upper()}"
+        
+        # Format channels
+        channels = payment_data.get('selected_channels', [])
+        channels_text = f"{len(channels)} " + ("channels" if language == 'en' else "قنوات" if language == 'ar' else "каналов")
+        
+        # Format duration and posts
+        days = payment_data.get('days', 1)
+        posts_per_day = payment_data.get('posts_per_day', 1)
+        total_posts = days * posts_per_day
+        
+        duration_text = f"{days} " + ("days" if language == 'en' else "أيام" if language == 'ar' else "дней")
+        
+        # Build receipt message
+        receipt_message = f"""
+{receipt_title}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{payment_received}
+
+**{payment_method_label}** {payment_method_text}
+**{amount_paid_label}** {amount_text}
+**{payment_date_label}** {current_time}
+**{payment_id_label}** {payment_data.get('memo', 'N/A')}
+
+**{ad_details_label}**
+• **{selected_channels_label}** {channels_text}
+• **{campaign_duration_label}** {duration_text}
+• **{posts_per_day_label}** {posts_per_day}
+• **{total_posts_label}** {total_posts}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{thank_you}
+{support}
+        """.strip()
+        
+        # Create keyboard with useful actions
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=get_text(language, 'my_ads'), callback_data="my_ads")],
+            [InlineKeyboardButton(text=get_text(language, 'create_ad'), callback_data="create_ad")],
+            [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
+        ])
+        
+        # Send receipt message
+        await bot.send_message(
+            chat_id=user_id,
+            text=receipt_message,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        logger.info(f"Payment receipt sent to user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"Error sending payment receipt: {e}")
+
+async def send_ad_publishing_report(user_id: int, ad_data: dict, channel_name: str, language: str):
+    """Send ad publishing confirmation report to user"""
+    try:
+        from main import bot
+    except ImportError:
+        from main_bot import bot
+    import datetime
+    
+    try:
+        # Get current timestamp
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Build publishing report using translations
+        published_title = get_text(language, 'ad_published_title')
+        published_message = get_text(language, 'ad_published_message')
+        published_channel_label = get_text(language, 'published_channel')
+        published_date_label = get_text(language, 'published_date')
+        ad_id_label = get_text(language, 'ad_id')
+        ad_summary_label = get_text(language, 'ad_summary')
+        publishing_status_label = get_text(language, 'publishing_status')
+        publishing_success = get_text(language, 'publishing_success')
+        publishing_thank_you = get_text(language, 'publishing_thank_you')
+        
+        # Format ad content summary (truncate if too long)
+        ad_content = ad_data.get('ad_text', 'Ad content')
+        if len(ad_content) > 100:
+            ad_content = ad_content[:100] + "..."
+        
+        # Build publishing report message
+        report_message = f"""
+{published_title}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{published_message}
+
+**{published_channel_label}** {channel_name}
+**{published_date_label}** {current_time}
+**{ad_id_label}** {ad_data.get('ad_id', 'N/A')}
+**{publishing_status_label}**
+
+**{ad_summary_label}**
+{ad_content}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{publishing_success}
+
+{publishing_thank_you}
+        """.strip()
+        
+        # Create keyboard with useful actions
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=get_text(language, 'my_ads'), callback_data="my_ads")],
+            [InlineKeyboardButton(text=get_text(language, 'create_ad'), callback_data="create_ad")],
+            [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
+        ])
+        
+        # Send publishing report
+        await bot.send_message(
+            chat_id=user_id,
+            text=report_message,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        logger.info(f"Ad publishing report sent to user {user_id} for channel {channel_name}")
+        
+    except Exception as e:
+        logger.error(f"Error sending ad publishing report: {e}")
 
 async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext):
     """Handle expired TON payment"""

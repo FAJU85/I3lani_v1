@@ -639,7 +639,17 @@ The bot was added as admin in:
         """Update channel statistics with detailed information"""
         try:
             chat = await self.bot.get_chat(channel_id)
-            subscribers = getattr(chat, 'members_count', 0)
+            
+            # Get real subscriber count using proper API method
+            try:
+                subscribers = await self.bot.get_chat_member_count(chat.id)
+            except Exception:
+                # Fallback to get_chat_members_count if the above fails
+                try:
+                    subscribers = await self.bot.get_chat_members_count(chat.id)
+                except Exception:
+                    subscribers = 0
+            
             description = getattr(chat, 'description', '')
             
             # Estimate active subscribers

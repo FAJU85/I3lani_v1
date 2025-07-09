@@ -22,6 +22,10 @@ LANGUAGES = {
         
         # Main menu
         'main_menu': '📱 I3lani Bot - Main Menu\n\nManage your advertising campaigns easily and effectively.\n\nPlease select an option:',
+        'main_menu_welcome': '🎯 I3lani Advertising Platform\n\nProfessional advertising made simple.\n\nYour trusted platform for multi-channel advertising campaigns.',
+        'main_menu_status': 'Status: 🟢 ONLINE & READY',
+        'main_menu_features': '🚀 Platform Features:\n• ✨ Smart ad creation tools\n• 📈 Multi-channel distribution\n• 💎 Real-time analytics\n• 🔥 Professional targeting',
+        'main_menu_ready': '💼 Ready to grow your business?',
         'create_ad': '➕ Create New Ad',
         'my_ads': '📄 My Ads',
         'pricing': '💵 Pricing', 
@@ -114,6 +118,32 @@ LANGUAGES = {
         'payment_instructions': '◇━━━ QUANTUM PAYMENT PROTOCOL ━━━◇',
         'memo_format': '◈ Neural Memo: {memo}',
         'payment_sent': '◈ Transaction Confirmed',
+        
+        # Payment receipt
+        'payment_receipt_title': '🧾 **Payment Receipt**',
+        'payment_received': '✅ Payment Received!',
+        'payment_method': 'Payment Method:',
+        'amount_paid': 'Amount Paid:',
+        'payment_date': 'Payment Date:',
+        'payment_id': 'Payment ID:',
+        'ad_details': 'Ad Details:',
+        'selected_channels': 'Selected Channels:',
+        'campaign_duration': 'Campaign Duration:',
+        'posts_per_day': 'Posts Per Day:',
+        'total_posts': 'Total Posts:',
+        'receipt_thank_you': 'Thank you for using I3lani Bot!',
+        'receipt_support': 'Support: /support',
+        
+        # Ad publishing notifications
+        'ad_published_title': '✅ **Ad Published Successfully!**',
+        'ad_published_message': 'Your advertisement has been published successfully!',
+        'published_channel': 'Published to:',
+        'published_date': 'Publication Date:',
+        'ad_id': 'Ad ID:',
+        'ad_summary': 'Ad Summary:',
+        'publishing_status': 'Status: Published',
+        'publishing_success': 'Your ad is now live and visible to channel subscribers!',
+        'publishing_thank_you': 'Thank you for choosing I3lani Bot!',
         
         # Buttons
         'back': '🔙 Back',
@@ -226,6 +256,10 @@ Questions? Use /support to get help!""",
         
         # Main menu
         'main_menu': '📱 بوت I3lani - القائمة الرئيسية\n\nأدر حملاتك الإعلانية بسهولة وفعالية.\n\nيرجى اختيار خيار:',
+        'main_menu_welcome': '🎯 منصة I3lani للإعلانات\n\nالإعلان المهني أصبح بسيطاً.\n\nمنصتك الموثوقة للحملات الإعلانية متعددة القنوات.',
+        'main_menu_status': 'الحالة: 🟢 متصل وجاهز',
+        'main_menu_features': '🚀 ميزات المنصة:\n• ✨ أدوات إنشاء إعلانات ذكية\n• 📈 توزيع متعدد القنوات\n• 💎 تحليلات فورية\n• 🔥 استهداف مهني',
+        'main_menu_ready': '💼 هل أنت مستعد لتنمية عملك؟',
         'create_ad': '➕ إنشاء إعلان جديد',
         'my_ads': '📄 إعلاناتي',
         'pricing': '💵 الأسعار', 
@@ -328,6 +362,32 @@ Questions? Use /support to get help!""",
         'payment_instructions': 'تعليمات الدفع:',
         'memo_format': 'المذكرة: {memo}',
         'payment_sent': 'تم إرسال الدفع ✅',
+        
+        # Payment receipt
+        'payment_receipt_title': '🧾 **إيصال الدفع**',
+        'payment_received': '✅ تم استلام الدفع!',
+        'payment_method': 'طريقة الدفع:',
+        'amount_paid': 'المبلغ المدفوع:',
+        'payment_date': 'تاريخ الدفع:',
+        'payment_id': 'رقم الدفع:',
+        'ad_details': 'تفاصيل الإعلان:',
+        'selected_channels': 'القنوات المختارة:',
+        'campaign_duration': 'مدة الحملة:',
+        'posts_per_day': 'منشورات يومية:',
+        'total_posts': 'إجمالي المنشورات:',
+        'receipt_thank_you': 'شكراً لاستخدام بوت I3lani!',
+        'receipt_support': 'للدعم: /support',
+        
+        # Ad publishing notifications
+        'ad_published_title': '✅ **تم نشر إعلانك بنجاح!**',
+        'ad_published_message': 'تم نشر إعلانك بنجاح!',
+        'published_channel': 'نُشر في:',
+        'published_date': 'تاريخ النشر:',
+        'ad_id': 'رقم الإعلان:',
+        'ad_summary': 'ملخص الإعلان:',
+        'publishing_status': 'الحالة: منشور',
+        'publishing_success': 'إعلانك الآن مباشر ومرئي لمشتركي القناة!',
+        'publishing_thank_you': 'شكراً لاختيارك بوت I3lani!',
         
         # Buttons
         'back': '🔙 رجوع',
@@ -446,6 +506,10 @@ Questions? Use /support to get help!""",
         
         # Main menu
         'main_menu': '📱 I3lani Bot - Главное меню\n\nУправляйте рекламными кампаниями легко и эффективно.\n\nПожалуйста, выберите опцию:',
+        'main_menu_welcome': '🎯 Рекламная платформа I3lani\n\nПрофессиональная реклама стала простой.\n\nВаша надежная платформа для многоканальных рекламных кампаний.',
+        'main_menu_status': 'Статус: 🟢 ОНЛАЙН И ГОТОВ',
+        'main_menu_features': '🚀 Возможности платформы:\n• ✨ Умные инструменты создания рекламы\n• 📈 Многоканальное распространение\n• 💎 Аналитика в реальном времени\n• 🔥 Профессиональное таргетинг',
+        'main_menu_ready': '💼 Готовы развивать свой бизнес?',
         'create_ad': '➕ Создать новое объявление',
         'my_ads': '📄 Мои объявления',
         'pricing': '💵 Цены', 
@@ -538,6 +602,32 @@ Questions? Use /support to get help!""",
         'payment_instructions': 'Инструкции по оплате:',
         'memo_format': 'Мемо: {memo}',
         'payment_sent': 'Платеж отправлен ✅',
+        
+        # Payment receipt
+        'payment_receipt_title': '🧾 **Чек об оплате**',
+        'payment_received': '✅ Оплата получена!',
+        'payment_method': 'Способ оплаты:',
+        'amount_paid': 'Сумма оплаты:',
+        'payment_date': 'Дата оплаты:',
+        'payment_id': 'ID платежа:',
+        'ad_details': 'Детали объявления:',
+        'selected_channels': 'Выбранные каналы:',
+        'campaign_duration': 'Длительность кампании:',
+        'posts_per_day': 'Постов в день:',
+        'total_posts': 'Всего постов:',
+        'receipt_thank_you': 'Спасибо за использование I3lani Bot!',
+        'receipt_support': 'Поддержка: /support',
+        
+        # Ad publishing notifications
+        'ad_published_title': '✅ **Объявление успешно опубликовано!**',
+        'ad_published_message': 'Ваше объявление успешно опубликовано!',
+        'published_channel': 'Опубликовано в:',
+        'published_date': 'Дата публикации:',
+        'ad_id': 'ID объявления:',
+        'ad_summary': 'Краткое описание:',
+        'publishing_status': 'Статус: Опубликовано',
+        'publishing_success': 'Ваше объявление теперь активно и видно подписчикам канала!',
+        'publishing_thank_you': 'Спасибо за выбор I3lani Bot!',
         
         # Buttons
         'back': '🔙 Назад',

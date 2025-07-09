@@ -26,26 +26,41 @@ class ModernKeyboard:
         self.colors = self._get_color_palette(theme)
         
     def _get_color_palette(self, theme: str) -> Dict[str, str]:
-        """Get color palette based on theme"""
+        """
+        Get color palette based on theme
+        Updated to match specification: calming, trustworthy, modern design
+        """
         if theme == "dark":
             return {
-                "background": "#1E1E2A",
-                "key_default": "#2C2F3A",
-                "key_border": "#3A3F4A",
-                "font_color": "#F5F5F5",
-                "primary_action": "#3B82F6",
-                "pressed_overlay": "#404654",
-                "shadow": "rgba(0,0,0,0.15)"
+                "background": "#1E1E2A",           # Dark background
+                "key_default": "#2C2F3A",          # Dark gray button
+                "key_border": "#2C2F3A",           # Same as button (seamless)
+                "font_color": "#F5F5F5",           # Light text
+                "primary_action": "#3B82F6",       # Bright blue for primary
+                "pressed_overlay": "#232537",      # Pressed state
+                "shadow": "rgba(0,0,0,0.12)",      # Deeper shadow
+                "border_radius": "12px",           # Rounded corners
+                "button_height": "48px",           # Touch-friendly height
+                "button_spacing": "4px",           # Consistent spacing
+                "font_family": "Noto Sans, SF Pro, system-ui, sans-serif",
+                "font_size": "16px",
+                "animation_duration": "0.2s"
             }
         else:  # light theme
             return {
-                "background": "#F4F7FB",
-                "key_default": "#FFFFFF",
-                "key_border": "#DDE3EB",
-                "font_color": "#1A1A1A",
-                "primary_action": "#2563EB",
-                "pressed_overlay": "#E0E7EF",
-                "shadow": "rgba(0,0,0,0.06)"
+                "background": "#F4F7FB",           # Very light bluish-gray
+                "key_default": "#FFFFFF",          # Pure white buttons
+                "key_border": "#DDE3EB",           # Light gray border
+                "font_color": "#1A1A1A",           # Almost black text
+                "primary_action": "#2563EB",       # Soft blue for primary
+                "pressed_overlay": "#E0E7EF",      # Light pressed state
+                "shadow": "rgba(0,0,0,0.06)",      # Subtle shadow
+                "border_radius": "12px",           # Rounded corners
+                "button_height": "48px",           # Touch-friendly height
+                "button_spacing": "4px",           # Consistent spacing
+                "font_family": "Noto Sans, SF Pro, system-ui, sans-serif",
+                "font_size": "16px",
+                "animation_duration": "0.2s"
             }
     
     def create_main_menu_keyboard(self, language: str = "en", user_id: int = None) -> InlineKeyboardMarkup:
@@ -81,6 +96,156 @@ class ModernKeyboard:
         
         # Adjust layout for optimal spacing (2 buttons per row for most items)
         builder.adjust(2, 2, 1, 1)
+        
+        return builder.as_markup()
+    
+    def create_enhanced_keyboard(self, buttons: List[Dict], layout: str = "auto", primary_button: str = None) -> InlineKeyboardMarkup:
+        """
+        Create enhanced keyboard with modern design principles
+        
+        Args:
+            buttons: List of button dictionaries with 'text' and 'callback_data'
+            layout: Layout type ('auto', 'single', 'double', 'triple', 'grid')
+            primary_button: Callback data of primary button (gets special styling)
+        """
+        builder = InlineKeyboardBuilder()
+        
+        for button in buttons:
+            # Apply primary styling to specified button
+            if primary_button and button.get('callback_data') == primary_button:
+                # Primary button gets special visual treatment
+                text = f"⏩ {button['text']}"
+            else:
+                text = button['text']
+            
+            builder.add(InlineKeyboardButton(
+                text=text,
+                callback_data=button['callback_data']
+            ))
+        
+        # Apply layout rules
+        if layout == "single":
+            builder.adjust(1)
+        elif layout == "double":
+            builder.adjust(2)
+        elif layout == "triple":
+            builder.adjust(3)
+        elif layout == "grid":
+            builder.adjust(2, 2, 2)
+        else:  # auto
+            # Smart layout based on button count
+            button_count = len(buttons)
+            if button_count <= 2:
+                builder.adjust(button_count)
+            elif button_count <= 4:
+                builder.adjust(2, 2)
+            elif button_count <= 6:
+                builder.adjust(2, 2, 2)
+            else:
+                builder.adjust(2, 2, 2, 1)
+        
+        return builder.as_markup()
+    
+    def create_navigation_keyboard(self, back_callback: str = None, forward_callback: str = None, 
+                                 menu_callback: str = "back_to_main", language: str = "en") -> InlineKeyboardMarkup:
+        """Create navigation keyboard with consistent styling"""
+        builder = InlineKeyboardBuilder()
+        
+        # Navigation buttons with proper icons and spacing
+        nav_buttons = []
+        
+        if back_callback:
+            nav_buttons.append(InlineKeyboardButton(
+                text="⬅️ Back",
+                callback_data=back_callback
+            ))
+        
+        if forward_callback:
+            nav_buttons.append(InlineKeyboardButton(
+                text="Continue ➡️",
+                callback_data=forward_callback
+            ))
+        
+        # Add navigation buttons
+        for button in nav_buttons:
+            builder.add(button)
+        
+        # Add main menu button
+        builder.add(InlineKeyboardButton(
+            text="🏠 Main Menu",
+            callback_data=menu_callback
+        ))
+        
+        # Layout: nav buttons on top, main menu below
+        if len(nav_buttons) == 2:
+            builder.adjust(2, 1)
+        elif len(nav_buttons) == 1:
+            builder.adjust(1, 1)
+        else:
+            builder.adjust(1)
+        
+        return builder.as_markup()
+    
+    def create_confirmation_keyboard(self, confirm_text: str, cancel_text: str, 
+                                   confirm_callback: str, cancel_callback: str = "cancel", 
+                                   language: str = "en") -> InlineKeyboardMarkup:
+        """Create confirmation keyboard with clear hierarchy"""
+        builder = InlineKeyboardBuilder()
+        
+        # Confirmation buttons with visual hierarchy
+        builder.add(InlineKeyboardButton(
+            text=confirm_text,
+            callback_data=confirm_callback
+        ))
+        
+        builder.add(InlineKeyboardButton(
+            text=cancel_text,
+            callback_data=cancel_callback
+        ))
+        
+        # Side by side layout
+        builder.adjust(2)
+        
+        return builder.as_markup()
+    
+    def create_settings_keyboard(self, language: str = "en", current_theme: str = "light") -> InlineKeyboardMarkup:
+        """Create settings keyboard with theme and language options"""
+        builder = InlineKeyboardBuilder()
+        
+        # Language selection
+        builder.add(InlineKeyboardButton(
+            text="🌐 Language",
+            callback_data="change_language"
+        ))
+        
+        # Theme toggle
+        theme_text = "🌑 Dark Mode" if current_theme == "light" else "☀️ Light Mode"
+        theme_callback = "set_theme_dark" if current_theme == "light" else "set_theme_light"
+        
+        builder.add(InlineKeyboardButton(
+            text=theme_text,
+            callback_data=theme_callback
+        ))
+        
+        # Other settings
+        builder.add(InlineKeyboardButton(
+            text="⚙️ Options",
+            callback_data="show_options"
+        ))
+        
+        builder.add(InlineKeyboardButton(
+            text="❓ Help",
+            callback_data="show_help"
+        ))
+        
+        # Back button
+        builder.add(InlineKeyboardButton(
+            text="⬅️ Back",
+            callback_data="back_to_main"
+        ))
+        
+        # Layout: 2x2 grid with back button below
+        builder.adjust(2, 2, 1)
         
         return builder.as_markup()
     

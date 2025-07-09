@@ -430,6 +430,17 @@ Last updated: July 2025"""
             await db.commit()
             return True
     
+    async def update_channel_subscribers(self, channel_id: str, subscribers: int, active_subscribers: int) -> bool:
+        """Update channel subscriber counts"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                UPDATE channels 
+                SET subscribers = ?, active_subscribers = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE channel_id = ? OR telegram_channel_id = ?
+            ''', (subscribers, active_subscribers, channel_id, channel_id))
+            await db.commit()
+            return True
+    
     async def activate_channel(self, channel_id: str) -> bool:
         """Activate a channel"""
         try:

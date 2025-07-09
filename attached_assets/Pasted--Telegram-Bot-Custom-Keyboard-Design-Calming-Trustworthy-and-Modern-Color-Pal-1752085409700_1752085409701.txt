@@ -1,0 +1,110 @@
+## Telegram Bot Custom Keyboard Design – Calming, Trustworthy, and Modern
+
+---
+
+### 🎨 Color Palette
+
+| Element                 | Light Mode                          | Dark Mode                |
+|-------------------------|-------------------------------------|--------------------------|
+| **Background**          | `#F4F7FB` (very light bluish-gray)  | `#1E1E2A`                |
+| **Button (default)**    | `#FFFFFF` (white)                   | `#2C2F3A`                |
+| **Button border**       | `#DDE3EB` (light gray)              | `#2C2F3A`                |
+| **Button text**         | `#1A1A1A` (almost black)            | `#F5F5F5`                |
+| **Primary action**      | `#2563EB` (soft blue)               | `#3B82F6`                |
+| **Pressed effect**      | `#E0E7EF` (darker shade)            | `#232537`                |
+| **Button shadow**       | `rgba(0,0,0,0.06)`                  | `rgba(0,0,0,0.12)`       |
+
+---
+
+### 🔤 Typography
+
+- **Font:** Noto Sans or SF Pro (fallback: system-ui, sans-serif)
+- **Font Size:** 16–18px (medium, for legibility)
+- **Font Weight:** Regular or Medium
+
+---
+
+### 🧩 Layout
+
+- **Button Shape:** Rounded corners (`border-radius: 12px`)
+- **Button Spacing:** 4px gap between all buttons
+- **Button Height:** 48px (recommended for touch)
+- **Button Padding:** 0 16px
+- **Shadow:** Soft shadow under each button for depth
+- **Grid Structure:** Main options in the first row, secondary/options below
+- **Sections:** Visually separated areas for main/secondary actions
+
+---
+
+### 🕹️ Button Arrangement Example
+
+| Row | Buttons (Icons optional)           |
+|-----|------------------------------------|
+| 1   | **Start** (primary), **Help**      |
+| 2   | **Back**, **Options**              |
+| 3   | **Language🌐**, **Dark Mode🌑**     |
+
+---
+
+### 🎛️ Features
+
+- **Pressed Animation:** Button background transitions to pressed color, with a soft scaling animation for tactile feedback.
+- **Haptic Feedback:** Vibrate on touch (if supported).
+- **Language Switcher:** Clearly accessible, lets users change language on the fly.
+- **Dark Mode Toggle:** Instantly switches all colors and fonts for low-light comfort.
+- **Accessibility:** High-contrast text, ample tap areas, and clear iconography.
+
+---
+
+### 🖼️ Visual Example (Light Mode)
+
+```plaintext
+┌─────────────────────────────────────────┐
+│                                         │
+│  [  ⏩ Start  ]   [  ❓ Help  ]           │
+│                                         │
+│  [  ⬅️ Back   ]   [  ⚙️ Options ]        │
+│                                         │
+│  [  🌐 Language ] [  🌑 Dark Mode ]      │
+└─────────────────────────────────────────┘
+```
+
+- All buttons: white, soft border, shadow, rounded corners, spaced apart.
+- "Start" is blue (`#2563EB`) with white text and is slightly larger or bolder.
+
+---
+
+### 🖼️ Visual Example (Dark Mode)
+
+```plaintext
+┌─────────────────────────────────────────┐
+│                                         │
+│  [  ⏩ Start  ]   [  ❓ Help  ]           │
+│                                         │
+│  [  ⬅️ Back   ]   [  ⚙️ Options ]        │
+│                                         │
+│  [  🌐 Language ] [  ☀️ Light Mode ]     │
+└─────────────────────────────────────────┘
+```
+- All buttons: dark gray, light borders, white text, accent blue for primary.
+
+---
+
+### 📝 Implementation Tips
+
+- Use CSS/Telegram WebApp styling or send images as part of the bot for onboarding screens.
+- For classic Telegram bots, use button emojis and text to simulate design intent.
+- Ensure all button labels are clear and support localization.
+- Keep the interface uncluttered – show only essential options per step.
+
+---
+
+### 🔒 Psychological Principles
+
+- Soft colors and round shapes reduce user anxiety.
+- Clear button hierarchy (primary/secondary) guides flow.
+- Subtle animation and haptics provide reassurance and modernity.
+
+---
+
+**This keyboard spec ensures a seamless, calming, and trustworthy user experience for your Telegram bot.**
