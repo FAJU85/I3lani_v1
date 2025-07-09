@@ -191,6 +191,7 @@ The application follows a modular architecture with clear separation of concerns
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Reference bot: @channelhelp - User wants to analyze and potentially improve upon this competitor's approach.
 
 ## Future Enhancements
 
