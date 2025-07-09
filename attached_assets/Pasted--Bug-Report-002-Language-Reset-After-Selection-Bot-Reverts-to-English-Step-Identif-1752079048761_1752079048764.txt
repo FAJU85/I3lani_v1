@@ -1,0 +1,49 @@
+## 🐞 Bug Report #002 – Language Reset After Selection (Bot Reverts to English)
+
+**🔖 Step Identifier:** Global – Language Selection and Persistence  
+**📁 Affected Files/Modules:** `handlers/start.py`, `core/language.py`, possibly `main.py`  
+**📌 Description:**  
+When the user selects a different language (e.g., Arabic or Russian) after starting the bot, the language seems to apply only to the **current message**.  
+In the following steps, the bot reverts back to **English**, and continues using English until the end of the process — even though the user already changed the language.
+
+---
+
+### ✅ Steps to Reproduce:
+1. Start the bot — the welcome message is in English.
+2. Select Arabic (or any language other than English).
+3. Observe that:
+   - The current menu changes to Arabic.
+   - But the **next step (e.g., ad creation)** reverts to English.
+   - The same happens through the rest of the process.
+
+---
+
+### 🎯 Expected Behavior:
+- When a user selects a language:
+  - It should be **persistently stored** (e.g., in DB or in-memory)
+  - All subsequent messages and buttons should use that language
+  - The bot should not default back to English unless the user changes it again
+
+---
+
+### 🚫 Actual Behavior:
+- The language is applied **only to the current message**.
+- Next steps default back to English (assumed fallback).
+- User must re-select language manually each time, which is not supported.
+
+---
+
+### 📎 Notes:
+- This suggests that the selected language (`user_lang`) is:
+  - Not being saved to the database or session
+  - Or is saved but not **reloaded** before each step
+- May require a global `get_user_lang(user_id)` helper to be used at the beginning of every step
+
+---
+
+### 🛠 Suggested Fix:
+- After language selection, store the value (e.g., `"ar"`, `"ru"`) in the user record.
+- In every handler and step, load the language using a central function:
+  ```python
+  lang = get_user_lang(user_id)
+  text = get_text(lang, "some_key")
