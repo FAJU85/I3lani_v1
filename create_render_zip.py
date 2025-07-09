@@ -17,6 +17,7 @@ render_files = [
     'config.py',
     'languages.py',
     'requirements.txt',
+    'requirements_render.txt',
     'render.yaml',
     'README.md',
     'states.py',
