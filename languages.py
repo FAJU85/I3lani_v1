@@ -57,6 +57,30 @@ LANGUAGES = {
         'provide_contact': '📞 ◇ Neural Contact Protocol',
         'contact_info_prompt': '◇━━ CONTACT NEXUS ━━◇\n\nHow should customers reach you?\n\nExamples:\n• Phone: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ TRANSMIT DATA ▣',
         
+        # Modern ad creation - Step 1 Photo Upload
+        'create_ad_header': '◇━━ Create New Ad ━━◇',
+        'create_ad_step1_title': '🎯 **Step 1: Add Photos**',
+        'create_ad_photo_prompt': 'Would you like to add photos to your ad?\nYou can add up to 5 high-quality photos',
+        'create_ad_photo_instructions': '📸 Send photos now or click "Skip" to continue without photos',
+        'create_ad_modern_design': '*Modern design provides a calming, comfortable experience*',
+        'skip_photos': '⏭ Skip Photos',
+        
+        # Error messages
+        'error_creating_ad': 'Error starting ad creation. Please try again.',
+        'free_trial_used': 'You have already used your free trial!',
+        'help_unavailable': 'Help temporarily unavailable. Please try again.',
+        'settings_unavailable': 'Settings temporarily unavailable. Please try again.',
+        'error_showing_duration': 'Error showing duration options.',
+        'error_processing_duration': 'Error processing duration selection.',
+        'error_updating_language': 'Error updating language',
+        'invalid_package_selected': 'Invalid package selected',
+        'send_ad_text_prompt': 'Please send text for your ad.',
+        'no_channels_available': 'No channels available for advertising. Please contact support.',
+        'send_more_photos': 'Send more photos',
+        'ready_for_channels': 'Ready for channel selection',
+        'write_ad_text': 'Now write your ad text',
+        'error_confirming_ad': 'Error confirming ad. Please try again.',
+        
         # Channels
         'tech_news': 'Tech News (45K) 🔥',
         'gaming_hub': 'Gaming Hub (32K)',
@@ -124,6 +148,12 @@ LANGUAGES = {
 • /help - This message
 
 Questions? Use /support to get help!""",
+        
+        # Settings page
+        'settings_title': '⚙️ **Settings**',
+        'current_language': '🌐 **Current Language:** {language_name} {flag}',
+        'change_language': '🔄 **Change Language:**\nChoose your preferred language below.',
+        'account_info': '📊 **Account Info:**\n- User ID: {user_id}\n- Language: {language}\n- Status: Active',
         'select_channels_text': '📺 **Select Advertising Channels**\n\nChoose which channels to advertise on:',
     },
     
@@ -176,6 +206,30 @@ Questions? Use /support to get help!""",
         'add_text': '📝 ◇ إضافة نص عصبي',
         'provide_contact': '📞 ◇ بروتوكول الاتصال العصبي',
         'contact_info_prompt': '◇━━ شبكة الاتصال ━━◇\n\nكيف يمكن للعملاء التواصل معك؟\n\nأمثلة:\n• هاتف: +966501234567\n• واتساب: +966501234567\n• بريد: user@email.com\n• تليجرام: @username\n\n▣ إرسال البيانات ▣',
+        
+        # Modern ad creation - Step 1 Photo Upload
+        'create_ad_header': '◇━━ إنشاء إعلان جديد ━━◇',
+        'create_ad_step1_title': '🎯 **خطوة 1: إضافة الصور**',
+        'create_ad_photo_prompt': 'هل تريد إضافة صور لإعلانك؟\nيمكنك إضافة حتى 5 صور عالية الجودة',
+        'create_ad_photo_instructions': '📸 أرسل الصور الآن أو اضغط "تخطي" للمتابعة بدون صور',
+        'create_ad_modern_design': '*التصميم الحديث يوفر تجربة مريحة ومهدئة*',
+        'skip_photos': '⏭ تخطي الصور',
+        
+        # Error messages
+        'error_creating_ad': 'خطأ في بدء إنشاء الإعلان. يرجى المحاولة مرة أخرى.',
+        'free_trial_used': 'لقد استخدمت تجربتك المجانية بالفعل!',
+        'help_unavailable': 'المساعدة غير متاحة مؤقتاً. يرجى المحاولة مرة أخرى.',
+        'settings_unavailable': 'الإعدادات غير متاحة مؤقتاً. يرجى المحاولة مرة أخرى.',
+        'error_showing_duration': 'خطأ في عرض خيارات المدة.',
+        'error_processing_duration': 'خطأ في معالجة اختيار المدة.',
+        'error_updating_language': 'خطأ في تحديث اللغة',
+        'invalid_package_selected': 'تم اختيار حزمة غير صالحة',
+        'send_ad_text_prompt': 'يرجى إرسال نص إعلانك.',
+        'no_channels_available': 'لا توجد قنوات متاحة للإعلان. يرجى الاتصال بالدعم.',
+        'send_more_photos': 'أرسل المزيد من الصور',
+        'ready_for_channels': 'جاهز لاختيار القنوات',
+        'write_ad_text': 'الآن اكتب نص إعلانك',
+        'error_confirming_ad': 'خطأ في تأكيد الإعلان. يرجى المحاولة مرة أخرى.',
         
         # Categories
         'vehicles': '🚗 المركبات',
@@ -260,6 +314,12 @@ Questions? Use /support to get help!""",
 • /help - هذه الرسالة
 
 أسئلة؟ استخدم /support للحصول على المساعدة!""",
+        
+        # Settings page
+        'settings_title': '⚙️ **الإعدادات**',
+        'current_language': '🌐 **اللغة الحالية:** {language_name} {flag}',
+        'change_language': '🔄 **تغيير اللغة:**\nاختر لغتك المفضلة أدناه.',
+        'account_info': '📊 **معلومات الحساب:**\n- معرف المستخدم: {user_id}\n- اللغة: {language}\n- الحالة: نشط',
         'select_channels_text': '📺 **اختر قنوات الإعلان**\n\nاختر القنوات التي تريد الإعلان عليها:',
     },
     
@@ -312,6 +372,30 @@ Questions? Use /support to get help!""",
         'add_text': '📝 ◇ Добавить Нейротекст',
         'provide_contact': '📞 ◇ Протокол Нейроконтактов',
         'contact_info_prompt': '◇━━ КОНТАКТНАЯ СЕТЬ ━━◇\n\nКак клиенты могут связаться с вами?\n\nПримеры:\n• Телефон: +966501234567\n• WhatsApp: +966501234567\n• Email: user@email.com\n• Telegram: @username\n\n▣ ПЕРЕДАТЬ ДАННЫЕ ▣',
+        
+        # Modern ad creation - Step 1 Photo Upload
+        'create_ad_header': '◇━━ Создать новое объявление ━━◇',
+        'create_ad_step1_title': '🎯 **Шаг 1: Добавление фотографий**',
+        'create_ad_photo_prompt': 'Хотите добавить фотографии в объявление?\nМожно добавить до 5 качественных фотографий',
+        'create_ad_photo_instructions': '📸 Отправьте фото или нажмите "Пропустить"',
+        'create_ad_modern_design': '*Современный дизайн обеспечивает комфорт*',
+        'skip_photos': '⏭ Пропустить фото',
+        
+        # Error messages
+        'error_creating_ad': 'Ошибка при создании объявления. Попробуйте снова.',
+        'free_trial_used': 'Вы уже использовали бесплатную пробную версию!',
+        'help_unavailable': 'Справка временно недоступна. Попробуйте снова.',
+        'settings_unavailable': 'Настройки временно недоступны. Попробуйте снова.',
+        'error_showing_duration': 'Ошибка при показе вариантов продолжительности.',
+        'error_processing_duration': 'Ошибка при обработке выбора продолжительности.',
+        'error_updating_language': 'Ошибка обновления языка',
+        'invalid_package_selected': 'Выбран недопустимый пакет',
+        'send_ad_text_prompt': 'Пожалуйста, отправьте текст для вашего объявления.',
+        'no_channels_available': 'Нет доступных каналов для рекламы. Обратитесь в службу поддержки.',
+        'send_more_photos': 'Отправьте больше фотографий',
+        'ready_for_channels': 'Готов к выбору каналов',
+        'write_ad_text': 'Теперь напишите текст объявления',
+        'error_confirming_ad': 'Ошибка при подтверждении объявления. Попробуйте снова.',
         
         # Channels
         'tech_news': 'Технические новости (45K) 🔥',
@@ -386,6 +470,12 @@ Questions? Use /support to get help!""",
 • /help - Это сообщение
 
 Вопросы? Используйте /support для получения помощи!""",
+        
+        # Settings page
+        'settings_title': '⚙️ **Настройки**',
+        'current_language': '🌐 **Текущий язык:** {language_name} {flag}',
+        'change_language': '🔄 **Изменить язык:**\nВыберите предпочитаемый язык ниже.',
+        'account_info': '📊 **Информация об аккаунте:**\n- ID пользователя: {user_id}\n- Язык: {language}\n- Статус: Активен',
         'select_channels_text': '📺 **Выберите рекламные каналы**\n\nВыберите каналы для размещения рекламы:',
         
         # Troubleshooting System

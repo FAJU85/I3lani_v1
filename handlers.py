@@ -1504,17 +1504,13 @@ async def show_settings_handler(callback_query: CallbackQuery):
             language = 'en'
         
         settings_text = f"""
-Settings **Settings**
+{get_text(language, 'settings_title')}
 
-World **Current Language:** {LANGUAGES[language]['name']} {LANGUAGES[language]['flag']}
+{get_text(language, 'current_language', language_name=LANGUAGES[language]['name'], flag=LANGUAGES[language]['flag'])}
 
-Refresh **Change Language:**
-Choose your preferred language below.
+{get_text(language, 'change_language')}
 
-Stats **Account Info:**
-- User ID: {user_id}
-- Language: {language.upper()}
-- Status: Active
+{get_text(language, 'account_info', user_id=user_id, language=language.upper())}
         """.strip()
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1527,7 +1523,7 @@ Stats **Account Info:**
             ],
             [
                 InlineKeyboardButton(
-                    text="◀️ Back to Main", 
+                    text=get_text(language, 'back_to_main'), 
                     callback_data="back_to_main"
                 )
             ]
@@ -1542,7 +1538,8 @@ Stats **Account Info:**
         
     except Exception as e:
         logger.error(f"Settings handler error: {e}")
-        await safe_callback_answer(callback_query, "Settings temporarily unavailable. Please try again.")
+        language = await get_user_language(callback_query.from_user.id)
+        await safe_callback_answer(callback_query, get_text(language, 'settings_unavailable'))
 
 
 @router.callback_query(F.data == "help")
@@ -1556,39 +1553,13 @@ async def show_help_handler(callback_query: CallbackQuery):
         if language not in LANGUAGES:
             language = 'en'
         
-        help_text = """
-Books **Help & Commands**
-
-Launch **Getting Started:**
-1. Click "Create Ad" to start
-2. Submit your ad content
-3. Choose channels and duration
-4. Make payment (TON or Stars)
-5. Your ad goes live automatically!
-
-Tip **Available Commands:**
-- /start - Main menu
-- /mystats - View your statistics
-- /support - Get help
-- /admin - Admin panel (admins only)
-- /refresh - Refresh data
-- /help - This help message
-
-Target **Features:**
-- Multi-channel advertising
-- TON and Telegram Stars payment
-- Real-time ad publishing
-- Campaign tracking
-- Referral system
-
-Question **Need Help?** Use /support to contact us!
-        """.strip()
+        help_text = get_text(language, 'help_text')
         
         await callback_query.message.edit_text(
             help_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(
-                    text="◀️ Back to Main", 
+                    text=get_text(language, 'back_to_main'), 
                     callback_data="back_to_main"
                 )]
             ]),
@@ -1598,7 +1569,8 @@ Question **Need Help?** Use /support to contact us!
         
     except Exception as e:
         logger.error(f"Help handler error: {e}")
-        await callback_query.answer("Help temporarily unavailable. Please try again.")
+        language = await get_user_language(callback_query.from_user.id)
+        await callback_query.answer(get_text(language, 'help_unavailable'))
 
 
 @router.callback_query(F.data == "create_ad")
@@ -1617,51 +1589,23 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         # Start with content upload - fixed state
         await state.set_state(AdCreationStates.upload_content)
         
-        # Modern, psychologically calming text design
-        if language == 'ar':
-            text = """
-◇━━ إنشاء إعلان جديد ━━◇
+        # Modern, psychologically calming text design using get_text
+        text = f"""
+{get_text(language, 'create_ad_header')}
 
-🎯 **خطوة 1: إضافة الصور**
+{get_text(language, 'create_ad_step1_title')}
 
-هل تريد إضافة صور لإعلانك؟
-يمكنك إضافة حتى 5 صور عالية الجودة
+{get_text(language, 'create_ad_photo_prompt')}
 
-📸 أرسل الصور الآن أو اضغط "تخطي" للمتابعة بدون صور
+{get_text(language, 'create_ad_photo_instructions')}
 
-*التصميم الحديث يوفر تجربة مريحة ومهدئة*
-            """.strip()
-        elif language == 'ru':
-            text = """
-◇━━ Создать новое объявление ━━◇
-
-🎯 **Шаг 1: Добавление фотографий**
-
-Хотите добавить фотографии в объявление?
-Можно добавить до 5 качественных фотографий
-
-📸 Отправьте фото или нажмите "Пропустить"
-
-*Современный дизайн обеспечивает комфорт*
-            """.strip()
-        else:
-            text = """
-◇━━ Create New Ad ━━◇
-
-🎯 **Step 1: Add Photos**
-
-Would you like to add photos to your ad?
-You can add up to 5 high-quality photos
-
-📸 Send photos now or click "Skip" to continue without photos
-
-*Modern design provides a calming, comfortable experience*
-            """.strip()
+{get_text(language, 'create_ad_modern_design')}
+        """.strip()
         
         # Create modern confirmation keyboard with calming design
         keyboard = create_modern_confirmation(
-            confirm_text="⏭ Skip Photos",
-            cancel_text="◀️ Back to Main",
+            confirm_text=get_text(language, 'skip_photos'),
+            cancel_text=get_text(language, 'back_to_main'),
             confirm_callback="skip_photos_to_text",
             cancel_callback="back_to_main",
             user_id=user_id
@@ -1684,7 +1628,7 @@ You can add up to 5 high-quality photos
             
     except Exception as e:
         log_error(StepNames.CREATE_AD_START, user_id, e, {"action": "create_ad"})
-        await safe_answer_callback(callback_query, "Error starting ad creation. Please try again.", user_id=user_id)
+        await safe_answer_callback(callback_query, get_text(language, 'error_creating_ad'), user_id=user_id)
 
 
 @router.callback_query(F.data == "free_trial")
@@ -1697,7 +1641,7 @@ async def free_trial_handler(callback_query: CallbackQuery, state: FSMContext):
     can_use_trial = await db.check_free_trial_available(user_id)
     
     if not can_use_trial:
-        await callback_query.answer("You have already used your free trial!")
+        await callback_query.answer(get_text(language, 'free_trial_used'))
         await show_main_menu(callback_query, language)
         return
     
