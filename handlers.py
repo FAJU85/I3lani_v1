@@ -36,6 +36,8 @@ from modern_keyboard import (
 )
 from frequency_pricing import FrequencyPricingSystem
 from ui_effects import ui_effects
+from confirmation_system import confirmation_system
+from confirmation_handlers import CONFIRMATION_HANDLERS
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -2059,12 +2061,22 @@ Ready to confirm your free trial?
         await callback_query.answer("Free trial ready!")
         return
     
-    # Regular flow - continue to duration selection
-    await state.set_state(AdCreationStates.duration_selection)
+    # Regular flow - show channel selection confirmation
+    selected_channels = data.get('selected_channels', [])
     
-    # Initialize days to 1 for dynamic selector
-    await state.update_data(selected_days=1)
-    await show_dynamic_days_selector(callback_query, state, 1)
+    # Create confirmation prompt for channel selection
+    confirmation_data = await confirmation_system.create_channel_selection_confirmation(
+        user_id=user_id,
+        language=language,
+        selected_channels=selected_channels
+    )
+    
+    # Show confirmation prompt
+    await safe_callback_edit(
+        callback_query,
+        confirmation_data['message'],
+        confirmation_data['keyboard']
+    )
 
 
 @router.callback_query(F.data == "confirm_free_trial")
@@ -4596,41 +4608,23 @@ async def handle_payment_not_found(callback_query: CallbackQuery, payment_record
     try:
         # Create retry payment keyboard
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text="Refresh Try Again", 
-                callback_data=f"retry_payment_{payment_record['subscription_id']}"
-            )],
-            [InlineKeyboardButton(
-                text="Home Go Home", 
-                callback_data="go_home"
-            )]
+            [InlineKeyboardButton(text="Try Again", callback_data="retry_payment")],
+            [InlineKeyboardButton(text="Main Menu", callback_data="back_to_main")]
         ])
         
-        payment_not_found_text = (
-            "**Payment Not Found**\n\n"
-            "We could not find your payment on the TON blockchain yet.\n\n"
-            "**Payment Details:**\n"
-            f"- Amount: {payment_record['amount']} TON\n"
-            f"- Memo: {payment_record['memo']}\n"
-            "- Wallet: UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB\n\n"
-            "**Please ensure:**\n"
-            "- You sent the exact amount\n"
-            "- You included the correct memo\n"
-            "- Payment was sent from your personal wallet (not exchange)\n\n"
-            "**Check your transaction:**\n"
-            "https://tonviewer.com/UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB\n\n"
-            "Would you like to try again?"
-        )
-        
         await callback_query.message.edit_text(
-            payment_not_found_text,
+            "No **Payment Not Found**\n\nPayment not found. Please try again.",
             reply_markup=keyboard,
             parse_mode='Markdown'
         )
         
     except Exception as e:
         logger.error(f"Payment not found handler error: {e}")
-        await callback_query.answer("Error handling payment verification.")
+
+
+# Register all confirmation handlers from confirmation_handlers.py
+for callback_data, handler_func in CONFIRMATION_HANDLERS.items():
+    router.callback_query.register(handler_func, F.data == callback_data)
 
 
 @router.callback_query(F.data == "my_ads")

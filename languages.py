@@ -49,6 +49,18 @@ LANGUAGES = {
         'contact_support': '📞 Contact Support',
         'refresh': '🔄 Refresh',
         
+        # Confirmation system
+        'confirm_action': '✅ Confirm',
+        'cancel_action': '❌ Cancel',
+        'edit_action': '✏️ Edit',
+        'review_details': '📝 Review Details',
+        'confirmation_required': '⚠️ Confirmation Required',
+        'action_cannot_be_undone': 'This action cannot be undone.',
+        'proceed_with_action': 'Are you sure you want to proceed?',
+        'confirmation_timeout': 'Confirmation timeout. Please try again.',
+        'action_confirmed': '✅ Action confirmed successfully!',
+        'action_cancelled': '❌ Action cancelled.',
+        
         # Ad creation
         'send_ad_content': '◇━━ NEURAL UPLOAD ━━◇\n\nUpload your advertisement:\n• 📝 Text message\n• 📸 Photo with caption\n• 🎥 Video with caption\n\n▣ TRANSMIT DATA ▣',
         'ad_received': '◈ Neural Content Received! ✅',
@@ -282,6 +294,18 @@ Questions? Use /support to get help!""",
         'try_again': '🔄 حاول مرة أخرى',
         'contact_support': '📞 اتصل بالدعم',
         'refresh': '🔄 تحديث',
+        
+        # Confirmation system
+        'confirm_action': '✅ تأكيد',
+        'cancel_action': '❌ إلغاء',
+        'edit_action': '✏️ تعديل',
+        'review_details': '📝 مراجعة التفاصيل',
+        'confirmation_required': '⚠️ يلزم التأكيد',
+        'action_cannot_be_undone': 'لا يمكن التراجع عن هذا الإجراء.',
+        'proceed_with_action': 'هل أنت متأكد من المتابعة؟',
+        'confirmation_timeout': 'انتهت مهلة التأكيد. يرجى المحاولة مرة أخرى.',
+        'action_confirmed': '✅ تم تأكيد الإجراء بنجاح!',
+        'action_cancelled': '❌ تم إلغاء الإجراء.',
         
         # Ad creation
         'send_ad_content': '◇━━ تحميل عصبي ━━◇\n\nارفع إعلانك:\n• 📝 رسالة نصية\n• 📸 صورة مع وصف\n• 🎥 فيديو مع وصف\n\n▣ إرسال البيانات ▣',
@@ -532,6 +556,18 @@ Questions? Use /support to get help!""",
         'try_again': '🔄 Попробовать снова',
         'contact_support': '📞 Связаться с поддержкой',
         'refresh': '🔄 Обновить',
+        
+        # Confirmation system
+        'confirm_action': '✅ Подтвердить',
+        'cancel_action': '❌ Отменить',
+        'edit_action': '✏️ Редактировать',
+        'review_details': '📝 Просмотр деталей',
+        'confirmation_required': '⚠️ Требуется подтверждение',
+        'action_cannot_be_undone': 'Это действие нельзя отменить.',
+        'proceed_with_action': 'Вы уверены, что хотите продолжить?',
+        'confirmation_timeout': 'Время подтверждения истекло. Пожалуйста, попробуйте снова.',
+        'action_confirmed': '✅ Действие успешно подтверждено!',
+        'action_cancelled': '❌ Действие отменено.',
         
         # Ad creation
         'send_ad_content': '◇━━ НЕЙРОЗАГРУЗКА ━━◇\n\nЗагрузите вашу рекламу:\n• 📝 Текстовое сообщение\n• 📸 Фото с описанием\n• 🎥 Видео с описанием\n\n▣ ПЕРЕДАТЬ ДАННЫЕ ▣',
