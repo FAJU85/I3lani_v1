@@ -3,7 +3,7 @@ services:
   - type: web
     name: i3lani-bot
     runtime: python
-    buildCommand: pip install -r requirements_render.txt
+    buildCommand: pip install -r requirements_minimal.txt
     startCommand: python deployment_server.py
     plan: free
     envVars:
@@ -26,7 +26,7 @@ services:
   - type: worker
     name: i3lani-worker
     runtime: python
-    buildCommand: pip install -r requirements_render.txt
+    buildCommand: pip install -r requirements_minimal.txt
     startCommand: python worker.py
     plan: free
     envVars:

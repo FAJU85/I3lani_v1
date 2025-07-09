@@ -4,7 +4,7 @@
       "type": "web",
       "name": "i3lani-bot",
       "env": "python",
-      "buildCommand": "pip install -r requirements_render.txt",
+      "buildCommand": "pip install -r requirements_minimal.txt",
       "startCommand": "python deployment_server.py",
       "plan": "free",
       "healthCheckPath": "/health",
@@ -31,7 +31,7 @@
       "type": "worker",
       "name": "i3lani-worker",
       "env": "python",
-      "buildCommand": "pip install -r requirements_render.txt",
+      "buildCommand": "pip install -r requirements_minimal.txt",
       "startCommand": "python worker.py",
       "plan": "free",
       "envVars": [
