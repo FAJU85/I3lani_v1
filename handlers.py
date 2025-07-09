@@ -38,6 +38,7 @@ from frequency_pricing import FrequencyPricingSystem
 from ui_effects import ui_effects
 from confirmation_system import confirmation_system
 from confirmation_handlers import CONFIRMATION_HANDLERS
+from viral_referral_handlers import has_free_ads, consume_free_ad
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -135,10 +136,25 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
         'ar': '📢 إنشاء إعلان',
         'ru': '📢 Создать рекламу'
     }
+    
+    # Viral Referral Game Button
+    viral_game_text = {
+        'en': '🎮 Viral Game (Win Free Ads)',
+        'ar': '🎮 لعبة فيروسية (اربح إعلانات مجانية)',
+        'ru': '🎮 Вирусная игра (выиграй бесплатные объявления)'
+    }
+    
     keyboard_rows.append([
         InlineKeyboardButton(
             text=create_ad_text.get(language, create_ad_text['en']), 
             callback_data="create_ad"
+        )
+    ])
+    
+    keyboard_rows.append([
+        InlineKeyboardButton(
+            text=viral_game_text.get(language, viral_game_text['en']), 
+            callback_data="start_viral_game"
         )
     ])
     
@@ -7061,3 +7077,27 @@ Type the number of posts per day:
 async def recalculate_dynamic_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle recalculate request"""
     await continue_to_duration_handler(callback_query, state)
+
+@router.callback_query(F.data == "start_viral_game")
+async def start_viral_game_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle viral game button click"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Import and call the viral game start function
+        from viral_referral_handlers import show_viral_game_start
+        
+        # Create fake message for the handler
+        fake_message = type('FakeMessage', (), {
+            'from_user': callback_query.from_user,
+            'answer': callback_query.message.edit_text,
+            'bot': callback_query.bot
+        })()
+        
+        await show_viral_game_start(fake_message, language)
+        await callback_query.answer("Starting viral referral game...")
+        
+    except Exception as e:
+        logger.error(f"Error in start_viral_game_handler: {e}")
+        await callback_query.answer("Error starting viral game. Please try again.")

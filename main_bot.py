@@ -160,6 +160,17 @@ async def init_bot():
         dp.include_router(ui_control_router)
         dp.include_router(button_test_router)
         dp.include_router(comprehensive_button_router)
+        
+        # Initialize viral referral game system
+        logger.info("Initializing viral referral game system...")
+        from viral_referral_game import ViralReferralGame
+        viral_game = ViralReferralGame(db)
+        await viral_game.init_tables()
+        
+        from viral_referral_handlers import viral_router
+        dp.include_router(viral_router)
+        logger.info("Viral referral game system initialized")
+        
         logger.info("Troubleshooting system initialized")
         
         # Initialize UI control systems

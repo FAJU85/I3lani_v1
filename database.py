@@ -883,6 +883,30 @@ Last updated: July 2025"""
             print(f"Error executing query: {e}")
             return False
     
+    async def fetchone(self, query: str, params: tuple = ()) -> Optional[Dict]:
+        """Fetch one row from database"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute(query, params)
+                result = await cursor.fetchone()
+                return dict(result) if result else None
+        except Exception as e:
+            print(f"Error fetching one row: {e}")
+            return None
+    
+    async def fetchall(self, query: str, params: tuple = ()) -> List[Dict]:
+        """Fetch all rows from database"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute(query, params)
+                results = await cursor.fetchall()
+                return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error fetching all rows: {e}")
+            return []
+    
     async def increment_free_ads_used(self, user_id: int) -> bool:
         """Increment free ads used count for user"""
         try:
