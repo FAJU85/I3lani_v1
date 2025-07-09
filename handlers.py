@@ -837,75 +837,17 @@ async def upload_content_handler(message: Message, state: FSMContext):
     # Skip contact info step - go directly to channel selection
     await state.set_state(AdCreationStates.channel_selection)
     
-    # Show unified "ready for channel selection" message
-    ready_text = get_text(language, 'ad_content_ready')
+    # Go directly to enhanced channel selection without unnecessary "ad content ready" step
+    # Create a fake callback query to use the existing enhanced channel selection
+    from types import SimpleNamespace
+    fake_callback_query = SimpleNamespace(
+        from_user=message.from_user,
+        message=message,
+        bot=message.bot
+    )
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
-        [InlineKeyboardButton(text=get_text(language, 'back_to_text'), callback_data="back_to_text")]
-    ])
-    
-    await message.answer(ready_text, reply_markup=keyboard)
-    
-    # Show channel selection - create proper channel selection message
-    user_id = message.from_user.id
-    language = await get_user_language(user_id)
-    
-    # Get available channels
-    channels = await db.get_channels(active_only=True)
-    
-    if not channels:
-        await message.answer("No channels available for advertising. Please contact admin.")
-        return
-    
-    # Create channel selection text
-    if language == 'ar':
-        text = """اختر القنوات للإعلان
-
-اختر القنوات التي تريد نشر إعلانك فيها:"""
-    elif language == 'ru': 
-        text = """Выберите каналы для рекламы
-
-Выберите каналы для размещения вашего объявления:"""
-    else:
-        text = """Choose Channels for Your Ad
-
-Select the channels where you want to publish your advertisement:"""
-    
-    # Get selected channels from state
-    data = await state.get_data()
-    selected_channels = data.get('selected_channels', [])
-    
-    # Create keyboard with channels
-    keyboard_rows = []
-    for channel in channels:
-        is_selected = channel['channel_id'] in selected_channels
-        status = "[] " if is_selected else ""
-        keyboard_rows.append([InlineKeyboardButton(
-            text=f"{status}{channel['name']} ({channel['subscribers']:,} subscribers)",
-            callback_data=f"toggle_channel_{channel['channel_id']}"
-        )])
-    
-    # Add control buttons
-    if selected_channels:
-        keyboard_rows.append([InlineKeyboardButton(
-            text=f"Continue to Pricing ({len(selected_channels)} channels)",
-            callback_data="continue_to_duration"
-        )])
-    else:
-        keyboard_rows.append([InlineKeyboardButton(
-            text="Select at least one channel",
-            callback_data="select_channels_info"
-        )])
-    
-    keyboard_rows.append([InlineKeyboardButton(
-        text="Back to Menu",
-        callback_data="back_to_main"
-    )])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
-    
-    await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    # Use the enhanced channel selection flow
+    await show_channel_selection_for_enhanced_flow(fake_callback_query, state)
 
 
 # Category selection handler removed - going directly to content upload
