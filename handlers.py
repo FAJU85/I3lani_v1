@@ -1469,10 +1469,13 @@ async def refresh_channel_stats_handler(callback_query: CallbackQuery, state: FS
 @router.callback_query(F.data == "settings")
 async def show_settings_handler(callback_query: CallbackQuery):
     """Show settings menu"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Enhanced logging for Arabic navigation debugging
+    logger.info(f"📞 settings callback received from user {user_id} (language: {language})")
+    
     try:
-        user_id = callback_query.from_user.id
-        language = await get_user_language(user_id)
-        
         # Ensure language is valid
         if language not in LANGUAGES:
             language = 'en'
@@ -1509,20 +1512,24 @@ async def show_settings_handler(callback_query: CallbackQuery):
             reply_markup=keyboard,
             parse_mode='Markdown'
         )
+        logger.info(f"✅ settings completed successfully for user {user_id}")
         
     except Exception as e:
-        logger.error(f"Settings handler error: {e}")
+        logger.error(f"❌ settings error for user {user_id}: {e}")
         language = await get_user_language(callback_query.from_user.id)
-        await safe_callback_answer(callback_query, get_text(language, 'settings_unavailable'))
+        await safe_callback_answer(callback_query, get_text(language, 'settings_unavailable'), show_alert=True)
 
 
 @router.callback_query(F.data == "help")
 async def show_help_handler(callback_query: CallbackQuery):
     """Show help information"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Enhanced logging for Arabic navigation debugging
+    logger.info(f"📞 help callback received from user {user_id} (language: {language})")
+    
     try:
-        user_id = callback_query.from_user.id
-        language = await get_user_language(user_id)
-        
         # Ensure language is valid
         if language not in LANGUAGES:
             language = 'en'
@@ -1539,12 +1546,13 @@ async def show_help_handler(callback_query: CallbackQuery):
             ]),
             parse_mode='Markdown'
         )
-        await callback_query.answer()
+        await safe_callback_answer(callback_query, "")
+        logger.info(f"✅ help completed successfully for user {user_id}")
         
     except Exception as e:
-        logger.error(f"Help handler error: {e}")
+        logger.error(f"❌ help error for user {user_id}: {e}")
         language = await get_user_language(callback_query.from_user.id)
-        await callback_query.answer(get_text(language, 'help_unavailable'))
+        await safe_callback_answer(callback_query, get_text(language, 'help_unavailable'), show_alert=True)
 
 
 @router.callback_query(F.data == "create_ad")
@@ -5249,9 +5257,17 @@ async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext)
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    await state.clear()
-    await show_main_menu(callback_query, language)
-    await callback_query.answer()
+    # Enhanced logging for Arabic navigation debugging
+    logger.info(f"📞 back_to_main callback received from user {user_id} (language: {language})")
+    
+    try:
+        await state.clear()
+        await show_main_menu(callback_query, language)
+        await safe_callback_answer(callback_query, "")
+        logger.info(f"✅ back_to_main completed successfully for user {user_id}")
+    except Exception as e:
+        logger.error(f"❌ back_to_main error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, "Please try again", show_alert=True)
 
 
 @router.callback_query(F.data == "language_settings")
@@ -5260,11 +5276,20 @@ async def language_settings_handler(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    text = get_text(language, 'select_language', 'Please select your language:')
-    keyboard = create_language_keyboard()
+    # Enhanced logging for Arabic navigation debugging
+    logger.info(f"📞 language_settings callback received from user {user_id} (language: {language})")
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard)
-    await callback_query.answer()
+    try:
+        text = get_text(language, 'select_language', 'Please select your language:')
+        keyboard = create_language_keyboard()
+        
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
+        await safe_callback_answer(callback_query, "")
+        logger.info(f"✅ language_settings completed successfully for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ language_settings error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, "Error loading language settings", show_alert=True)
 
 
 @router.callback_query(F.data == "contact_support")
@@ -5273,7 +5298,11 @@ async def contact_support_handler(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    support_text = get_text(language, 'contact_support', """
+    # Enhanced logging for Arabic navigation debugging
+    logger.info(f"📞 contact_support callback received from user {user_id} (language: {language})")
+    
+    try:
+        support_text = get_text(language, 'contact_support', """
 📞 Contact Support
 
 We're here to help! Contact us:
@@ -5289,14 +5318,19 @@ Common issues:
 • Account questions
 
 Our team will help you resolve any issues quickly!
-    """)
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text(language, 'back_to_main', 'Back to Main'), callback_data="back_to_main")]
-    ])
-    
-    await callback_query.message.edit_text(support_text, reply_markup=keyboard)
-    await callback_query.answer()
+        """)
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=get_text(language, 'back_to_main', 'Back to Main'), callback_data="back_to_main")]
+        ])
+        
+        await callback_query.message.edit_text(support_text, reply_markup=keyboard)
+        await safe_callback_answer(callback_query, "")
+        logger.info(f"✅ contact_support completed successfully for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ contact_support error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, "Error loading support page", show_alert=True)
 
 
 @router.callback_query(F.data == "channel_partners")
