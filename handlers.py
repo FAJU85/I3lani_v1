@@ -2100,22 +2100,17 @@ Ready to confirm your free trial?
         await callback_query.answer("Free trial ready!")
         return
     
-    # Regular flow - show channel selection confirmation
+    # Regular flow - go directly to days selection
     selected_channels = data.get('selected_channels', [])
     
-    # Create confirmation prompt for channel selection
-    confirmation_data = await confirmation_system.create_channel_selection_confirmation(
-        user_id=user_id,
-        language=language,
-        selected_channels=selected_channels
-    )
+    # Store selected channels in state for later use
+    await state.update_data(selected_channels=selected_channels)
     
-    # Show confirmation prompt
-    await safe_callback_edit(
-        callback_query,
-        confirmation_data['message'],
-        confirmation_data['keyboard']
-    )
+    # Answer callback to prevent timeout
+    await safe_callback_answer(callback_query, "")
+    
+    # Show dynamic days selector immediately
+    await show_dynamic_days_selector(callback_query, state, 1)
 
 
 @router.callback_query(F.data == "confirm_free_trial")
@@ -2223,54 +2218,21 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     # Generate quick pricing preview
     pricing_preview = smart_pricing_display.generate_quick_pricing_preview(days, language)
     
-    # Create the smart pricing interface text
-    if language == 'ar':
-        header = f"""🧠 **نظام التسعير الذكي - اختر عدد الأيام**
+    # Create header using translation system
+    header = f"""{get_text(language, 'smart_pricing_system')}
 
-📅 **الأيام المحددة:** {days}
-
-{pricing_preview}
-
-💡 **المنطق الذكي:**
-✅ المزيد من الأيام = المزيد من المنشورات يومياً
-✅ المزيد من الأيام = خصم أكبر
-✅ حساب تلقائي للعملات (دولار، تون، ستارز)"""
-        
-        footer = """
-🔄 اضغط +/- لتعديل الأيام أو اختر من الخيارات السريعة
-        """
-        
-    elif language == 'ru':
-        header = f"""🧠 **Умная система ценообразования - выберите дни**
-
-📅 **Выбранные дни:** {days}
+{get_text(language, 'selected_days')} {days}
 
 {pricing_preview}
 
-💡 **Умная логика:**
-✅ Больше дней = больше постов в день
-✅ Больше дней = больше скидка
-✅ Автоматический расчет валют (USD, TON, Stars)"""
-        
-        footer = """
-🔄 Нажмите +/- для изменения дней или выберите из быстрых опций
-        """
-        
-    else:  # English
-        header = f"""🧠 **Smart Pricing System - Choose Days**
-
-📅 **Selected Days:** {days}
-
-{pricing_preview}
-
-💡 **Smart Logic:**
-✅ More Days = More Posts Per Day
-✅ More Days = Bigger Discount
-✅ Auto Currency Calculation (USD, TON, Stars)"""
-        
-        footer = """
-🔄 Click +/- to adjust days or choose from quick options
-        """
+{get_text(language, 'smart_logic')}
+{get_text(language, 'more_days_more_posts')}
+{get_text(language, 'more_days_bigger_discount')}
+{get_text(language, 'auto_currency_calc')}"""
+    
+    footer = f"""
+{get_text(language, 'click_adjust_days')}
+    """
     
     text = header + footer
     
@@ -2307,12 +2269,7 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
         keyboard_rows.append([InlineKeyboardButton(text=button_text, callback_data="days_quick_30")])
     
     # Continue button with translations
-    if language == 'ar':
-        continue_text = f"متابعة مع {days} أيام"
-    elif language == 'ru':
-        continue_text = f"Продолжить с {days} дней"
-    else:
-        continue_text = f"Continue with {days} days"
+    continue_text = get_text(language, 'continue_with_days', days=days)
     
     keyboard_rows.append([
         InlineKeyboardButton(text=continue_text, callback_data="days_confirm")
@@ -2485,120 +2442,43 @@ async def show_frequency_payment_summary(callback_query: CallbackQuery, state: F
         if channel:
             channel_names.append(channel['name'])
     
-    # Create translated text
-    if language == 'ar':
-        text = f"""✅ **ملخص خطة إعلانك:**
+    # Create translated text using translation system
+    text = f"""{get_text(language, 'ad_plan_summary')}
 
-📅 **المدة:** {pricing_data['days']} أيام
-📝 **منشورات يومياً:** {pricing_data['posts_per_day']} منشورات
-💰 **الخصم:** {pricing_data['discount_percent']}%
-💵 **السعر النهائي:** ${pricing_data['final_cost_usd']:.2f}
+{get_text(language, 'duration_label')} {pricing_data['days']} {get_text(language, 'days_word')}
+{get_text(language, 'posts_per_day_label')} {pricing_data['posts_per_day']} {get_text(language, 'posts_word')}
+{get_text(language, 'discount_label')} {pricing_data['discount_percent']}%
+{get_text(language, 'final_price_label')} ${pricing_data['final_cost_usd']:.2f}
 
-💎 **بعملة TON:** {pricing_data['cost_ton']:.3f} TON
-⭐ **بنجوم تليجرام:** {pricing_data['cost_stars']:,} Stars
+{get_text(language, 'in_ton_label')} {pricing_data['cost_ton']:.3f} TON
+{get_text(language, 'in_stars_label')} {pricing_data['cost_stars']:,} Stars
 
-📺 **القنوات المختارة:**
+{get_text(language, 'selected_channels_label')}
 {chr(10).join(f"• {name}" for name in channel_names)}
 
-📊 **تفاصيل الحملة:**
-• معدل يومي: ${pricing_data['daily_price']:.2f}/يوم ({pricing_data['posts_per_day']} منشورات)
-• إجمالي المنشورات: {pricing_data['total_posts']:,} منشورات
-• التكلفة الأساسية: ${pricing_data['base_cost_usd']:.2f}
-• توفر: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% خصم)
+{get_text(language, 'campaign_details_label')}
+{get_text(language, 'daily_rate_label')} ${pricing_data['daily_price']:.2f}/{get_text(language, 'per_day')} ({pricing_data['posts_per_day']} {get_text(language, 'posts_word')})
+{get_text(language, 'total_posts_label')} {pricing_data['total_posts']:,} {get_text(language, 'posts_word')}
+{get_text(language, 'base_cost_label')} ${pricing_data['base_cost_usd']:.2f}
+{get_text(language, 'you_save_label')} ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% {get_text(language, 'off_word')})
 
-📌 **بإجراء هذا الدفع، أنت توافق على شروط الاستخدام.**
+{get_text(language, 'usage_agreement_notice')}
 
-💡 **المزيد من الأيام = المزيد من المنشورات يومياً + خصومات أكبر!**"""
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="💎 دفع بـ TON", callback_data="pay_freq_ton"),
-                InlineKeyboardButton(text="⭐ دفع بالنجوم", callback_data="pay_freq_stars")
-            ],
-            [
-                InlineKeyboardButton(text="📝 تغيير المدة", callback_data="freq_change_duration"),
-                InlineKeyboardButton(text="📺 تغيير القنوات", callback_data="continue_to_channels")
-            ],
-            [
-                InlineKeyboardButton(text="◀️ العودة للرئيسية", callback_data="back_to_main")
-            ]
-        ])
-        
-    elif language == 'ru':
-        text = f"""✅ **Сводка вашего рекламного плана:**
-
-📅 **Длительность:** {pricing_data['days']} дней
-📝 **Постов в день:** {pricing_data['posts_per_day']} постов
-💰 **Скидка:** {pricing_data['discount_percent']}%
-💵 **Финальная цена:** ${pricing_data['final_cost_usd']:.2f}
-
-💎 **В TON:** {pricing_data['cost_ton']:.3f} TON
-⭐ **В Telegram Stars:** {pricing_data['cost_stars']:,} Stars
-
-📺 **Выбранные каналы:**
-{chr(10).join(f"• {name}" for name in channel_names)}
-
-📊 **Детали кампании:**
-• Дневная ставка: ${pricing_data['daily_price']:.2f}/день ({pricing_data['posts_per_day']} постов)
-• Всего постов: {pricing_data['total_posts']:,} постов
-• Базовая стоимость: ${pricing_data['base_cost_usd']:.2f}
-• Экономия: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% скидка)
-
-📌 **Совершая этот платеж, вы соглашаетесь с Условиями использования.**
-
-💡 **Больше дней = Больше постов в день + Больше скидок!**"""
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="💎 Оплатить TON", callback_data="pay_freq_ton"),
-                InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_freq_stars")
-            ],
-            [
-                InlineKeyboardButton(text="📝 Изменить длительность", callback_data="freq_change_duration"),
-                InlineKeyboardButton(text="📺 Изменить каналы", callback_data="continue_to_channels")
-            ],
-            [
-                InlineKeyboardButton(text="◀️ Главное меню", callback_data="back_to_main")
-            ]
-        ])
-        
-    else:
-        text = f"""✅ **Your Ad Plan Summary:**
-
-📅 **Duration:** {pricing_data['days']} days
-📝 **Posts per day:** {pricing_data['posts_per_day']} posts
-💰 **Discount:** {pricing_data['discount_percent']}%
-💵 **Final Price:** ${pricing_data['final_cost_usd']:.2f}
-
-💎 **In TON:** {pricing_data['cost_ton']:.3f} TON
-⭐ **In Telegram Stars:** {pricing_data['cost_stars']:,} Stars
-
-📺 **Selected Channels:**
-{chr(10).join(f"• {name}" for name in channel_names)}
-
-📊 **Campaign Details:**
-• Daily Rate: ${pricing_data['daily_price']:.2f}/day ({pricing_data['posts_per_day']} posts)
-• Total Posts: {pricing_data['total_posts']:,} posts
-• Base Cost: ${pricing_data['base_cost_usd']:.2f}
-• You Save: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% off)
-
-📌 **By making this payment, you agree to the Usage Agreement.**
-
-💡 **More days = More posts per day + Bigger discounts!**"""
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
-                InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
-            ],
-            [
-                InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
-                InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
-            ],
-            [
-                InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
-            ]
-        ])
+{get_text(language, 'pricing_tip')}"""
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=get_text(language, 'pay_with_ton'), callback_data="pay_freq_ton"),
+            InlineKeyboardButton(text=get_text(language, 'pay_with_stars'), callback_data="pay_freq_stars")
+        ],
+        [
+            InlineKeyboardButton(text=get_text(language, 'change_duration'), callback_data="freq_change_duration"),
+            InlineKeyboardButton(text=get_text(language, 'change_channels'), callback_data="continue_to_channels")
+        ],
+        [
+            InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")
+        ]
+    ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
@@ -2618,120 +2498,43 @@ async def show_frequency_payment_summary_message(message: Message, state: FSMCon
         if channel:
             channel_names.append(channel['name'])
     
-    # Create translated text - same as show_frequency_payment_summary
-    if language == 'ar':
-        text = f"""✅ **ملخص خطة إعلانك:**
+    # Create translated text using translation system
+    text = f"""{get_text(language, 'ad_plan_summary')}
 
-📅 **المدة:** {pricing_data['days']} أيام
-📝 **منشورات يومياً:** {pricing_data['posts_per_day']} منشورات
-💰 **الخصم:** {pricing_data['discount_percent']}%
-💵 **السعر النهائي:** ${pricing_data['final_cost_usd']:.2f}
+{get_text(language, 'duration_label')} {pricing_data['days']} {get_text(language, 'days_word')}
+{get_text(language, 'posts_per_day_label')} {pricing_data['posts_per_day']} {get_text(language, 'posts_word')}
+{get_text(language, 'discount_label')} {pricing_data['discount_percent']}%
+{get_text(language, 'final_price_label')} ${pricing_data['final_cost_usd']:.2f}
 
-💎 **بعملة TON:** {pricing_data['cost_ton']:.3f} TON
-⭐ **بنجوم تليجرام:** {pricing_data['cost_stars']:,} Stars
+{get_text(language, 'in_ton_label')} {pricing_data['cost_ton']:.3f} TON
+{get_text(language, 'in_stars_label')} {pricing_data['cost_stars']:,} Stars
 
-📺 **القنوات المختارة:**
+{get_text(language, 'selected_channels_label')}
 {chr(10).join(f"• {name}" for name in channel_names)}
 
-📊 **تفاصيل الحملة:**
-• معدل يومي: ${pricing_data['daily_price']:.2f}/يوم ({pricing_data['posts_per_day']} منشورات)
-• إجمالي المنشورات: {pricing_data['total_posts']:,} منشورات
-• التكلفة الأساسية: ${pricing_data['base_cost_usd']:.2f}
-• توفر: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% خصم)
+{get_text(language, 'campaign_details_label')}
+{get_text(language, 'daily_rate_label')} ${pricing_data['daily_price']:.2f}/{get_text(language, 'per_day')} ({pricing_data['posts_per_day']} {get_text(language, 'posts_word')})
+{get_text(language, 'total_posts_label')} {pricing_data['total_posts']:,} {get_text(language, 'posts_word')}
+{get_text(language, 'base_cost_label')} ${pricing_data['base_cost_usd']:.2f}
+{get_text(language, 'you_save_label')} ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% {get_text(language, 'off_word')})
 
-📌 **بإجراء هذا الدفع، أنت توافق على شروط الاستخدام.**
+{get_text(language, 'usage_agreement_notice')}
 
-💡 **المزيد من الأيام = المزيد من المنشورات يومياً + خصومات أكبر!**"""
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="💎 دفع بـ TON", callback_data="pay_freq_ton"),
-                InlineKeyboardButton(text="⭐ دفع بالنجوم", callback_data="pay_freq_stars")
-            ],
-            [
-                InlineKeyboardButton(text="📝 تغيير المدة", callback_data="freq_change_duration"),
-                InlineKeyboardButton(text="📺 تغيير القنوات", callback_data="continue_to_channels")
-            ],
-            [
-                InlineKeyboardButton(text="◀️ العودة للرئيسية", callback_data="back_to_main")
-            ]
-        ])
-        
-    elif language == 'ru':
-        text = f"""✅ **Сводка вашего рекламного плана:**
-
-📅 **Длительность:** {pricing_data['days']} дней
-📝 **Постов в день:** {pricing_data['posts_per_day']} постов
-💰 **Скидка:** {pricing_data['discount_percent']}%
-💵 **Финальная цена:** ${pricing_data['final_cost_usd']:.2f}
-
-💎 **В TON:** {pricing_data['cost_ton']:.3f} TON
-⭐ **В Telegram Stars:** {pricing_data['cost_stars']:,} Stars
-
-📺 **Выбранные каналы:**
-{chr(10).join(f"• {name}" for name in channel_names)}
-
-📊 **Детали кампании:**
-• Дневная ставка: ${pricing_data['daily_price']:.2f}/день ({pricing_data['posts_per_day']} постов)
-• Всего постов: {pricing_data['total_posts']:,} постов
-• Базовая стоимость: ${pricing_data['base_cost_usd']:.2f}
-• Экономия: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% скидка)
-
-📌 **Совершая этот платеж, вы соглашаетесь с Условиями использования.**
-
-💡 **Больше дней = Больше постов в день + Больше скидок!**"""
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="💎 Оплатить TON", callback_data="pay_freq_ton"),
-                InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_freq_stars")
-            ],
-            [
-                InlineKeyboardButton(text="📝 Изменить длительность", callback_data="freq_change_duration"),
-                InlineKeyboardButton(text="📺 Изменить каналы", callback_data="continue_to_channels")
-            ],
-            [
-                InlineKeyboardButton(text="◀️ Главное меню", callback_data="back_to_main")
-            ]
-        ])
-        
-    else:
-        text = f"""✅ **Your Ad Plan Summary:**
-
-📅 **Duration:** {pricing_data['days']} days
-📝 **Posts per day:** {pricing_data['posts_per_day']} posts
-💰 **Discount:** {pricing_data['discount_percent']}%
-💵 **Final Price:** ${pricing_data['final_cost_usd']:.2f}
-
-💎 **In TON:** {pricing_data['cost_ton']:.3f} TON
-⭐ **In Telegram Stars:** {pricing_data['cost_stars']:,} Stars
-
-📺 **Selected Channels:**
-{chr(10).join(f"• {name}" for name in channel_names)}
-
-📊 **Campaign Details:**
-• Daily Rate: ${pricing_data['daily_price']:.2f}/day ({pricing_data['posts_per_day']} posts)
-• Total Posts: {pricing_data['total_posts']:,} posts
-• Base Cost: ${pricing_data['base_cost_usd']:.2f}
-• You Save: ${pricing_data['savings_usd']:.2f} ({pricing_data['savings_percent']}% off)
-
-📌 **By making this payment, you agree to the Usage Agreement.**
-
-💡 **More days = More posts per day + Bigger discounts!**"""
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_freq_ton"),
-                InlineKeyboardButton(text="⭐ Pay with Stars", callback_data="pay_freq_stars")
-            ],
-            [
-                InlineKeyboardButton(text="📝 Change Duration", callback_data="freq_change_duration"),
-                InlineKeyboardButton(text="📺 Change Channels", callback_data="continue_to_channels")
-            ],
-            [
-                InlineKeyboardButton(text="◀️ Back to Main", callback_data="back_to_main")
-            ]
-        ])
+{get_text(language, 'pricing_tip')}"""
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=get_text(language, 'pay_with_ton'), callback_data="pay_freq_ton"),
+            InlineKeyboardButton(text=get_text(language, 'pay_with_stars'), callback_data="pay_freq_stars")
+        ],
+        [
+            InlineKeyboardButton(text=get_text(language, 'change_duration'), callback_data="freq_change_duration"),
+            InlineKeyboardButton(text=get_text(language, 'change_channels'), callback_data="continue_to_channels")
+        ],
+        [
+            InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")
+        ]
+    ])
     
     await message.reply(text, reply_markup=keyboard, parse_mode='Markdown')
 
