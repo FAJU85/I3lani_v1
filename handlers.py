@@ -1561,15 +1561,18 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
+    # Enhanced logging for Arabic main menu debugging
+    logger.info(f"📢 create_ad callback received from user {user_id} (language: {language})")
+    
     # Log the ad creation step
     log_info(StepNames.CREATE_AD_START, user_id, "User clicked create ad button")
     
     try:
-        # Use enhanced callback handler to prevent timeout errors
-        await safe_answer_callback(callback_query, user_id=user_id)
+        # Use safe callback handler to prevent timeout errors
+        await safe_callback_answer(callback_query, "")
         
-        # Start with content upload - fixed state
-        await state.set_state(AdCreationStates.upload_content)
+        # Start with photo upload state
+        await state.set_state(AdCreationStates.upload_photos)
         
         # Modern, psychologically calming text design using get_text
         text = f"""
@@ -1585,32 +1588,36 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         """.strip()
         
         # Create modern confirmation keyboard with calming design
-        keyboard = create_modern_confirmation(
-            confirm_text=get_text(language, 'skip_photos'),
-            cancel_text=get_text(language, 'back_to_main'),
-            confirm_callback="skip_photos_to_text",
-            cancel_callback="back_to_main",
-            user_id=user_id
-        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=get_text(language, 'skip_photos'),
+                    callback_data="skip_photos_to_text"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=get_text(language, 'back_to_main'),
+                    callback_data="back_to_main"
+                )
+            ]
+        ])
         
-        # Use enhanced edit with timeout protection
-        success = await safe_edit_callback(
+        # Use safe edit with timeout protection
+        await safe_callback_edit(
             callback_query,
             text=text,
             reply_markup=keyboard,
-            parse_mode='Markdown',
-            user_id=user_id
+            parse_mode='Markdown'
         )
         
-        if success:
-            log_success(StepNames.CREATE_AD_START, user_id, "Ad creation started with modern UI")
-        else:
-            log_error(StepNames.CREATE_AD_START, user_id, 
-                     Exception("Failed to edit message"), {"action": "create_ad"})
+        log_success(StepNames.CREATE_AD_START, user_id, "Ad creation started with modern UI")
+        logger.info(f"✅ create_ad completed successfully for user {user_id}")
             
     except Exception as e:
         log_error(StepNames.CREATE_AD_START, user_id, e, {"action": "create_ad"})
-        await safe_answer_callback(callback_query, get_text(language, 'error_creating_ad'), user_id=user_id)
+        logger.error(f"❌ create_ad error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, get_text(language, 'error_creating_ad'), show_alert=True)
 
 
 @router.callback_query(F.data == "free_trial")
@@ -4549,15 +4556,19 @@ async def my_ads_handler(callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Get user stats
-    stats = await db.get_user_stats(user_id)
+    # Enhanced logging for Arabic main menu debugging
+    logger.info(f"📊 my_ads callback received from user {user_id} (language: {language})")
     
-    # Get currency info
-    user = await db.get_user(user_id)
-    currency = user.get('currency', 'USD') if user else 'USD'
-    currency_info = get_currency_info(language)
-    
-    dashboard_text = f"""
+    try:
+        # Get user stats
+        stats = await db.get_user_stats(user_id)
+        
+        # Get currency info
+        user = await db.get_user(user_id)
+        currency = user.get('currency', 'USD') if user else 'USD'
+        currency_info = get_currency_info(language)
+        
+        dashboard_text = f"""
 Stats **{get_text(language, 'dashboard')}**
 
 Growth **Your Statistics:**
@@ -4566,24 +4577,31 @@ Growth **Your Statistics:**
 {get_text(language, 'total_spent', currency=currency_info['symbol'], amount=stats['total_spent'])}
 
 Launch **Ready to create more ads?**
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=get_text(language, 'create_ad'), 
-            callback_data="create_ad"
-        )],
-        [InlineKeyboardButton(
-            text=get_text(language, 'back'), 
-            callback_data="back_to_main"
-        )]
-    ])
-    
-    await callback_query.message.edit_text(
-        dashboard_text,
-        reply_markup=keyboard
-    )
-    await callback_query.answer()
+        """.strip()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'create_ad'), 
+                callback_data="create_ad"
+            )],
+            [InlineKeyboardButton(
+                text=get_text(language, 'back'), 
+                callback_data="back_to_main"
+            )]
+        ])
+        
+        await safe_callback_edit(
+            callback_query,
+            text=dashboard_text,
+            reply_markup=keyboard
+        )
+        
+        await safe_callback_answer(callback_query, "")
+        logger.info(f"✅ my_ads completed successfully for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ my_ads error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, get_text(language, 'error_generic'), show_alert=True)
 
 
 @router.callback_query(F.data == "share_earn")
@@ -6007,24 +6025,33 @@ async def join_partner_program_handler(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    from channel_incentives import ChannelIncentives
-    from main import db
-    incentives = ChannelIncentives(db)
-    invitation_text = await incentives.create_invitation_message(language)
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📢 Add Bot to Channel", url="https://t.me/I3lani_bot?startchannel=partner")],
-        [InlineKeyboardButton(text="🎁 Referral Program", callback_data="referral_program")],
-        [InlineKeyboardButton(text="🌟 Success Stories", callback_data="success_stories")],
-        [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
-    ])
+    # Enhanced logging for Arabic main menu debugging
+    logger.info(f"💼 join_partner_program callback received from user {user_id} (language: {language})")
     
     try:
-        await callback_query.message.edit_text(invitation_text, reply_markup=keyboard)
-        await callback_query.answer()
+        from channel_incentives import ChannelIncentives
+        incentives = ChannelIncentives(db)
+        invitation_text = await incentives.create_invitation_message(language)
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Add Bot to Channel", url="https://t.me/I3lani_bot?startchannel=partner")],
+            [InlineKeyboardButton(text="🎁 Referral Program", callback_data="referral_program")],
+            [InlineKeyboardButton(text="🌟 Success Stories", callback_data="success_stories")],
+            [InlineKeyboardButton(text=get_text(language, 'back_to_main'), callback_data="back_to_main")]
+        ])
+        
+        await safe_callback_edit(
+            callback_query,
+            text=invitation_text,
+            reply_markup=keyboard
+        )
+        
+        await safe_callback_answer(callback_query, "")
+        logger.info(f"✅ join_partner_program completed successfully for user {user_id}")
+        
     except Exception as e:
-        logger.error(f"Error in channel partner handler: {e}")
-        await callback_query.answer("Channel Partner feature loaded!", show_alert=True)
+        logger.error(f"❌ join_partner_program error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, "Channel Partner feature loaded!", show_alert=True)
 
 @router.callback_query(F.data == "view_partner_dashboard")
 async def view_partner_dashboard_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -7359,10 +7386,13 @@ async def recalculate_dynamic_handler(callback_query: CallbackQuery, state: FSMC
 @router.callback_query(F.data == "start_viral_game")
 async def start_viral_game_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle viral game button click"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Enhanced logging for Arabic main menu debugging
+    logger.info(f"🎮 start_viral_game callback received from user {user_id} (language: {language})")
+    
     try:
-        user_id = callback_query.from_user.id
-        language = await get_user_language(user_id)
-        
         # Import and call the viral game start function
         from viral_referral_handlers import show_viral_game_start
         
@@ -7374,8 +7404,9 @@ async def start_viral_game_handler(callback_query: CallbackQuery, state: FSMCont
         })()
         
         await show_viral_game_start(fake_message, language)
-        await callback_query.answer("Starting viral referral game...")
+        await safe_callback_answer(callback_query, "Starting viral referral game...")
+        logger.info(f"✅ start_viral_game completed successfully for user {user_id}")
         
     except Exception as e:
-        logger.error(f"Error in start_viral_game_handler: {e}")
-        await callback_query.answer("Error starting viral game. Please try again.")
+        logger.error(f"❌ start_viral_game error for user {user_id}: {e}")
+        await safe_callback_answer(callback_query, "Error starting viral game. Please try again.", show_alert=True)
