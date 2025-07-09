@@ -12,7 +12,7 @@ import os
 import fcntl
 import sys
 from datetime import datetime
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, MenuButtonCommands
 
@@ -176,15 +176,14 @@ async def init_bot():
         from viral_referral_handlers import viral_router
         dp.include_router(viral_router)
         
-        # Register haptic callback handler
-        @dp.callback_query()
+        # Register haptic callback handler with proper filter
+        @dp.callback_query(F.data.startswith('haptic_'))
         async def haptic_callback_handler(callback_query):
             """Handle haptic callback queries"""
-            if callback_query.data and callback_query.data.startswith('haptic_'):
-                handled = await haptic_integration.handle_haptic_callback(callback_query)
-                if handled:
-                    # Continue processing the original callback
-                    return
+            handled = await haptic_integration.handle_haptic_callback(callback_query)
+            if handled:
+                # Continue processing the original callback
+                return
         
         logger.info("Viral referral game system initialized")
         
