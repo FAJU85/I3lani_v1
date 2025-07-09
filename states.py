@@ -46,6 +46,7 @@ class UserStates(StatesGroup):
     main_menu = State()
     settings = State()
     help = State()
+    reporting_error = State()
 
 
 class AdminStates(StatesGroup):

@@ -54,6 +54,14 @@ LANGUAGES = {
         'try_again': '🔄 Try Again',
         'contact_support': '📞 Contact Support',
         'refresh': '🔄 Refresh',
+        'skip': '⏭ Skip',
+        
+        # Error reporting
+        'report_error': '🚨 Report Error',
+        'error_reported': '✅ Error Reported',
+        'error_report_success': '✅ Error Report #{report_id} submitted successfully!\n\nOur team will review your report and fix the issue quickly. You can continue using the bot normally.',
+        'error_report_prompt': '🚨 **Report Error**\n\nPlease describe the problem you encountered:\n\n• What happened?\n• What did you expect?\n• Any other details?\n\nThis helps us improve the bot for everyone.',
+        'error_report_step': 'Step: {step_name}',
         
         # Confirmation system
         'confirm_action': '✅ Confirm',
@@ -306,6 +314,14 @@ Questions? Use /support to get help!""",
         'try_again': '🔄 حاول مرة أخرى',
         'contact_support': '📞 اتصل بالدعم',
         'refresh': '🔄 تحديث',
+        'skip': '⏭ تخطي',
+        
+        # Error reporting
+        'report_error': '🚨 الإبلاغ عن خطأ',
+        'error_reported': '✅ تم الإبلاغ عن الخطأ',
+        'error_report_success': '✅ تم إرسال تقرير الخطأ #{report_id} بنجاح!\n\nسيراجع فريقنا تقريرك وسيصحح المشكلة بسرعة. يمكنك مواصلة استخدام البوت بشكل طبيعي.',
+        'error_report_prompt': '🚨 **الإبلاغ عن خطأ**\n\nيرجى وصف المشكلة التي واجهتها:\n\n• ماذا حدث؟\n• ماذا توقعت؟\n• أي تفاصيل أخرى؟\n\nهذا يساعدنا في تحسين البوت للجميع.',
+        'error_report_step': 'الخطوة: {step_name}',
         
         # Confirmation system
         'confirm_action': '✅ تأكيد',
@@ -574,6 +590,14 @@ Questions? Use /support to get help!""",
         'try_again': '🔄 Попробовать снова',
         'contact_support': '📞 Связаться с поддержкой',
         'refresh': '🔄 Обновить',
+        'skip': '⏭ Пропустить',
+        
+        # Error reporting
+        'report_error': '🚨 Сообщить об ошибке',
+        'error_reported': '✅ Ошибка зарегистрирована',
+        'error_report_success': '✅ Отчёт об ошибке #{report_id} успешно отправлен!\n\nНаша команда рассмотрит ваш отчёт и быстро исправит проблему. Вы можете продолжать пользоваться ботом нормально.',
+        'error_report_prompt': '🚨 **Сообщить об ошибке**\n\nПожалуйста, опишите проблему, с которой вы столкнулись:\n\n• Что произошло?\n• Что вы ожидали?\n• Любые другие детали?\n\nЭто поможет нам улучшить бота для всех.',
+        'error_report_step': 'Шаг: {step_name}',
         
         # Confirmation system
         'confirm_action': '✅ Подтвердить',

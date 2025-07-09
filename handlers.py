@@ -39,6 +39,7 @@ from ui_effects import ui_effects
 from confirmation_system import confirmation_system
 from confirmation_handlers import CONFIRMATION_HANDLERS
 from viral_referral_handlers import has_free_ads, consume_free_ad
+from error_reporting_system import error_reporting, ErrorReport
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -5251,6 +5252,241 @@ async def back_to_main_handler(callback_query: CallbackQuery, state: FSMContext)
     await state.clear()
     await show_main_menu(callback_query, language)
     await callback_query.answer()
+
+
+@router.callback_query(F.data == "language_settings")
+async def language_settings_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle language settings"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    text = get_text(language, 'select_language', 'Please select your language:')
+    keyboard = create_language_keyboard()
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "contact_support")
+async def contact_support_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle contact support"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    support_text = get_text(language, 'contact_support', """
+📞 Contact Support
+
+We're here to help! Contact us:
+
+• Telegram: @I3lani_Support
+• Email: support@i3lani.com
+• Response time: 24 hours
+
+Common issues:
+• Payment not confirmed
+• Ad not published
+• Technical problems
+• Account questions
+
+Our team will help you resolve any issues quickly!
+    """)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_text(language, 'back_to_main', 'Back to Main'), callback_data="back_to_main")]
+    ])
+    
+    await callback_query.message.edit_text(support_text, reply_markup=keyboard)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "channel_partners")
+async def channel_partners_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel partners"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Import and use channel incentives system
+        from channel_incentives import ChannelIncentives
+        incentives = ChannelIncentives(db)
+        await incentives.show_partner_program(callback_query, language)
+    except Exception as e:
+        logger.error(f"Channel partners error: {e}")
+        await callback_query.answer("Channel partners feature is being updated. Please try again later.", show_alert=True)
+
+
+@router.callback_query(F.data == "share_win")
+async def share_win_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle share & win"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Import and use viral referral system
+        from viral_referral_handlers import show_viral_game_menu
+        await show_viral_game_menu(callback_query, state)
+    except Exception as e:
+        logger.error(f"Share & win error: {e}")
+        await callback_query.answer("Share & win feature is being updated. Please try again later.", show_alert=True)
+
+
+@router.callback_query(F.data == "gaming_hub")
+async def gaming_hub_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle gaming hub"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Import and use gamification system
+        from gamification import gamification
+        await gamification.show_gaming_hub(callback_query, language)
+    except Exception as e:
+        logger.error(f"Gaming hub error: {e}")
+        await callback_query.answer("Gaming hub feature is being updated. Please try again later.", show_alert=True)
+
+
+@router.callback_query(F.data == "leaderboard")
+async def leaderboard_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle leaderboard"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    try:
+        # Import and use gamification system
+        from gamification import gamification
+        await gamification.show_leaderboard(callback_query, language)
+    except Exception as e:
+        logger.error(f"Leaderboard error: {e}")
+        await callback_query.answer("Leaderboard feature is being updated. Please try again later.", show_alert=True)
+
+
+# Error Reporting System Handlers
+@router.callback_query(F.data.startswith("report_error_"))
+async def report_error_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle error report button click"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Extract step name from callback data
+    step_name = callback_query.data.replace("report_error_", "")
+    
+    # Get error report prompt
+    prompt_text = error_reporting.get_error_report_prompt(language, step_name)
+    
+    # Set state for error reporting
+    await state.update_data(error_step=step_name)
+    await state.set_state(UserStates.reporting_error)
+    
+    # Create keyboard with skip option
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'skip', 'Skip'),
+            callback_data="skip_error_description"
+        )],
+        [InlineKeyboardButton(
+            text=get_text(language, 'cancel', 'Cancel'),
+            callback_data="cancel_error_report"
+        )]
+    ])
+    
+    await callback_query.message.edit_text(prompt_text, reply_markup=keyboard)
+    await callback_query.answer()
+
+
+@router.callback_query(F.data == "skip_error_description")
+async def skip_error_description_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle skip error description"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get step name from state
+    data = await state.get_data()
+    step_name = data.get('error_step', 'unknown')
+    
+    # Create error report with minimal info
+    error_report = ErrorReport(
+        user_id=user_id,
+        step_name=step_name,
+        user_description="User skipped description",
+        system_info=f"Language: {language}, Step: {step_name}",
+        error_type="user_reported",
+        severity="low"
+    )
+    
+    # Save error report
+    report_id = await error_reporting.save_error_report(error_report)
+    
+    # Show success message
+    success_text = error_reporting.get_error_report_success_message(language, report_id)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'back_to_main', 'Back to Main'),
+            callback_data="back_to_main"
+        )]
+    ])
+    
+    await callback_query.message.edit_text(success_text, reply_markup=keyboard)
+    await callback_query.answer()
+    await state.clear()
+
+
+@router.callback_query(F.data == "cancel_error_report")
+async def cancel_error_report_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle cancel error report"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.clear()
+    await show_main_menu(callback_query, language)
+    await callback_query.answer()
+
+
+@router.message(F.text, UserStates.reporting_error)
+async def process_error_description(message: Message, state: FSMContext):
+    """Process user error description"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get error data from state
+    data = await state.get_data()
+    step_name = data.get('error_step', 'unknown')
+    user_description = message.text
+    
+    # Create error report
+    error_report = ErrorReport(
+        user_id=user_id,
+        step_name=step_name,
+        user_description=user_description,
+        system_info=f"Language: {language}, Step: {step_name}, Username: {message.from_user.username}",
+        error_type="user_reported",
+        severity="medium"
+    )
+    
+    # Save error report
+    report_id = await error_reporting.save_error_report(error_report)
+    
+    # Show success message
+    success_text = error_reporting.get_error_report_success_message(language, report_id)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text(language, 'back_to_main', 'Back to Main'),
+            callback_data="back_to_main"
+        )]
+    ])
+    
+    await message.answer(success_text, reply_markup=keyboard)
+    await state.clear()
+
+
+# Quick error reporting for specific steps
+def add_error_report_button(keyboard_rows: list, language: str, step_name: str) -> list:
+    """Add error report button to existing keyboard"""
+    error_button_text = error_reporting.create_error_report_keyboard(language, step_name)
+    keyboard_rows.append([InlineKeyboardButton(
+        text=error_button_text,
+        callback_data=f"report_error_{step_name}"
+    )])
+    return keyboard_rows
 
 
 @router.callback_query(F.data == "back_to_channels")
