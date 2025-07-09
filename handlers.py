@@ -5593,7 +5593,8 @@ async def continue_with_channels_handler(callback_query: CallbackQuery, state: F
         
         # Proceed to payment selection
         await state.set_state(AdCreationStates.payment_selection)
-        await show_duration_selection(callback_query, state)
+        # Use dynamic days selector instead of old duration selection
+        await show_dynamic_days_selector(callback_query, state, 1)
         await callback_query.answer(f"{len(selected_channels)} channels selected!")
         
     except Exception as e:
