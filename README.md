@@ -13,13 +13,24 @@ A sophisticated Telegram advertising bot with blockchain payment integration, mu
 
 ## Quick Deploy Options
 
-### Option 1: Railway (Recommended)
+### 🚀 One-Click Deploy to Render
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/YOUR_USERNAME/i3lani-bot)
+
+**Automatic Setup:**
+- PostgreSQL database
+- Web service + background worker
+- Health checks and monitoring
+- Just add `BOT_TOKEN` and `ADMIN_IDS`
+
+### Alternative Platforms
+
+#### Option 1: Railway (Recommended)
 1. **Upload to GitHub:** Create `i3lani-bot` repository
 2. **Deploy to Railway:** Go to [railway.app](https://railway.app)
 3. **Setup:** PostgreSQL database + web service
 4. **Free tier:** $5 credits monthly
 
-### Option 2: Render
+#### Option 2: Manual Render Setup
 1. **Upload to GitHub:** Create `i3lani-bot` repository  
 2. **Deploy to Render:** Go to [render.com](https://render.com)
 3. **Setup:** PostgreSQL database + web service
@@ -29,13 +40,14 @@ A sophisticated Telegram advertising bot with blockchain payment integration, mu
 - 🚀 **Railway:** See `RAILWAY_DEPLOYMENT_GUIDE.md`
 - 🔧 **Render:** See `RENDER_DEPLOYMENT_GUIDE.md`
 - ☁️ **Google Cloud:** See `CLOUD_RUN_DEPLOYMENT_GUIDE.md`
+- 🎯 **One-Click:** See `ONE_CLICK_DEPLOY.md`
 
 ### Required Environment Variables
 - `BOT_TOKEN` - Your bot token from @BotFather
 - `ADMIN_IDS` - Your Telegram user ID
 - `DATABASE_URL` - Auto-set by hosting platform
 
-Bot will be live in 10-15 minutes!
+Bot will be live in 5-10 minutes with one-click deploy!
 
 ## Manual Deployment
 

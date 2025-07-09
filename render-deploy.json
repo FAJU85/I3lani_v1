@@ -3,21 +3,52 @@
     {
       "type": "web",
       "name": "i3lani-bot",
-      "runtime": "python",
+      "env": "python",
       "buildCommand": "pip install -r requirements.txt",
       "startCommand": "python deployment_server.py",
       "plan": "free",
-      "envVars": {
-        "DISABLE_STARS_FLASK": "1",
-        "PYTHON_VERSION": "3.11.0"
-      }
+      "healthCheckPath": "/health",
+      "envVars": [
+        {
+          "key": "BOT_TOKEN",
+          "generateValue": false
+        },
+        {
+          "key": "ADMIN_IDS", 
+          "generateValue": false
+        },
+        {
+          "key": "TON_WALLET_ADDRESS",
+          "value": "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
+        },
+        {
+          "key": "DISABLE_STARS_FLASK",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "worker",
+      "name": "i3lani-worker",
+      "env": "python",
+      "buildCommand": "pip install -r requirements.txt",
+      "startCommand": "python worker.py",
+      "plan": "free",
+      "envVars": [
+        {
+          "key": "BOT_TOKEN",
+          "generateValue": false
+        },
+        {
+          "key": "ADMIN_IDS",
+          "generateValue": false
+        }
+      ]
     }
   ],
   "databases": [
     {
-      "name": "i3lani-db", 
-      "databaseName": "i3lani",
-      "user": "i3lani_user",
+      "name": "i3lani-db",
       "plan": "free"
     }
   ]

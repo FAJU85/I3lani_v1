@@ -41,7 +41,9 @@ render_files = [
     'BACKGROUND_WORKERS_GUIDE.md',
     'DEPLOYMENT_CHECKLIST.md',
     'GITHUB_UPLOAD_GUIDE.md',
-    'SECRETS_SETUP_GUIDE.md'
+    'SECRETS_SETUP_GUIDE.md',
+    'render-deploy.json',
+    'ONE_CLICK_DEPLOY.md'
 ]
 
 # Create ZIP file

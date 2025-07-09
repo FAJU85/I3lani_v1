@@ -46,7 +46,9 @@ files_to_zip = [
     'DEPLOYMENT_CHECKLIST.md',
     'GITHUB_UPLOAD_GUIDE.md',
     'SECRETS_SETUP_GUIDE.md',
-    'railway.json'
+    'railway.json',
+    'render-deploy.json',
+    'ONE_CLICK_DEPLOY.md'
 ]
 
 # Create ZIP file
