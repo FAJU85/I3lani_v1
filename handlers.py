@@ -834,54 +834,18 @@ async def upload_content_handler(message: Message, state: FSMContext):
         content_type='text'
     )
     
-    # Now ask for contact information
-    await state.set_state(AdCreationStates.provide_contact_info)
+    # Skip contact info step - go directly to channel selection
+    await state.set_state(AdCreationStates.channel_selection)
     
-    if language == 'ar':
-        contact_text = """
-**معلومات الاتصال**
-
-كيف يمكن للعملاء التواصل معك؟
-
-أمثلة:
-- هاتف: +966501234567
-- واتساب: +966501234567
-- بريد: user@email.com
-- تليجرام: @username
-
-أرسل معلومات الاتصال:
-        """.strip()
-    elif language == 'ru':
-        contact_text = """
-**Контактная информация**
-
-Как клиенты могут связаться с вами?
-
-Примеры:
-- Телефон: +966501234567
-- WhatsApp: +966501234567
-- Email: user@email.com
-- Telegram: @username
-
-Отправьте контактную информацию:
-        """.strip()
-    else:
-        contact_text = """
-**Contact Information**
-
-How should customers reach you?
-
-Examples:
-- Phone: +966501234567
-Your ad content is ready! Let's proceed to channel selection.
-        """.strip()
+    # Show unified "ready for channel selection" message
+    ready_text = get_text(language, 'ad_content_ready')
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
         [InlineKeyboardButton(text=get_text(language, 'back_to_text'), callback_data="back_to_text")]
     ])
     
-    await message.answer(contact_text, reply_markup=keyboard)
+    await message.answer(ready_text, reply_markup=keyboard)
     
     # Show channel selection - create proper channel selection message
     user_id = message.from_user.id
@@ -999,18 +963,18 @@ async def handle_photo_upload(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "continue_from_photos")
 async def continue_from_photos(callback_query: CallbackQuery, state: FSMContext):
-    """Continue from photo upload step"""
+    """Continue from photo upload step - go directly to text input"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    await state.set_state(AdCreationStates.provide_contact_info)
+    await state.set_state(AdCreationStates.upload_content)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
+        [InlineKeyboardButton(text=get_text(language, 'continue_to_text'), callback_data="continue_to_text")],
         [InlineKeyboardButton(text=get_text(language, 'back_to_photos'), callback_data="back_to_photos")]
     ])
     
-    await callback_query.message.edit_text(get_text(language, 'provide_contact_info'), reply_markup=keyboard)
+    await callback_query.message.edit_text(get_text(language, 'photos_done_add_text'), reply_markup=keyboard)
     await callback_query.answer()
 
 
@@ -1031,19 +995,37 @@ async def add_more_photos(callback_query: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "skip_photos")
 async def skip_photos_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Skip photo upload step"""
+    """Skip photo upload step - go directly to text input"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    await state.set_state(AdCreationStates.provide_contact_info)
+    await state.set_state(AdCreationStates.upload_content)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=get_text(language, 'continue_to_channels'), callback_data="continue_to_channels")],
+        [InlineKeyboardButton(text=get_text(language, 'continue_to_text'), callback_data="continue_to_text")],
         [InlineKeyboardButton(text=get_text(language, 'back_to_photos'), callback_data="back_to_photos")]
     ])
     
-    await callback_query.message.edit_text(get_text(language, 'provide_contact_info'), reply_markup=keyboard)
-    await callback_query.answer(get_text(language, 'ready_for_channels'))
+    await callback_query.message.edit_text(get_text(language, 'photos_skipped_add_text'), reply_markup=keyboard)
+    await callback_query.answer(get_text(language, 'ready_for_text'))
+
+
+@router.callback_query(F.data == "continue_to_text")
+async def continue_to_text_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Continue to text input step"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    await state.set_state(AdCreationStates.upload_content)
+    
+    text = get_text(language, 'create_ad_text_instructions')
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_text(language, 'back_to_photos'), callback_data="back_to_photos")]
+    ])
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer()
 
 
 @router.callback_query(F.data == "skip_photos_to_text")

@@ -90,6 +90,14 @@ LANGUAGES = {
         'add_more_photos_text': '📸 **Add More Photos**\n\nSend additional photos (max 5 total):',
         'provide_contact_info': '📞 **Provide Contact Information**\n\nHow should customers reach you?\n\nExamples:\n- Phone: +966501234567\n- WhatsApp: +966501234567\n- Email: user@email.com\n- Telegram: @username\n\nContent ready! Let\'s proceed to channel selection.',
         
+        # Unified flow messages (Bug #005 fix)
+        'ad_content_ready': '✅ **Your ad content is ready!**\n\nNow let\'s select channels for your advertisement.',
+        'photos_done_add_text': '📸 **Photos uploaded successfully!**\n\nNow add your ad text to complete the content.',
+        'photos_skipped_add_text': '📝 **Write your ad text**\n\nDescribe your product or service clearly.',
+        'continue_to_text': '➡️ Continue to Text',
+        'ready_for_text': 'Ready for text input',
+        'create_ad_text_instructions': '📝 **Write Your Ad Text**\n\nDescribe your product or service clearly:\n- Product/service description\n- Price\n- Key features\n- Contact information\n\nSend your text now:',
+        
         # Channels
         'tech_news': 'Tech News (45K) 🔥',
         'gaming_hub': 'Gaming Hub (32K)',
@@ -285,6 +293,14 @@ Questions? Use /support to get help!""",
         'add_more_photos': '📸 إضافة المزيد',
         'add_more_photos_text': '📸 **إضافة المزيد من الصور**\n\nأرسل صور إضافية (الحد الأقصى 5 صور):',
         'provide_contact_info': '📞 **توفير معلومات الاتصال**\n\nكيف يمكن للعملاء التواصل معك؟\n\nأمثلة:\n- هاتف: +966501234567\n- واتساب: +966501234567\n- بريد: user@email.com\n- تليجرام: @username\n\nالمحتوى جاهز! لننتقل إلى اختيار القنوات.',
+        
+        # Unified flow messages (Bug #005 fix)
+        'ad_content_ready': '✅ **محتوى إعلانك جاهز!**\n\nالآن لنختار القنوات لإعلانك.',
+        'photos_done_add_text': '📸 **تم رفع الصور بنجاح!**\n\nالآن أضف نص إعلانك لإكمال المحتوى.',
+        'photos_skipped_add_text': '📝 **اكتب نص إعلانك**\n\nصف منتجك أو خدمتك بوضوح.',
+        'continue_to_text': '➡️ متابعة للنص',
+        'ready_for_text': 'جاهز لإدخال النص',
+        'create_ad_text_instructions': '📝 **اكتب نص إعلانك**\n\nصف منتجك أو خدمتك بوضوح:\n- وصف المنتج/الخدمة\n- السعر\n- المميزات الرئيسية\n- معلومات الاتصال\n\nأرسل النص الآن:',
         
         # Categories
         'vehicles': '🚗 المركبات',
@@ -497,6 +513,14 @@ Questions? Use /support to get help!""",
         'add_more_photos': '📸 Добавить больше',
         'add_more_photos_text': '📸 **Добавить больше фотографий**\n\nОтправьте дополнительные фотографии (максимум 5):',
         'provide_contact_info': '📞 **Предоставить контактную информацию**\n\nКак клиенты могут связаться с вами?\n\nПримеры:\n- Телефон: +966501234567\n- WhatsApp: +966501234567\n- Email: user@email.com\n- Telegram: @username\n\nКонтент готов! Переходим к выбору каналов.',
+        
+        # Unified flow messages (Bug #005 fix)
+        'ad_content_ready': '✅ **Контент объявления готов!**\n\nТеперь выберем каналы для вашего объявления.',
+        'photos_done_add_text': '📸 **Фотографии успешно загружены!**\n\nТеперь добавьте текст объявления для завершения контента.',
+        'photos_skipped_add_text': '📝 **Напишите текст объявления**\n\nОпишите ваш товар или услугу четко.',
+        'continue_to_text': '➡️ Продолжить к тексту',
+        'ready_for_text': 'Готов к вводу текста',
+        'create_ad_text_instructions': '📝 **Напишите текст объявления**\n\nОпишите ваш товар или услугу четко:\n- Описание товара/услуги\n- Цена\n- Основные преимущества\n- Контактная информация\n\nОтправьте текст сейчас:',
         
         # Channels
         'tech_news': 'Технические новости (45K) 🔥',
