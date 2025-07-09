@@ -1351,7 +1351,7 @@ Thank you for using I3lani Bot!
 
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
-    """Show channel selection for enhanced flow with enhanced UX"""
+    """Show channel selection for enhanced flow with live subscriber counts"""
     # Get user language first
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
@@ -1378,65 +1378,103 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
         )
         return
     
+    # Initialize live stats system
+    from live_channel_stats import LiveChannelStats
+    live_stats = LiveChannelStats(callback_query.bot, db)
+    
+    # Enhance channels with live subscriber counts
+    enhanced_channels = await live_stats.get_enhanced_channel_data(channels)
+    
     # Get selected channels from state
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
-    # Calculate total reach
-    total_reach = 0
-    for channel in channels:
-        if channel['channel_id'] in selected_channels:
-            total_reach += channel.get('subscribers', 0)
+    # Calculate total reach with live counts
+    total_reach = await live_stats.get_total_reach(selected_channels, enhanced_channels)
     
     # Create enhanced channel text with better visuals
     if language == 'ar':
-        channel_text = f"""[TV] **اختر القنوات لإعلانك**
+        channel_text = f"""📺 **اختر القنوات لإعلانك**
 
-[*] **المحدد:** {len(selected_channels)}/{len(channels)} قناة
-[Users] **الوصول الإجمالي:** {total_reach:,} مشترك
+📊 **المحدد:** {len(selected_channels)}/{len(enhanced_channels)} قناة
+👥 **الوصول المباشر:** {total_reach:,} مشترك
 
-[!] انقر على القنوات للاختيار/إلغاء الاختيار:"""
+💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
     elif language == 'ru':
-        channel_text = f"""[TV] **Выберите каналы для рекламы**
+        channel_text = f"""📺 **Выберите каналы для рекламы**
 
-[*] **Выбрано:** {len(selected_channels)}/{len(channels)} каналов
-[Users] **Общий охват:** {total_reach:,} подписчиков
+📊 **Выбрано:** {len(selected_channels)}/{len(enhanced_channels)} каналов
+👥 **Живой охват:** {total_reach:,} подписчиков
 
-[!] Нажмите на каналы для выбора/отмены:"""
+💡 Нажмите на каналы для выбора/отмены:"""
     else:
-        channel_text = f"""[TV] **Select Channels for Your Ad**
+        channel_text = f"""📺 **Select Channels for Your Ad**
 
-[*] **Selected:** {len(selected_channels)}/{len(channels)} channels
-[Users] **Total Reach:** {total_reach:,} subscribers
+📊 **Selected:** {len(selected_channels)}/{len(enhanced_channels)} channels
+👥 **Live Reach:** {total_reach:,} subscribers
 
-[!] Click channels to select/deselect:"""
+💡 Click channels to select/deselect:"""
     
     keyboard_rows = []
-    for channel in channels:
+    for channel in enhanced_channels:
         # Check if channel is selected
         is_selected = channel['channel_id'] in selected_channels
-        check_emoji = "[[]]" if is_selected else "[O]"
         
-        # Enhanced button with subscriber count
-        subscribers = channel.get('subscribers', 0)
-        sub_text = f" ({subscribers:,} subs)" if subscribers > 0 else ""
+        # Create enhanced button text with live counts and improved layout
+        button_text = live_stats.create_channel_button_text(channel, is_selected, language)
         
         keyboard_rows.append([InlineKeyboardButton(
-            text=f"{check_emoji} {channel['name']}{sub_text}",
+            text=button_text,
             callback_data=f"toggle_channel_{channel['channel_id']}"
         )])
     
     # Add control buttons with better styling
-    keyboard_rows.append([
-        InlineKeyboardButton(text="[Location] Select All", callback_data="select_all_channels"),
-        InlineKeyboardButton(text="[X] Deselect All", callback_data="deselect_all_channels")
-    ])
+    if language == 'ar':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔄 تحديث الإحصائيات", callback_data="refresh_channel_stats"),
+            InlineKeyboardButton(text="🔄 اختيار الكل", callback_data="select_all_channels")
+        ])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="❌ إلغاء تحديد الكل", callback_data="deselect_all_channels")
+        ])
+    elif language == 'ru':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔄 Обновить статистику", callback_data="refresh_channel_stats"),
+            InlineKeyboardButton(text="🔄 Выбрать все", callback_data="select_all_channels")
+        ])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="❌ Отменить все", callback_data="deselect_all_channels")
+        ])
+    else:
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="refresh_channel_stats"),
+            InlineKeyboardButton(text="🔄 Select All", callback_data="select_all_channels")
+        ])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="❌ Deselect All", callback_data="deselect_all_channels")
+        ])
     
     # Dynamic continue button - disabled if no channels selected
-    continue_text = f"[[]] Continue ({len(selected_channels)} selected)" if selected_channels else "[!] Select channels first"
+    if selected_channels:
+        if language == 'ar':
+            continue_text = f"▶️ متابعة ({len(selected_channels)} محدد)"
+        elif language == 'ru':
+            continue_text = f"▶️ Продолжить ({len(selected_channels)} выбрано)"
+        else:
+            continue_text = f"▶️ Continue ({len(selected_channels)} selected)"
+        callback_data = "proceed_to_payment"
+    else:
+        if language == 'ar':
+            continue_text = "⚠️ اختر القنوات أولاً"
+        elif language == 'ru':
+            continue_text = "⚠️ Сначала выберите каналы"
+        else:
+            continue_text = "⚠️ Select channels first"
+        callback_data = "no_channels_warning"
+    
     keyboard_rows.append([InlineKeyboardButton(
         text=continue_text,
-        callback_data="proceed_to_payment" if selected_channels else "no_channels_warning"
+        callback_data=callback_data
     )])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
@@ -1456,6 +1494,49 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
         )
     
     await state.set_state(AdCreationStates.channel_selection)
+
+
+@router.callback_query(F.data == "refresh_channel_stats")
+async def refresh_channel_stats_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Refresh channel statistics and update display"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Show loading message
+        loading_text = {
+            'en': "🔄 Refreshing channel statistics...",
+            'ar': "🔄 تحديث إحصائيات القنوات...",
+            'ru': "🔄 Обновление статистики каналов..."
+        }
+        
+        await callback_query.answer(loading_text.get(language, loading_text['en']))
+        
+        # Initialize live stats system
+        from live_channel_stats import LiveChannelStats
+        live_stats = LiveChannelStats(callback_query.bot, db)
+        
+        # Refresh all channel statistics
+        updated_count = await live_stats.refresh_all_channel_stats()
+        
+        # Clear cache to force fresh data
+        live_stats.clear_cache()
+        
+        # Show updated channel selection
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
+        
+        # Show success message
+        success_text = {
+            'en': f"✅ Updated {updated_count} channel statistics",
+            'ar': f"✅ تم تحديث إحصائيات {updated_count} قناة",
+            'ru': f"✅ Обновлено {updated_count} статистик каналов"
+        }
+        
+        await callback_query.answer(success_text.get(language, success_text['en']))
+        
+    except Exception as e:
+        logger.error(f"Refresh channel stats error: {e}")
+        await callback_query.answer("Error refreshing stats. Please try again.", show_alert=True)
 
 
 @router.callback_query(F.data == "settings")
