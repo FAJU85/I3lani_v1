@@ -25,6 +25,13 @@ from config import ADMIN_IDS
 import os
 from datetime import datetime, timedelta
 from callback_error_handler import safe_callback_answer, safe_callback_edit
+from enhanced_callback_handler import safe_answer_callback, safe_edit_callback, handle_callback_with_retry
+from modern_keyboard import (
+    create_modern_main_menu, create_modern_language_selector, 
+    create_modern_channel_selector, create_modern_duration_selector,
+    create_modern_payment_selector, create_modern_admin_panel,
+    create_modern_confirmation
+)
 from frequency_pricing import FrequencyPricingSystem
 from ui_effects import ui_effects
 # Flow validator removed for cleanup
@@ -36,17 +43,8 @@ router = Router()
 
 
 def create_language_keyboard() -> InlineKeyboardMarkup:
-    """Create language selection keyboard"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text=f"{lang_data['flag']} {lang_data['name']}", 
-                callback_data=f"lang_{lang_code}"
-            )
-        ]
-        for lang_code, lang_data in LANGUAGES.items()
-    ])
-    return keyboard
+    """Create modern language selection keyboard"""
+    return create_modern_language_selector()
 
 
 async def is_user_partner(user_id: int) -> bool:
@@ -1605,48 +1603,88 @@ Question **Need Help?** Use /support to contact us!
 
 @router.callback_query(F.data == "create_ad")
 async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Start enhanced ad creation process - photos first"""
+    """Start enhanced ad creation process with modern UI and enhanced error handling"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Start with content upload - fixed state
-    await state.set_state(AdCreationStates.upload_content)
+    # Log the ad creation step
+    log_info(StepNames.CREATE_AD_START, user_id, "User clicked create ad button")
     
-    if language == 'ar':
-        text = """
-[Photo] **إنشاء إعلان جديد**
+    try:
+        # Use enhanced callback handler to prevent timeout errors
+        await safe_answer_callback(callback_query, user_id=user_id)
+        
+        # Start with content upload - fixed state
+        await state.set_state(AdCreationStates.upload_content)
+        
+        # Modern, psychologically calming text design
+        if language == 'ar':
+            text = """
+◇━━ إنشاء إعلان جديد ━━◇
+
+🎯 **خطوة 1: إضافة الصور**
 
 هل تريد إضافة صور لإعلانك؟
-يمكنك إضافة حتى 5 صور
+يمكنك إضافة حتى 5 صور عالية الجودة
 
-أرسل الصور الآن أو اضغط "تخطي" للمتابعة بدون صور
-        """.strip()
-    elif language == 'ru':
-        text = """
-[Photo] **Создать новое объявление**
+📸 أرسل الصور الآن أو اضغط "تخطي" للمتابعة بدون صور
 
-Хотите добавить фотографии?
-Можно добавить до 5 фотографий
+*التصميم الحديث يوفر تجربة مريحة ومهدئة*
+            """.strip()
+        elif language == 'ru':
+            text = """
+◇━━ Создать новое объявление ━━◇
 
-Отправьте фото или нажмите "Пропустить"
-        """.strip()
-    else:
-        text = """
-[Photo] **Create New Ad**
+🎯 **Шаг 1: Добавление фотографий**
+
+Хотите добавить фотографии в объявление?
+Можно добавить до 5 качественных фотографий
+
+📸 Отправьте фото или нажмите "Пропустить"
+
+*Современный дизайн обеспечивает комфорт*
+            """.strip()
+        else:
+            text = """
+◇━━ Create New Ad ━━◇
+
+🎯 **Step 1: Add Photos**
 
 Would you like to add photos to your ad?
-You can add up to 5 photos
+You can add up to 5 high-quality photos
 
-Send photos now or click "Skip" to continue without photos
-        """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⏭ Skip Photos", callback_data="skip_photos_to_text")],
-        [InlineKeyboardButton(text=" Back", callback_data="back_to_main")]
-    ])
-    
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
-    await callback_query.answer()
+📸 Send photos now or click "Skip" to continue without photos
+
+*Modern design provides a calming, comfortable experience*
+            """.strip()
+        
+        # Create modern confirmation keyboard with calming design
+        keyboard = create_modern_confirmation(
+            confirm_text="⏭ Skip Photos",
+            cancel_text="◀️ Back to Main",
+            confirm_callback="skip_photos_to_text",
+            cancel_callback="back_to_main",
+            user_id=user_id
+        )
+        
+        # Use enhanced edit with timeout protection
+        success = await safe_edit_callback(
+            callback_query,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode='Markdown',
+            user_id=user_id
+        )
+        
+        if success:
+            log_success(StepNames.CREATE_AD_START, user_id, "Ad creation started with modern UI")
+        else:
+            log_error(StepNames.CREATE_AD_START, user_id, 
+                     Exception("Failed to edit message"), {"action": "create_ad"})
+            
+    except Exception as e:
+        log_error(StepNames.CREATE_AD_START, user_id, e, {"action": "create_ad"})
+        await safe_answer_callback(callback_query, "Error starting ad creation. Please try again.", user_id=user_id)
 
 
 @router.callback_query(F.data == "free_trial")
