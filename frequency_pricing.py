@@ -17,19 +17,20 @@ class FrequencyPricingSystem:
         # Base cost per post per day (flat rate, not per channel)
         self.BASE_COST_PER_POST = 1.00  # $1.00 per post per day
         
-        # Smart day-based frequency tiers (exact specification)
+        # Smart day-based frequency tiers (EXACT SPECIFICATION - Core Logic: We Sell Days, You Gain Reach)
         self.frequency_tiers = {
-            1: {'posts_per_day': 1, 'discount': 0, 'name': 'Single Day'},
-            3: {'posts_per_day': 2, 'discount': 5, 'name': '3-Day Boost'},
-            5: {'posts_per_day': 3, 'discount': 7, 'name': '5-Day Power'},
-            7: {'posts_per_day': 4, 'discount': 10, 'name': 'Weekly Pro'},
-            10: {'posts_per_day': 5, 'discount': 12, 'name': '10-Day Elite'},
-            15: {'posts_per_day': 6, 'discount': 15, 'name': '15-Day Premium'},
-            20: {'posts_per_day': 8, 'discount': 18, 'name': '20-Day Ultra'},
-            30: {'posts_per_day': 10, 'discount': 20, 'name': 'Monthly Max'},
-            45: {'posts_per_day': 12, 'discount': 25, 'name': 'Extended Power'},
-            60: {'posts_per_day': 15, 'discount': 30, 'name': 'Bi-Monthly Pro'},
-            90: {'posts_per_day': 18, 'discount': 35, 'name': 'Quarterly Elite'}
+            1: {'posts_per_day': 1, 'discount': 0, 'name': 'Single Day', 'daily_rate': 1.00},
+            3: {'posts_per_day': 2, 'discount': 5, 'name': '3-Day Boost', 'daily_rate': 2.00},
+            5: {'posts_per_day': 3, 'discount': 7, 'name': '5-Day Power', 'daily_rate': 3.00},
+            7: {'posts_per_day': 4, 'discount': 10, 'name': 'Weekly Pro', 'daily_rate': 4.00},
+            10: {'posts_per_day': 5, 'discount': 12, 'name': '10-Day Elite', 'daily_rate': 5.00},
+            15: {'posts_per_day': 6, 'discount': 15, 'name': '15-Day Premium', 'daily_rate': 6.00},
+            20: {'posts_per_day': 8, 'discount': 18, 'name': '20-Day Ultra', 'daily_rate': 8.00},
+            30: {'posts_per_day': 10, 'discount': 20, 'name': 'Monthly Max', 'daily_rate': 10.00},
+            # Extended tiers for bulk buyers and brand campaigns
+            45: {'posts_per_day': 12, 'discount': 25, 'name': 'Extended Power', 'daily_rate': 12.00},
+            60: {'posts_per_day': 15, 'discount': 30, 'name': 'Bi-Monthly Pro', 'daily_rate': 15.00},
+            90: {'posts_per_day': 20, 'discount': 35, 'name': 'Quarterly Elite', 'daily_rate': 20.00}
         }
         
         # Convert to USD equivalent (Telegram Stars)
@@ -72,8 +73,8 @@ class FrequencyPricingSystem:
             discount_percent = tier['discount']
             tier_name = tier['name']
             
-            # Calculate base costs (flat rate - not multiplied by channels)
-            daily_cost = posts_per_day * self.BASE_COST_PER_POST
+            # Calculate base costs using daily rate (flat rate - not multiplied by channels)
+            daily_cost = tier.get('daily_rate', posts_per_day * self.BASE_COST_PER_POST)
             total_base_cost = days * daily_cost
             
             # BUG FIX: Ensure discount is properly applied for 10+ days

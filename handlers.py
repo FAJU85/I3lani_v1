@@ -2166,7 +2166,7 @@ Enjoy your free trial!
 
 
 async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMContext, days: int = 1):
-    """Show dynamic days selector with +/- buttons and live pricing"""
+    """Show smart pricing days selector with comprehensive pricing information"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
@@ -2174,64 +2174,66 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
-    # Calculate pricing with current settings (1 post per day default)
-    from dynamic_pricing import DynamicPricing
-    pricing = DynamicPricing()
-    calculation = pricing.calculate_total_cost(
-        days=days,
-        posts_per_day=1,  # Default to 1 post per day for preview
-        channels=[]  # Channel pricing will be calculated later
-    )
+    # Calculate pricing using the new frequency pricing system
+    from frequency_pricing import FrequencyPricingSystem
+    from smart_pricing_display import smart_pricing_display
     
-    # Create the dynamic interface text using translations
+    pricing_system = FrequencyPricingSystem()
+    calculation = pricing_system.calculate_pricing(days, channels_count=len(selected_channels) or 1)
+    
+    # Generate quick pricing preview
+    pricing_preview = smart_pricing_display.generate_quick_pricing_preview(days, language)
+    
+    # Create the smart pricing interface text
     if language == 'ar':
-        text = f"""**الخطوة 1: اختر مدة الحملة**
+        header = f"""🧠 **نظام التسعير الذكي - اختر عدد الأيام**
 
-عدد الأيام: {days}
+📅 **الأيام المحددة:** {days}
 
-**معاينة السعر المباشر** (1 منشور/يوم):
-- TON: {calculation['total_ton']} TON
-- Stars: {calculation['total_stars']} Stars
+{pricing_preview}
 
-**معلومات خصم الحجم:**
-- 1 منشور/يوم = بدون خصم
-- 2 منشور/يوم = 5% خصم
-- 4 منشور/يوم = 10% خصم
-- 8+ منشور/يوم = 20%+ خصم
-
-*ملاحظة: السعر النهائي يحسب بعد اختيار المنشورات لكل يوم*"""
+💡 **المنطق الذكي:**
+✅ المزيد من الأيام = المزيد من المنشورات يومياً
+✅ المزيد من الأيام = خصم أكبر
+✅ حساب تلقائي للعملات (دولار، تون، ستارز)"""
+        
+        footer = """
+🔄 اضغط +/- لتعديل الأيام أو اختر من الخيارات السريعة
+        """
+        
     elif language == 'ru':
-        text = f"""**Шаг 1: Выберите длительность кампании**
+        header = f"""🧠 **Умная система ценообразования - выберите дни**
 
-Количество дней: {days}
+📅 **Выбранные дни:** {days}
 
-**Предварительный просмотр цены** (1 пост/день):
-- TON: {calculation['total_ton']} TON
-- Stars: {calculation['total_stars']} Stars
+{pricing_preview}
 
-**Информация о скидке за объем:**
-- 1 пост/день = Без скидки
-- 2 поста/день = 5% скидка
-- 4 поста/день = 10% скидка
-- 8+ постов/день = 20%+ скидка
+💡 **Умная логика:**
+✅ Больше дней = больше постов в день
+✅ Больше дней = больше скидка
+✅ Автоматический расчет валют (USD, TON, Stars)"""
+        
+        footer = """
+🔄 Нажмите +/- для изменения дней или выберите из быстрых опций
+        """
+        
+    else:  # English
+        header = f"""🧠 **Smart Pricing System - Choose Days**
 
-*Примечание: Финальная цена рассчитывается после выбора постов в день*"""
-    else:
-        text = f"""**Step 1: Choose Campaign Duration**
+📅 **Selected Days:** {days}
 
-How many days: {days}
+{pricing_preview}
 
-**Live Price Preview** (1 post/day):
-- TON: {calculation['total_ton']} TON
-- Stars: {calculation['total_stars']} Stars
-
-**Volume Discount Info:**
-- 1 post/day = No discount
-- 2 posts/day = 5% off  
-- 4 posts/day = 10% off
-- 8+ posts/day = 20%+ off
-
-*Note: Final price calculated after selecting posts per day*"""
+💡 **Smart Logic:**
+✅ More Days = More Posts Per Day
+✅ More Days = Bigger Discount
+✅ Auto Currency Calculation (USD, TON, Stars)"""
+        
+        footer = """
+🔄 Click +/- to adjust days or choose from quick options
+        """
+    
+    text = header + footer
     
     # Create +/- keyboard for days selection with translations
     keyboard_rows = []
