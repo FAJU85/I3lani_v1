@@ -81,15 +81,23 @@ async def create_regular_main_menu_text(language: str, user_id: int) -> str:
     features_text = get_text(language, 'main_menu_features')
     ready_text = get_text(language, 'main_menu_ready')
     
+    # Get account status translations
+    your_account_text = get_text(language, 'your_account')
+    total_campaigns_text = get_text(language, 'total_campaigns')
+    account_status_text = get_text(language, 'account_status')
+    account_active_text = get_text(language, 'account_active')
+    performance_text = get_text(language, 'performance')
+    performance_optimized_text = get_text(language, 'performance_optimized')
+    
     # Build the complete menu text - simple and clear
     menu_text = f"""<b>{welcome_text}</b>
 
 <b>{status_text}</b>
 
-<b>📊 Your Account:</b>
-• 📢 Total Campaigns: <code>{total_ads}</code>
-• 🎯 Account Status: <b>ACTIVE</b>
-• 🌟 Performance: <b>OPTIMIZED</b>
+<b>{your_account_text}</b>
+• {total_campaigns_text} <code>{total_ads}</code>
+• {account_status_text} <b>{account_active_text}</b>
+• {performance_text} <b>{performance_optimized_text}</b>
 
 <b>{ready_text}</b>"""
     
