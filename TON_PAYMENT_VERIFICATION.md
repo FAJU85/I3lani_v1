@@ -6,13 +6,13 @@ The bot uses a sophisticated blockchain-based verification system to confirm TON
 ## Key Components
 
 ### 1. **Unique Memo Generation**
-When a user initiates a TON payment, the bot generates a unique memo code (e.g., "AB0102") that must be included with the payment. This memo serves as a unique identifier linking the payment to the specific user and transaction.
+When a user initiates a TON payment, the bot generates a unique memo code with exactly 2 uppercase letters followed by 4 digits (e.g., "AB1234", "XY5678"). This memo serves as a unique identifier linking the payment to the specific user and transaction.
 
 ### 2. **Payment Instructions**
 The bot provides:
 - TON wallet address: `UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB`
 - Exact amount in TON (e.g., 0.36 TON)
-- Unique memo code (e.g., "AB0102")
+- Unique memo code (e.g., "AB1234")
 - 20-minute expiration timer
 
 ### 3. **Blockchain Monitoring**

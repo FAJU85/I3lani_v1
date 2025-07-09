@@ -12,6 +12,8 @@ import logging
 import time
 import asyncio
 import requests
+import random
+import string
 from logger import log_success, log_error, log_info, StepNames
 
 logger = logging.getLogger(__name__)
@@ -2783,9 +2785,10 @@ async def process_ton_payment(callback_query: CallbackQuery, state: FSMContext, 
     from config import TON_WALLET_ADDRESS
     wallet_address = TON_WALLET_ADDRESS or "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
     
-    # Generate unique memo for this payment
-    import time
-    memo = f"AD{user_id}_{int(time.time())}"
+    # Generate unique memo for this payment (2 letters + 4 digits format)
+    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+    digits = ''.join(random.choices(string.digits, k=4))
+    memo = letters + digits
     
     # Create payment instructions with translations
     if language == 'ar':
@@ -3151,7 +3154,7 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
             InlineKeyboardButton(text="[Admin] Manual Confirm", callback_data=f"admin_confirm_ton_{memo}")
         ])
         try:
-            await callback_query.message.edit_text(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+            await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
         except:
             pass
 
@@ -3409,6 +3412,359 @@ async def monitor_ton_payment(user_id: int, memo: str, amount_ton: float, expira
     
     # Payment expired
     await handle_expired_ton_payment(user_id, memo, state)
+
+
+async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: float, state: FSMContext):
+    """Handle successful TON payment confirmation"""
+    try:
+        from main import bot
+        language = await get_user_language(user_id)
+        
+        # Get data from state
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        ad_content = data.get('ad_content', '') or data.get('ad_text', '')
+        photos = data.get('photos', []) or data.get('uploaded_photos', [])
+        calculation = data.get('pricing_calculation', {})
+        
+        # Create ad in database
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=ad_content,
+            media_url=photos[0]['file_id'] if photos else None,
+            content_type='photo' if photos else 'text'
+        )
+        
+        # Get pricing data
+        days = calculation.get('days', 1)
+        posts_per_day = calculation.get('posts_per_day', 1)
+        total_posts = days * posts_per_day
+        
+        # Create subscription for each selected channel
+        subscription_ids = []
+        for channel_id in selected_channels:
+            subscription_id = await db.create_subscription(
+                user_id=user_id,
+                ad_id=ad_id,
+                channel_id=channel_id,
+                duration_months=0,  # Duration in days, not months
+                total_price=amount_ton,
+                currency='TON',
+                posts_per_day=posts_per_day,
+                total_posts=total_posts
+            )
+            subscription_ids.append(subscription_id)
+        
+        # Create payment record
+        payment_id = await db.create_payment(
+            user_id=user_id,
+            subscription_id=subscription_ids[0] if subscription_ids else None,
+            amount=amount_ton,
+            currency='TON',
+            payment_method='ton_crypto',
+            memo=memo
+        )
+        
+        # Activate all subscriptions
+        for subscription_id in subscription_ids:
+            await db.activate_subscription(subscription_id)
+        
+        # Get channel names for success message
+        channels = await db.get_channels()
+        selected_channel_names = [ch['name'] for ch in channels if ch['channel_id'] in selected_channels]
+        
+        # Create success message
+        if language == 'ar':
+            success_text = f"""✅ **تم تأكيد الدفع بنجاح!**
+
+💎 **المبلغ:** {amount_ton:.3f} TON
+🔗 **كود التحقق:** {memo}
+📺 **القنوات:** {len(selected_channels)} قناة
+📅 **المدة:** {days} أيام
+📊 **المنشورات:** {total_posts} منشور إجمالي
+
+**القنوات المحددة:**
+{chr(10).join(f"• {name}" for name in selected_channel_names)}
+
+🚀 **الخطوات التالية:**
+• سيتم نشر إعلانك خلال الـ24 ساعة القادمة
+• ستتلقى إشعارات عند كل نشر
+• يمكنك متابعة أداء الإعلان من "إعلاناتي"
+
+شكراً لاستخدام بوت I3lani!"""
+        elif language == 'ru':
+            success_text = f"""✅ **Платеж успешно подтвержден!**
+
+💎 **Сумма:** {amount_ton:.3f} TON
+🔗 **Код проверки:** {memo}
+📺 **Каналы:** {len(selected_channels)} каналов
+📅 **Длительность:** {days} дней
+📊 **Посты:** {total_posts} постов всего
+
+**Выбранные каналы:**
+{chr(10).join(f"• {name}" for name in selected_channel_names)}
+
+🚀 **Следующие шаги:**
+• Ваше объявление будет опубликовано в течение 24 часов
+• Вы получите уведомления о каждой публикации
+• Отслеживайте производительность в "Мои объявления"
+
+Спасибо за использование I3lani Bot!"""
+        else:
+            success_text = f"""✅ **Payment Successfully Confirmed!**
+
+💎 **Amount:** {amount_ton:.3f} TON
+🔗 **Verification Code:** {memo}
+📺 **Channels:** {len(selected_channels)} channels
+📅 **Duration:** {days} days
+📊 **Posts:** {total_posts} total posts
+
+**Selected Channels:**
+{chr(10).join(f"• {name}" for name in selected_channel_names)}
+
+🚀 **Next Steps:**
+• Your ad will be published within 24 hours
+• You'll receive notifications for each publication
+• Track performance in "My Ads"
+
+Thank you for using I3lani Bot!"""
+        
+        # Create navigation keyboard
+        if language == 'ar':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 إعلاناتي", callback_data="my_ads")],
+                [InlineKeyboardButton(text="🏠 القائمة الرئيسية", callback_data="back_to_main")]
+            ])
+        elif language == 'ru':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 Мои объявления", callback_data="my_ads")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+            ])
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📊 My Ads", callback_data="my_ads")],
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+        
+        # Send success message
+        await bot.send_message(
+            chat_id=user_id,
+            text=success_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        # Clear state
+        await state.clear()
+        
+        # Log successful payment
+        logger.info(f"TON payment successful: User {user_id}, Amount {amount_ton} TON, Memo {memo}")
+        
+    except Exception as e:
+        logger.error(f"Error processing successful TON payment: {e}")
+        # Send error message to user
+        try:
+            await bot.send_message(
+                chat_id=user_id,
+                text="✅ Payment received but there was an error processing your ad. Please contact support.",
+                parse_mode='Markdown'
+            )
+        except:
+            pass
+
+
+async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext):
+    """Handle expired TON payment"""
+    try:
+        from main import bot
+        language = await get_user_language(user_id)
+        
+        # Create timeout message
+        if language == 'ar':
+            timeout_text = f"""⏰ **انتهت صلاحية الدفع**
+
+🔗 **كود التحقق:** {memo}
+⏱️ **انتهى في:** 20 دقيقة
+
+لم يتم العثور على الدفع خلال الوقت المحدد. يمكنك:
+
+• المحاولة مرة أخرى بدفع جديد
+• التحقق من أن المبلغ وكود التحقق صحيحان
+• الاتصال بالدعم للمساعدة
+
+لا تقلق - لم يتم خصم أي مبلغ من حسابك."""
+        elif language == 'ru':
+            timeout_text = f"""⏰ **Время оплаты истекло**
+
+🔗 **Код проверки:** {memo}
+⏱️ **Истек через:** 20 минут
+
+Оплата не найдена в указанное время. Вы можете:
+
+• Попробовать еще раз с новым платежом
+• Убедиться, что сумма и код проверки правильные
+• Связаться с поддержкой для помощи
+
+Не беспокойтесь - с вашего аккаунта не было снято никаких средств."""
+        else:
+            timeout_text = f"""⏰ **Payment Expired**
+
+🔗 **Verification Code:** {memo}
+⏱️ **Expired after:** 20 minutes
+
+Payment was not found within the specified time. You can:
+
+• Try again with a new payment
+• Verify that the amount and verification code are correct
+• Contact support for assistance
+
+Don't worry - no funds have been charged from your account."""
+        
+        # Create keyboard
+        if language == 'ar':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 المحاولة مرة أخرى", callback_data="retry_payment")],
+                [InlineKeyboardButton(text="📞 الاتصال بالدعم", callback_data="support_contact")],
+                [InlineKeyboardButton(text="🏠 القائمة الرئيسية", callback_data="back_to_main")]
+            ])
+        elif language == 'ru':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="retry_payment")],
+                [InlineKeyboardButton(text="📞 Связаться с поддержкой", callback_data="support_contact")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+            ])
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Try Again", callback_data="retry_payment")],
+                [InlineKeyboardButton(text="📞 Contact Support", callback_data="support_contact")],
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
+            ])
+        
+        # Send timeout message
+        await bot.send_message(
+            chat_id=user_id,
+            text=timeout_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        # Log timeout
+        logger.warning(f"TON payment timeout: User {user_id}, Memo {memo}")
+        
+    except Exception as e:
+        logger.error(f"Error handling expired TON payment: {e}")
+
+
+@router.callback_query(F.data.startswith("admin_confirm_ton_"))
+async def admin_confirm_ton_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Admin manual confirmation for TON payments (testing)"""
+    if callback_query.from_user.id not in ADMIN_IDS:
+        await callback_query.answer("Access denied")
+        return
+    
+    memo = callback_query.data.replace("admin_confirm_ton_", "")
+    
+    # Get user from state or callback data
+    data = await state.get_data()
+    user_id = callback_query.from_user.id
+    amount_ton = data.get('payment_amount_ton', 0)
+    
+    # Manually confirm payment
+    await handle_successful_ton_payment(user_id, memo, amount_ton, state)
+    await callback_query.answer("Payment manually confirmed by admin")
+
+
+@router.callback_query(F.data == "retry_payment")
+async def retry_payment_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Retry payment after timeout"""
+    await callback_query.answer("Redirecting to payment options...")
+    await show_payment_options(callback_query, state)
+
+
+async def show_payment_options(callback_query: CallbackQuery, state: FSMContext):
+    """Show payment options to user"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    data = await state.get_data()
+    calculation = data.get('pricing_calculation', {})
+    
+    if not calculation:
+        await callback_query.answer("No pricing data found. Please restart ad creation.")
+        return
+    
+    total_usd = calculation.get('total_usd', 0)
+    total_ton = calculation.get('total_ton', 0)
+    total_stars = calculation.get('total_stars', 0)
+    days = calculation.get('days', 1)
+    posts_per_day = calculation.get('posts_per_day', 1)
+    
+    # Create payment options text
+    if language == 'ar':
+        payment_text = f"""💰 **اختر طريقة الدفع**
+
+📊 **ملخص الطلب:**
+• المدة: {days} أيام
+• المنشورات: {posts_per_day} منشور/يوم
+• المبلغ: ${total_usd:.2f}
+
+💎 **طرق الدفع المتاحة:**
+• TON: {total_ton:.3f} TON
+• نجوم تلغرام: {total_stars} نجمة
+
+اختر طريقة الدفع المفضلة:"""
+    elif language == 'ru':
+        payment_text = f"""💰 **Выберите способ оплаты**
+
+📊 **Сводка заказа:**
+• Длительность: {days} дней
+• Посты: {posts_per_day} пост/день
+• Сумма: ${total_usd:.2f}
+
+💎 **Доступные способы:**
+• TON: {total_ton:.3f} TON
+• Telegram Stars: {total_stars} звезд
+
+Выберите предпочтительный способ оплаты:"""
+    else:
+        payment_text = f"""💰 **Choose Payment Method**
+
+📊 **Order Summary:**
+• Duration: {days} days
+• Posts: {posts_per_day} posts/day
+• Amount: ${total_usd:.2f}
+
+💎 **Available Methods:**
+• TON: {total_ton:.3f} TON
+• Telegram Stars: {total_stars} stars
+
+Choose your preferred payment method:"""
+    
+    # Create keyboard
+    if language == 'ar':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 دفع TON", callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text="⭐ نجوم تلغرام", callback_data="pay_dynamic_stars")],
+            [InlineKeyboardButton(text="🔄 إعادة حساب", callback_data="recalculate_dynamic")],
+            [InlineKeyboardButton(text="❌ إلغاء", callback_data="cancel_payment")]
+        ])
+    elif language == 'ru':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Оплата TON", callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="pay_dynamic_stars")],
+            [InlineKeyboardButton(text="🔄 Пересчитать", callback_data="recalculate_dynamic")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_payment")]
+        ])
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Pay with TON", callback_data="pay_dynamic_ton")],
+            [InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="pay_dynamic_stars")],
+            [InlineKeyboardButton(text="🔄 Recalculate", callback_data="recalculate_dynamic")],
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="cancel_payment")]
+        ])
+    
+    await callback_query.message.edit_text(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.answer("Payment options shown")
 
 
 async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: float, state: FSMContext):

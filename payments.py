@@ -19,8 +19,10 @@ class PaymentProcessor:
         self.ton_wallet = TON_WALLET_ADDRESS
         
     def generate_memo(self) -> str:
-        """Generate AB0102 format memo (6-character alphanumeric)"""
-        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        """Generate payment memo in format: 2 letters + 4 digits (e.g., AB1234)"""
+        letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+        digits = ''.join(random.choices(string.digits, k=4))
+        return letters + digits
     
     def calculate_price(self, base_price_usd: float, duration_months: int, 
                        currency: str = 'USD', apply_referral_discount: bool = False) -> Dict:

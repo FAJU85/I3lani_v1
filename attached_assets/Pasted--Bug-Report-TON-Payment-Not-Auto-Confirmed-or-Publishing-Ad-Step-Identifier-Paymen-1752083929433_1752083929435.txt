@@ -1,0 +1,52 @@
+## 🐞 Bug Report – TON Payment Not Auto-Confirmed or Publishing Ad
+
+**🔖 Step Identifier:** Payment_Step_3_TON_Monitor, Payment_Step_4_TON_Confirm  
+**📁 Affected Files/Modules:** `payments.py`, `handlers/create_ad.py`  
+**📌 Description:**  
+When a user completes payment using TON, the bot does **not automatically confirm the payment** and does **not publish the ad** after payment is received. The process appears stuck after sending TON, with no confirmation or next steps.
+
+---
+
+### ✅ Steps to Reproduce:
+1. Start creating an ad and proceed to payment.
+2. Choose to pay using TON.
+3. Complete the TON payment transaction.
+4. Observe that:
+   - The bot does not automatically confirm that the payment was received.
+   - The ad is not published or moved to the next state.
+
+---
+
+### 🎯 Expected Behavior:
+- Upon successful TON payment, the bot should:
+  - Automatically detect and confirm the payment.
+  - Notify the user that the payment was successful.
+  - Proceed to publish the ad or advance to the next workflow step.
+
+---
+
+### 🚫 Actual Behavior:
+- The bot does not confirm TON payments automatically.
+- The ad is not published after payment.
+- User is left waiting with no feedback or next action.
+
+---
+
+### 📎 Notes:
+- The issue may be in the TON payment monitoring or callback handler.
+- Ensure the bot listens for TON payment confirmations and triggers the appropriate follow-up steps.
+- Check for proper integration with the TON blockchain/payment API and correct event handling.
+
+---
+
+### 🛠 Suggested Fix:
+- Review and fix the TON payment monitoring logic:
+  - The bot should regularly check or subscribe for incoming TON payments.
+  - On confirmation, update the payment status, notify the user, and trigger ad publication.
+  - Example:
+    ```python
+    if ton_payment_confirmed(user_id, txn_id):
+        publish_ad(user_id, ad_id)
+        send_message(user_id, get_text(lang, "payment_success"))
+    ```
+- Test with both successful and failed payments to ensure correct flow.
