@@ -3104,8 +3104,9 @@ async def continue_ton_payment_with_wallet(message: Message, state: FSMContext, 
         parse_mode='Markdown'
     )
     
-    # Start monitoring for payment
-    asyncio.create_task(monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, user_wallet, state))
+    # Start enhanced payment monitoring
+    from enhanced_ton_payment_monitoring import monitor_ton_payment_enhanced
+    asyncio.create_task(monitor_ton_payment_enhanced(user_id, memo, amount_ton, expiration_time, user_wallet, state, bot_wallet))
 
 def normalize_wallet_address(address: str) -> str:
     """Normalize TON wallet address by converting to standard format"""
@@ -4106,7 +4107,7 @@ Thank you for using I3lani Bot!"""
 async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext):
     """Handle expired TON payment"""
     try:
-        from main import bot
+        from main_bot import bot
         language = await get_user_language(user_id)
         
         # Create timeout message

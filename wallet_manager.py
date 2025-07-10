@@ -516,10 +516,10 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
         # Message
         await message_or_callback.answer(payment_text, reply_markup=keyboard, parse_mode='Markdown')
     
-    # Start payment monitoring using existing function from handlers
+    # Start enhanced payment monitoring
     import asyncio
-    from handlers import monitor_ton_payment_with_user_wallet
-    asyncio.create_task(monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, wallet_address, state))
+    from enhanced_ton_payment_monitoring import monitor_ton_payment_enhanced
+    asyncio.create_task(monitor_ton_payment_enhanced(user_id, memo, amount_ton, expiration_time, wallet_address, state, bot_wallet))
 
 async def continue_affiliate_with_wallet(message_or_callback, state: FSMContext, wallet_address: str):
     """Continue affiliate program enrollment with wallet address"""
