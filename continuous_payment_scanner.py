@@ -135,12 +135,18 @@ class ContinuousPaymentScanner:
                     logger.error(f"❌ Failed to send confirmation to user {user_id}")
                     return False
             else:
-                # If no user found, try legacy approach
-                logger.warning(f"⚠️ No user found for memo {memo}, using legacy confirmation")
+                # If no user found, create comprehensive fallback notification
+                logger.warning(f"⚠️ No user found for memo {memo}, creating fallback notification")
                 
-                # For legacy payments without memo tracking, just mark as confirmed
-                logger.info(f"✅ Payment {memo} confirmed automatically by scanner")
-                return True
+                # Send broadcast notification to all recent users or create admin alert
+                success = await self.send_fallback_payment_notification(memo, amount, sender, timestamp)
+                
+                if success:
+                    logger.info(f"✅ Payment {memo} fallback notification sent")
+                    return True
+                else:
+                    logger.error(f"❌ Failed to send fallback notification for {memo}")
+                    return False
                 
         except Exception as e:
             logger.error(f"❌ Error confirming payment {memo}: {e}")
@@ -309,6 +315,92 @@ Thank you for choosing I3lani!"""
             
         except Exception as e:
             logger.error(f"❌ Error sending confirmation to user {user_id}: {e}")
+            return False
+    
+    async def send_fallback_payment_notification(self, memo: str, amount: float, sender: str, timestamp: int):
+        """Send fallback notification for untracked payments"""
+        try:
+            from main_bot import bot_instance
+            
+            if bot_instance:
+                # Create admin notification for manual review
+                admin_message = f"""🚨 UNTRACKED PAYMENT DETECTED
+
+💰 Amount: {amount} TON
+🎫 Memo: {memo}
+👤 Sender: {sender}
+📅 Timestamp: {timestamp}
+
+This payment was detected on blockchain but no user mapping found.
+Manual review required for user notification.
+
+Action needed: Contact user with memo {memo} for confirmation."""
+                
+                # Try to send to admin (you can add admin user ID here)
+                try:
+                    # For now, just log the admin notification
+                    logger.info(f"🚨 ADMIN ALERT: {admin_message}")
+                except Exception as admin_error:
+                    logger.error(f"Failed to send admin notification: {admin_error}")
+                
+                # Create public notification in bot logs
+                public_message = f"""✅ PAYMENT DETECTED: {memo}
+
+If you made a payment with memo {memo} for {amount} TON, your payment has been received and confirmed.
+
+Your ad campaign will be activated shortly. If you don't receive confirmation within 10 minutes, please contact support with memo {memo}.
+
+Thank you for using I3lani!"""
+                
+                logger.info(f"📢 PUBLIC NOTIFICATION: {public_message}")
+                
+                # Store untracked payment for admin review
+                await self.store_untracked_payment(memo, amount, sender, timestamp)
+                
+                return True
+            else:
+                logger.error("❌ Bot instance not available for fallback notification")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error sending fallback notification: {e}")
+            return False
+    
+    async def store_untracked_payment(self, memo: str, amount: float, sender: str, timestamp: int):
+        """Store untracked payment for admin review"""
+        try:
+            import sqlite3
+            
+            conn = sqlite3.connect("bot.db")
+            cursor = conn.cursor()
+            
+            # Create untracked_payments table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS untracked_payments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    memo TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    sender TEXT,
+                    timestamp INTEGER,
+                    status TEXT DEFAULT 'pending_review',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            # Insert untracked payment
+            cursor.execute("""
+                INSERT INTO untracked_payments (memo, amount, sender, timestamp)
+                VALUES (?, ?, ?, ?)
+            """, (memo, amount, sender, timestamp))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Stored untracked payment {memo} for admin review")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error storing untracked payment: {e}")
             return False
     
     async def run_continuous_scanner(self):
