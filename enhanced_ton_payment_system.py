@@ -12,6 +12,17 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
+# Import timeline components
+try:
+    from animated_transaction_timeline import (
+        get_timeline_manager, create_payment_timeline, update_payment_timeline,
+        complete_payment_timeline, TimelineStepStatus, TIMELINE_STEPS
+    )
+    TIMELINE_AVAILABLE = True
+except ImportError:
+    TIMELINE_AVAILABLE = False
+    logger.warning("Timeline components not available")
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -49,7 +60,7 @@ class EnhancedTONPaymentSystem:
         return memo
     
     async def create_payment_request(self, user_id: int, amount_ton: float, 
-                                   user_wallet: str, campaign_details: dict) -> Dict:
+                                   user_wallet: str, campaign_details: dict, bot_instance=None) -> Dict:
         """Create enhanced payment request with memo-based verification"""
         
         # Generate unique memo for this payment
@@ -69,6 +80,25 @@ class EnhancedTONPaymentSystem:
             'status': 'pending'
         }
         
+        # Create animated timeline if available
+        if TIMELINE_AVAILABLE and bot_instance:
+            try:
+                await create_payment_timeline(user_id, payment_request['payment_id'], bot_instance)
+                # Update timeline - memo generation completed
+                await update_payment_timeline(
+                    payment_request['payment_id'], 
+                    TIMELINE_STEPS['MEMO_GENERATION'], 
+                    TimelineStepStatus.COMPLETED
+                )
+                # Start payment instructions step
+                await update_payment_timeline(
+                    payment_request['payment_id'], 
+                    TIMELINE_STEPS['PAYMENT_INSTRUCTIONS'], 
+                    TimelineStepStatus.IN_PROGRESS
+                )
+            except Exception as e:
+                logger.error(f"Error creating timeline: {e}")
+        
         logger.info(f"Created payment request: {payment_request['payment_id']} with memo: {memo}")
         return payment_request
     
@@ -80,6 +110,22 @@ class EnhancedTONPaymentSystem:
         memo = payment_request['memo']
         expected_amount = payment_request['amount_ton']
         user_wallet = payment_request['user_wallet']
+        
+        # Update timeline - payment instructions completed, start blockchain monitoring
+        if TIMELINE_AVAILABLE:
+            try:
+                await update_payment_timeline(
+                    payment_id, 
+                    TIMELINE_STEPS['PAYMENT_INSTRUCTIONS'], 
+                    TimelineStepStatus.COMPLETED
+                )
+                await update_payment_timeline(
+                    payment_id, 
+                    TIMELINE_STEPS['BLOCKCHAIN_MONITORING'], 
+                    TimelineStepStatus.IN_PROGRESS
+                )
+            except Exception as e:
+                logger.error(f"Error updating timeline: {e}")
         
         logger.info(f"Starting payment monitoring for {payment_id} with memo: {memo}")
         
@@ -123,8 +169,43 @@ class EnhancedTONPaymentSystem:
                 if matching_transaction:
                     logger.info(f"✅ Payment confirmed: {payment_id} with memo: {memo}")
                     
+                    # Update timeline - blockchain monitoring completed, start verification
+                    if TIMELINE_AVAILABLE:
+                        try:
+                            await update_payment_timeline(
+                                payment_id, 
+                                TIMELINE_STEPS['BLOCKCHAIN_MONITORING'], 
+                                TimelineStepStatus.COMPLETED
+                            )
+                            await update_payment_timeline(
+                                payment_id, 
+                                TIMELINE_STEPS['PAYMENT_VERIFICATION'], 
+                                TimelineStepStatus.IN_PROGRESS
+                            )
+                        except Exception as e:
+                            logger.error(f"Error updating timeline: {e}")
+                    
                     # Call success callback
                     await on_success_callback(payment_request, matching_transaction)
+                    
+                    # Update timeline - verification completed, start campaign activation
+                    if TIMELINE_AVAILABLE:
+                        try:
+                            await update_payment_timeline(
+                                payment_id, 
+                                TIMELINE_STEPS['PAYMENT_VERIFICATION'], 
+                                TimelineStepStatus.COMPLETED
+                            )
+                            await update_payment_timeline(
+                                payment_id, 
+                                TIMELINE_STEPS['CAMPAIGN_ACTIVATION'], 
+                                TimelineStepStatus.IN_PROGRESS
+                            )
+                            # Complete timeline after short delay
+                            await asyncio.sleep(2)
+                            await complete_payment_timeline(payment_id, success=True)
+                        except Exception as e:
+                            logger.error(f"Error completing timeline: {e}")
                     
                     # Remove from active monitors
                     if payment_id in self.active_monitors:
@@ -141,6 +222,20 @@ class EnhancedTONPaymentSystem:
         
         # Payment timed out
         logger.warning(f"⏰ Payment timeout: {payment_id} with memo: {memo}")
+        
+        # Update timeline - monitoring failed
+        if TIMELINE_AVAILABLE:
+            try:
+                await update_payment_timeline(
+                    payment_id, 
+                    TIMELINE_STEPS['BLOCKCHAIN_MONITORING'], 
+                    TimelineStepStatus.FAILED,
+                    error_message="Payment timeout - no matching transaction found"
+                )
+                await complete_payment_timeline(payment_id, success=False)
+            except Exception as e:
+                logger.error(f"Error updating timeline for timeout: {e}")
+        
         await on_failure_callback(payment_request, "timeout")
         
         # Remove from active monitors

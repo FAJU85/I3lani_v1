@@ -2630,6 +2630,13 @@ async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContex
     bot_wallet = get_bot_wallet_address()
     enhanced_payment_system = get_enhanced_ton_payment_system(bot_wallet)
     
+    # Get bot instance from message context
+    bot_instance = None
+    if hasattr(message_or_callback, 'bot'):
+        bot_instance = message_or_callback.bot
+    elif hasattr(message_or_callback, 'message') and hasattr(message_or_callback.message, 'bot'):
+        bot_instance = message_or_callback.message.bot
+    
     # Get campaign details from state
     data = await state.get_data()
     calculation = data.get('pricing_calculation', {})
@@ -2646,7 +2653,8 @@ async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContex
             'total_posts': calculation.get('total_posts', 1),
             'selected_channels': selected_channels,
             'total_usd': calculation.get('total_usd', 0)
-        }
+        },
+        bot_instance=bot_instance
     )
     
     # Use enhanced memo from the new system
