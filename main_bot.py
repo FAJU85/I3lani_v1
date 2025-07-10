@@ -141,24 +141,39 @@ async def init_bot():
         except Exception as e:
             logger.error(f"❌ Failed to initialize campaign system: {e}")
         
-        # Initialize campaign publisher system
+        # Initialize campaign publisher system with enhanced startup
         logger.info("Initializing campaign publisher system...")
         try:
-            from campaign_publisher import init_campaign_publisher
-            logger.info("Campaign publisher module imported successfully")
+            from campaign_publisher import init_campaign_publisher, get_campaign_publisher
+            logger.info("✅ Campaign publisher module imported successfully")
+            
             campaign_publisher = await init_campaign_publisher(bot)
             logger.info(f"Campaign publisher initialization result: {campaign_publisher}")
+            
             if campaign_publisher:
                 logger.info("✅ Campaign publisher system initialized and running")
                 logger.info(f"Campaign publisher running status: {campaign_publisher.running}")
+                
                 # Store globally for access
                 globals()['campaign_publisher'] = campaign_publisher
+                
+                # Verify the publisher is actually running
+                await asyncio.sleep(1)  # Give it a moment to start
+                if campaign_publisher.running:
+                    logger.info("✅ Campaign publisher confirmed running - automatic publishing active")
+                else:
+                    logger.warning("⚠️ Campaign publisher not running after initialization")
+                    
             else:
-                logger.warning("⚠️ Campaign publisher failed to initialize - returned None")
+                logger.error("❌ Campaign publisher initialization returned None")
+                
         except Exception as e:
             logger.error(f"❌ Failed to initialize campaign publisher: {e}")
             import traceback
-            logger.error(f"Campaign publisher traceback: {traceback.format_exc()}")
+            logger.error(f"Campaign publisher full traceback: {traceback.format_exc()}")
+            
+            # Try to continue without campaign publisher
+            logger.warning("Continuing bot startup without campaign publisher...")
         
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")

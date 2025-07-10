@@ -318,6 +318,6 @@ async def init_campaign_publisher(bot: Bot):
         logger.error(f"❌ Error initializing campaign publisher: {e}")
         return None
 
-async def get_campaign_publisher() -> Optional[CampaignPublisher]:
+def get_campaign_publisher() -> Optional[CampaignPublisher]:
     """Get the global campaign publisher instance"""
     return campaign_publisher
