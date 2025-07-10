@@ -144,13 +144,21 @@ async def init_bot():
         # Initialize campaign publisher system
         logger.info("Initializing campaign publisher system...")
         try:
+            from campaign_publisher import init_campaign_publisher
+            logger.info("Campaign publisher module imported successfully")
             campaign_publisher = await init_campaign_publisher(bot)
+            logger.info(f"Campaign publisher initialization result: {campaign_publisher}")
             if campaign_publisher:
                 logger.info("✅ Campaign publisher system initialized and running")
+                logger.info(f"Campaign publisher running status: {campaign_publisher.running}")
+                # Store globally for access
+                globals()['campaign_publisher'] = campaign_publisher
             else:
-                logger.warning("⚠️ Campaign publisher failed to initialize")
+                logger.warning("⚠️ Campaign publisher failed to initialize - returned None")
         except Exception as e:
             logger.error(f"❌ Failed to initialize campaign publisher: {e}")
+            import traceback
+            logger.error(f"Campaign publisher traceback: {traceback.format_exc()}")
         
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")
