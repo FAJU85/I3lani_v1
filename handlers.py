@@ -2461,7 +2461,7 @@ async def days_info_handler(callback_query: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "days_confirm")
 async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Confirm days selection and continue to posts per day selection"""
+    """Confirm days selection and continue to payment options directly"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
@@ -2470,11 +2470,22 @@ async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext)
         selected_days = data.get('selected_days', 1)
         selected_channels = data.get('selected_channels', [])
         
-        # Store selected days
-        await state.update_data(selected_days=selected_days)
+        # Calculate pricing with default 1 post per day
+        from dynamic_pricing import DynamicPricing
+        calculation = DynamicPricing.calculate_total_cost(
+            days=selected_days,
+            posts_per_day=1,  # Default to 1 post per day
+            channels=selected_channels
+        )
         
-        # Show posts per day selection
-        await show_posts_per_day_selection(callback_query, state, selected_days, selected_channels)
+        # Store pricing calculation
+        await state.update_data(
+            selected_posts_per_day=1,
+            pricing_calculation=calculation
+        )
+        
+        # Go directly to payment options
+        await show_payment_options(callback_query, state)
         
     except Exception as e:
         logger.error(f"Error in days_confirm_handler: {e}")
