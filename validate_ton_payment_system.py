@@ -15,28 +15,75 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def test_ton_center_api():
-    """Test TON Center API connectivity"""
-    print("🔍 Testing TON Center API connectivity...")
+    """Test TON Center API connectivity with enhanced features"""
+    print("🔍 Testing TON Center API connectivity with enhanced features...")
     
     wallet_address = "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
-    api_url = f"https://toncenter.com/api/v2/getTransactions?address={wallet_address}&limit=5"
+    
+    # Test basic API call
+    api_url = f"https://toncenter.com/api/v2/getTransactions?address={wallet_address}&limit=10"
     
     try:
-        response = requests.get(api_url, timeout=10)
+        response = requests.get(api_url, timeout=15)
         if response.status_code == 200:
             data = response.json()
             if data.get('ok'):
                 transactions = data.get('result', [])
-                print(f"✅ TON Center API working - {len(transactions)} transactions found")
+                print(f"✅ Basic TON Center API working - {len(transactions)} transactions found")
                 
-                # Check if there are any transactions with memos
-                for tx in transactions:
-                    if tx.get('in_msg', {}).get('message'):
-                        memo = tx['in_msg']['message']
-                        amount = int(tx['in_msg'].get('value', 0)) / 1000000000
-                        print(f"   📝 Transaction memo: {memo}, amount: {amount:.3f} TON")
+                # Test enhanced API call with archival parameter
+                enhanced_api_url = f"https://toncenter.com/api/v2/getTransactions?address={wallet_address}&limit=100&archival=true"
+                enhanced_response = requests.get(enhanced_api_url, timeout=15)
                 
-                return True
+                if enhanced_response.status_code == 200:
+                    enhanced_data = enhanced_response.json()
+                    if enhanced_data.get('ok'):
+                        enhanced_transactions = enhanced_data.get('result', [])
+                        print(f"✅ Enhanced TON Center API working - {len(enhanced_transactions)} transactions found with archival=true")
+                        
+                        # Test pagination if we have transactions
+                        if enhanced_transactions:
+                            last_tx = enhanced_transactions[-1]
+                            last_lt = last_tx.get('lt')
+                            last_hash = last_tx.get('hash')
+                            
+                            if last_lt and last_hash:
+                                paginated_url = f"{enhanced_api_url}&lt={last_lt}&hash={last_hash}"
+                                paginated_response = requests.get(paginated_url, timeout=15)
+                                
+                                if paginated_response.status_code == 200:
+                                    paginated_data = paginated_response.json()
+                                    if paginated_data.get('ok'):
+                                        paginated_transactions = paginated_data.get('result', [])
+                                        print(f"✅ Pagination working - {len(paginated_transactions)} older transactions found")
+                                    else:
+                                        print(f"⚠️ Pagination API error: {paginated_data}")
+                                else:
+                                    print(f"⚠️ Pagination request failed with status: {paginated_response.status_code}")
+                        
+                        # Check transaction structure and memo detection
+                        memo_count = 0
+                        for tx in enhanced_transactions:
+                            if tx.get('in_msg', {}).get('message'):
+                                memo = tx['in_msg']['message']
+                                amount = int(tx['in_msg'].get('value', 0)) / 1000000000
+                                sender = tx['in_msg'].get('source', 'unknown')
+                                
+                                # Check for our memo format (2 letters + 4 digits)
+                                if len(memo) == 6 and memo[:2].isalpha() and memo[2:].isdigit():
+                                    memo_count += 1
+                                    print(f"   🎯 Payment memo detected: {memo}, amount: {amount:.3f} TON, from: {sender[:20]}...")
+                                else:
+                                    print(f"   📝 Transaction memo: {memo[:20]}..., amount: {amount:.3f} TON")
+                        
+                        print(f"📊 Found {memo_count} transactions with payment memo format")
+                        return True
+                    else:
+                        print(f"❌ Enhanced TON Center API error: {enhanced_data}")
+                        return False
+                else:
+                    print(f"❌ Enhanced TON Center API failed with status: {enhanced_response.status_code}")
+                    return False
             else:
                 print(f"❌ TON Center API error: {data}")
                 return False

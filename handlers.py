@@ -2705,7 +2705,7 @@ async def continue_ton_payment_with_wallet(message: Message, state: FSMContext, 
     asyncio.create_task(monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, user_wallet, state))
 
 async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_ton: float, expiration_time: int, user_wallet: str, state: FSMContext):
-    """Monitor TON payment using TON Center API with user wallet verification"""
+    """Monitor TON payment using TON Center API with user wallet verification - Enhanced with official best practices"""
     import time
     import requests
     
@@ -2717,26 +2717,47 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
     bot_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
     
     logger.info(f"Starting TON payment monitoring for user {user_id}, memo: {memo}, amount: {amount_ton} TON")
+    logger.info(f"Monitoring bot wallet: {bot_wallet}")
+    logger.info(f"Expected from user wallet: {user_wallet}")
+    
+    # Track last checked transaction to avoid duplicates
+    last_lt = None
+    last_hash = None
     
     while time.time() < expiration_time:
         try:
-            # Use TON Center API (working endpoint)
-            api_url = f"https://toncenter.com/api/v2/getTransactions?address={bot_wallet}&limit=10"
-            response = requests.get(api_url, timeout=10)
+            # Use TON Center API with enhanced parameters following official documentation
+            api_url = f"https://toncenter.com/api/v2/getTransactions?address={bot_wallet}&limit=100&archival=true"
+            
+            # Add pagination if we have previous transaction data
+            if last_lt and last_hash:
+                api_url += f"&lt={last_lt}&hash={last_hash}"
+            
+            response = requests.get(api_url, timeout=15)
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get('ok'):
                     transactions = data.get('result', [])
                     
-                    # Check recent transactions for our memo
+                    if not transactions:
+                        logger.debug(f"No new transactions found for {bot_wallet}")
+                        await asyncio.sleep(check_interval)
+                        continue
+                    
+                    # Process transactions in reverse order (newest first)
                     for tx in transactions:
                         # Check if this is an incoming transaction
                         if tx.get('in_msg'):
                             in_msg = tx['in_msg']
                             
+                            # Skip external messages
+                            if in_msg.get('@type') == 'raw.message' and not in_msg.get('source'):
+                                continue
+                            
                             # Check if transaction has the correct memo
-                            if in_msg.get('message') == memo:
+                            tx_memo = in_msg.get('message', '')
+                            if tx_memo == memo:
                                 # Get sender address
                                 sender_address = in_msg.get('source', '')
                                 
@@ -2749,7 +2770,8 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
                                     # Verify amount matches (with small tolerance for fees)
                                     if abs(tx_amount - amount_ton) <= 0.1:  # Allow 0.1 TON tolerance
                                         # Payment found and verified!
-                                        logger.info(f"TON payment verified: {memo} for {amount_ton} TON from {user_wallet}")
+                                        logger.info(f"✅ TON payment verified: {memo} for {amount_ton} TON from {user_wallet}")
+                                        logger.info(f"Transaction details: amount={tx_amount}, lt={tx.get('lt')}, hash={tx.get('hash')}")
                                         await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
                                         return
                                     else:
@@ -2757,10 +2779,19 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
                                 else:
                                     logger.info(f"Payment found but from wrong wallet: {sender_address} != {user_wallet}")
                             
+                    # Update pagination parameters for next iteration
+                    if transactions:
+                        last_tx = transactions[-1]
+                        last_lt = last_tx.get('lt')
+                        last_hash = last_tx.get('hash')
+                        
                 else:
                     logger.warning(f"TON Center API error: {data}")
             else:
                 logger.warning(f"TON Center API request failed with status {response.status_code}")
+                # Add retry logic for failed requests
+                await asyncio.sleep(min(check_interval, 10))
+                continue
             
             # Wait before next check
             await asyncio.sleep(check_interval)
