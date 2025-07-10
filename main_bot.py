@@ -133,6 +133,13 @@ async def init_bot():
         logger.info("Initializing channel manager...")
         channel_manager = init_channel_manager(bot, db)
         
+        # Initialize enhanced channel admin system
+        logger.info("Initializing enhanced channel admin system...")
+        from enhanced_channel_admin import enhanced_channel_admin, router as enhanced_channel_router
+        await enhanced_channel_admin.initialize(bot)
+        dp.include_router(enhanced_channel_router)
+        logger.info("Enhanced channel admin system initialized")
+        
         # Initialize channel incentives system
         logger.info("Initializing channel incentives system...")
         from channel_incentives import init_incentives

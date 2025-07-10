@@ -981,3 +981,12 @@ def get_currency_info(language_code: str) -> dict:
         'currency': lang['currency'],
         'symbol': lang['currency_symbol']
     }
+
+async def get_user_language(user_id: int) -> str:
+    """Get user's selected language from database"""
+    try:
+        from database import db
+        language = await db.get_user_language(user_id)
+        return language if language in LANGUAGES else DEFAULT_LANGUAGE
+    except Exception:
+        return DEFAULT_LANGUAGE

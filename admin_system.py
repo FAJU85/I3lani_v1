@@ -168,16 +168,24 @@ Channels:
             
             keyboard = [
                 [
+                    InlineKeyboardButton(text="🚀 Enhanced Dashboard", callback_data="enhanced_channel_dashboard"),
+                    InlineKeyboardButton(text="📊 Channel Analytics", callback_data="admin_channel_stats")
+                ],
+                [
+                    InlineKeyboardButton(text="⚡ Bulk Operations", callback_data="bulk_channel_operations"),
+                    InlineKeyboardButton(text="📈 Advanced Reports", callback_data="detailed_channel_analysis")
+                ],
+                [
+                    InlineKeyboardButton(text="🔍 Discover Channels", callback_data="admin_discover_channels"),
+                    InlineKeyboardButton(text="📥 Bulk Import", callback_data="admin_bulk_import")
+                ],
+                [
                     InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
                     InlineKeyboardButton(text="EDIT: Edit Channel", callback_data="admin_edit_channel")
                 ],
                 [
                     InlineKeyboardButton(text="🗑️ Remove Channel", callback_data="admin_remove_channel"),
-                    InlineKeyboardButton(text="STATS: Channel Stats", callback_data="admin_channel_stats")
-                ],
-                [
-                    InlineKeyboardButton(text="🔍 Discover Channels", callback_data="admin_discover_channels"),
-                    InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_refresh")
+                    InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="bulk_update_stats")
                 ],
                 [
                     InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")

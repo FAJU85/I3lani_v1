@@ -10,6 +10,7 @@ from typing import Optional, Dict, List
 from aiogram import Bot
 from aiogram.types import ChatMemberUpdated, Chat, ChatMember
 from database import Database, db
+from telegram_channel_api import get_telegram_channel_api
 
 logger = logging.getLogger(__name__)
 
@@ -43,41 +44,35 @@ class ChannelManager:
             logger.error(f"Error handling bot status change: {e}")
     
     async def add_channel_as_admin(self, chat: Chat, chat_member: ChatMember, added_by_user_id: int = None):
-        """Add channel when bot becomes admin with detailed analysis"""
+        """Add channel when bot becomes admin with detailed analysis using Telegram API"""
         try:
             # Check if bot can post messages
             if not chat_member.can_post_messages:
                 logger.warning(f"Bot added as admin to {chat.title} but cannot post messages")
                 return
             
-            # Get basic channel information
+            # Get enhanced channel information using Telegram API
+            telegram_api = get_telegram_channel_api(self.bot)
+            channel_info = await telegram_api.get_channel_info(str(chat.id))
+            
+            if not channel_info:
+                logger.error(f"Could not get channel info for {chat.title}")
+                return
+            
+            # Get detailed statistics
+            channel_stats = await telegram_api.get_channel_statistics(str(chat.id))
+            
+            # Extract information
             channel_id = str(chat.id)
-            channel_name = chat.title or f"Channel {channel_id}"
-            telegram_channel_id = chat.username if chat.username else channel_id
-            description = chat.description or ""
+            channel_name = channel_info['title'] or f"Channel {channel_id}"
+            telegram_channel_id = channel_info['username'] if channel_info['username'] else channel_id
+            description = channel_info['description'] or ""
+            subscribers = channel_info['member_count']
+            active_subscribers = channel_stats['active_subscribers'] if channel_stats else int(subscribers * 0.45)
+            category = channel_stats['category'] if channel_stats else 'general'
             
-            # Get detailed channel statistics
-            subscribers = 0
-            active_subscribers = 0
-            total_posts = 0
-            
-            try:
-                chat_info = await self.bot.get_chat(chat.id)
-                subscribers = chat_info.members_count or 0
-                description = chat_info.description or description
-                
-                # Estimate active subscribers (30-60% of total for most channels)
-                active_subscribers = int(subscribers * 0.45) if subscribers > 0 else 0
-                
-                # Try to estimate post count by getting recent messages
-                total_posts = await self._estimate_post_count(chat.id)
-                
-            except Exception as e:
-                logger.warning(f"Could not get detailed stats for {channel_name}: {e}")
-                subscribers = 0
-            
-            # Detect channel category based on title and description
-            category = self._detect_channel_category(channel_name, description)
+            # Try to estimate post count by getting recent messages
+            total_posts = await self._estimate_post_count(chat.id) if hasattr(self, '_estimate_post_count') else 0
             
             # Calculate base price based on subscribers and category
             base_price = self._calculate_base_price(subscribers, category)
