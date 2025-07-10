@@ -3672,7 +3672,7 @@ async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMCon
     calculation = data.get('pricing_calculation', {})
     
     if not calculation or 'total_stars' not in calculation:
-        await callback_query.answer("No Invalid payment data")
+        await callback_query.answer("Invalid payment data - please recalculate pricing", show_alert=True)
         return
     
     stars_price = calculation['total_stars']
