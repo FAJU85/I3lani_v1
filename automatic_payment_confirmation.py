@@ -63,22 +63,29 @@ class AutomaticPaymentConfirmation:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # Get actual user ad content if not provided
-            if not ad_data or 'ad_content' not in ad_data:
-                actual_ad_content = await self._get_user_ad_content(user_id)
-                if actual_ad_content:
-                    if not ad_data:
-                        ad_data = {}
-                    ad_data.update(actual_ad_content)
+            # ALWAYS get actual user ad content to ensure real content is used
+            actual_ad_content = await self._get_user_ad_content(user_id)
+            if actual_ad_content:
+                if not ad_data:
+                    ad_data = {}
+                # Override any existing content with actual user content
+                ad_data.update(actual_ad_content)
+                logger.info(f"✅ Retrieved real user content for user {user_id}: {actual_ad_content.get('ad_content', '')[:50]}...")
             
-            # Store ad_data as JSON with fallback
-            ad_data_json = json.dumps(ad_data) if ad_data else json.dumps({
-                'duration_days': 7,
-                'posts_per_day': 2,
-                'selected_channels': ['@i3lani', '@smshco', '@Five_SAR'],
-                'total_reach': 357,
-                'ad_content': f'Advertisement content for user {user_id}'
-            })
+            # Store ad_data as JSON - prioritize real user content
+            if ad_data and ad_data.get('ad_content'):
+                ad_data_json = json.dumps(ad_data)
+                logger.info(f"✅ Stored real user content: {ad_data.get('ad_content', '')[:50]}...")
+            else:
+                # Fallback only if no real content available
+                ad_data_json = json.dumps({
+                    'duration_days': 7,
+                    'posts_per_day': 2,
+                    'selected_channels': ['@i3lani', '@smshco', '@Five_SAR'],
+                    'total_reach': 357,
+                    'ad_content': f'Fallback content for user {user_id} - no ad found'
+                })
+                logger.warning(f"⚠️ Using fallback content for user {user_id} - no real ad content found")
             
             cursor.execute("""
                 INSERT OR REPLACE INTO payment_memo_tracking 
@@ -240,7 +247,7 @@ Thank you for choosing I3lani! 🚀"""
             
             # Get most recent ad by user
             cursor.execute('''
-                SELECT ad_id, content, content_type, media_url, channels
+                SELECT ad_id, content, content_type, media_url
                 FROM ads 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC 

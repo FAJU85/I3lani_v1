@@ -92,7 +92,7 @@ class EnhancedCampaignPublisher:
             cursor.execute("""
                 SELECT cp.*, c.ad_content, c.user_id, 
                        COALESCE(c.content_type, 'text') as content_type, 
-                       c.media_url
+                       c.media_url, c.campaign_metadata
                 FROM campaign_posts cp
                 JOIN campaigns c ON cp.campaign_id = c.campaign_id
                 WHERE cp.status = 'scheduled' 
