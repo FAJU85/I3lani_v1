@@ -2341,27 +2341,63 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
-    # Calculate pricing using the new frequency pricing system
-    from frequency_pricing import FrequencyPricingSystem
-    from smart_pricing_display import smart_pricing_display
+    # Calculate pricing using dynamic pricing system
+    from dynamic_pricing import DynamicPricing
     
-    pricing_system = FrequencyPricingSystem()
-    calculation = pricing_system.calculate_pricing(days, channels_count=len(selected_channels) or 1)
+    calculation = DynamicPricing.calculate_total_cost(
+        days=days,
+        posts_per_day=1,  # Default to 1 post per day
+        channels=selected_channels
+    )
     
-    # Generate quick pricing preview
-    pricing_preview = smart_pricing_display.generate_quick_pricing_preview(days, language)
+    # Store pricing calculation in state
+    await state.update_data(pricing_calculation=calculation)
     
-    # Create header using translation system
-    header = f"""{get_text(language, 'smart_pricing_system')}
+    # Generate pricing preview text
+    total_usd = calculation.get('total_usd', 0)
+    total_stars = calculation.get('total_stars', 0)
+    
+    if language == 'ar':
+        pricing_preview = f"💰 السعر: ${total_usd:.2f} أو {total_stars} نجمة"
+    elif language == 'ru':
+        pricing_preview = f"💰 Цена: ${total_usd:.2f} или {total_stars} звезд"
+    else:
+        pricing_preview = f"💰 Price: ${total_usd:.2f} or {total_stars} Stars"
+    
+    # Create header with direct language handling
+    if language == 'ar':
+        header = f"""📊 **اختر عدد الأيام**
 
-{get_text(language, 'selected_days')} {days}
+🗓️ أيام محددة: {days}
 
 {pricing_preview}
 
-{get_text(language, 'smart_logic')}
-{get_text(language, 'more_days_more_posts')}
-{get_text(language, 'more_days_bigger_discount')}
-{get_text(language, 'auto_currency_calc')}"""
+💡 منطق التسعير الذكي:
+• المزيد من الأيام = المزيد من المنشورات يومياً
+• المزيد من الأيام = خصومات أكبر
+• تحويل العملة تلقائياً"""
+    elif language == 'ru':
+        header = f"""📊 **Выберите количество дней**
+
+🗓️ Выбранные дни: {days}
+
+{pricing_preview}
+
+💡 Логика умного ценообразования:
+• Больше дней = больше постов в день
+• Больше дней = больше скидки
+• Автоматическая конвертация валют"""
+    else:
+        header = f"""📊 **Select Number of Days**
+
+🗓️ Selected Days: {days}
+
+{pricing_preview}
+
+💡 Smart Pricing Logic:
+• More days = more posts per day
+• More days = bigger discounts
+• Automatic currency conversion"""
     
     footer = f"""
 {get_text(language, 'click_adjust_days')}
@@ -2868,14 +2904,21 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
         return
     
     data = await state.get_data()
-    pricing_data = data.get('pricing_data', {})
+    pricing_calculation = data.get('pricing_calculation', {})
     
-    if not pricing_data:
+    if not pricing_calculation:
         await callback_query.answer("❌ Pricing data not found")
         return
     
-    # Process Stars payment
-    await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
+    # Get Stars amount from calculation  
+    stars_amount = pricing_calculation.get('total_stars', 0)
+    
+    if stars_amount <= 0:
+        await callback_query.answer("❌ Invalid payment amount")
+        return
+    
+    # Process Stars payment with correct amount
+    await process_stars_payment(callback_query, state, stars_amount)
 
 
 async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContext, amount_ton: float, wallet_address: str):
@@ -3576,14 +3619,21 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
         return
     
     data = await state.get_data()
-    pricing_data = data.get('pricing_data', {})
+    pricing_calculation = data.get('pricing_calculation', {})
     
-    if not pricing_data:
+    if not pricing_calculation:
         await callback_query.answer("❌ Pricing data not found")
         return
     
-    # Process Stars payment
-    await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
+    # Get Stars amount from calculation  
+    stars_amount = pricing_calculation.get('total_stars', 0)
+    
+    if stars_amount <= 0:
+        await callback_query.answer("❌ Invalid payment amount")
+        return
+    
+    # Process Stars payment with correct amount
+    await process_stars_payment(callback_query, state, stars_amount)
 
 async def show_frequency_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
     """Show posts per day selection with the selected days"""
@@ -6480,7 +6530,7 @@ async def deselect_all_channels_handler(callback_query: CallbackQuery, state: FS
 
 @router.callback_query(F.data == "continue_with_channels")
 async def continue_with_channels_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Continue with selected channels"""
+    """Continue with selected channels to dynamic days selection"""
     try:
         data = await state.get_data()
         selected_channels = data.get('selected_channels', [])
@@ -6489,9 +6539,11 @@ async def continue_with_channels_handler(callback_query: CallbackQuery, state: F
             await callback_query.answer("Please select at least one channel!")
             return
         
-        # Proceed to payment selection
+        # Store selected channels and proceed to days selection
+        await state.update_data(selected_channels=selected_channels)
         await state.set_state(AdCreationStates.payment_selection)
-        # Use dynamic days selector instead of old duration selection
+        
+        # Show dynamic days selector (this was missing!)
         await show_dynamic_days_selector(callback_query, state, 1)
         await callback_query.answer(f"{len(selected_channels)} channels selected!")
         
