@@ -121,27 +121,48 @@ class LiveChannelStats:
             return f"← ...{name[-(max_length-3):]}"
     
     def create_channel_button_text(self, channel: Dict, is_selected: bool, language: str = 'en') -> str:
-        """Create enhanced channel button text with improved layout"""
+        """Create modern channel button text with 🟢/⚪️ toggle design"""
         name = channel.get('name', 'Unknown Channel')
         live_count = channel.get('live_subscribers', channel.get('subscribers', 0))
         
-        # Format name with scrolling if needed
-        formatted_name = self.format_channel_name_with_scroll(name, 25, language)
-        
-        # Selection indicator
-        indicator = "✅" if is_selected else "⭕"
-        
-        # Create multi-line button text (name on top, count below)
-        if live_count > 0:
-            count_text = f"{live_count:,} subscribers"
+        # Format name with proper length for mobile
+        max_name_length = 28 if language == 'ar' else 32
+        if len(name) > max_name_length:
             if language == 'ar':
-                count_text = f"{live_count:,} مشترك"
-            elif language == 'ru':
-                count_text = f"{live_count:,} подписчиков"
-            
-            button_text = f"{indicator} {formatted_name}\n📊 {count_text}"
+                # RTL scrolling for Arabic
+                formatted_name = f"{name[:max_name_length-2]}…"
+            else:
+                # LTR scrolling for English/Russian
+                formatted_name = f"{name[:max_name_length-2]}…"
         else:
-            button_text = f"{indicator} {formatted_name}\n📊 No data"
+            formatted_name = name
+        
+        # Modern toggle indicators: 🟢 = selected, ⚪️ = unselected
+        indicator = "🟢" if is_selected else "⚪️"
+        
+        # Format subscriber count
+        if live_count > 0:
+            if live_count >= 1000000:
+                count_text = f"{live_count/1000000:.1f}M"
+            elif live_count >= 1000:
+                count_text = f"{live_count/1000:.1f}K"
+            else:
+                count_text = f"{live_count}"
+                
+            # Localize subscriber label
+            if language == 'ar':
+                sub_label = "مشترك"
+            elif language == 'ru':
+                sub_label = "подписчиков"
+            else:
+                sub_label = "subscribers"
+                
+            count_display = f"{count_text} {sub_label}"
+        else:
+            count_display = "No data" if language == 'en' else ("لا توجد بيانات" if language == 'ar' else "Нет данных")
+        
+        # Create clean two-line layout: name on top, subscriber count below
+        button_text = f"{indicator} {formatted_name}\n    {count_display}"
         
         return button_text
     

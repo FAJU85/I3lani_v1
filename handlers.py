@@ -1848,61 +1848,151 @@ async def select_gold_package(callback_query: CallbackQuery, state: FSMContext):
     await callback_query.answer("Gold package selected!")
 
 
-async def refresh_channel_selection_keyboard(callback_query: CallbackQuery, state: FSMContext):
-    """Refresh the channel selection keyboard after toggle"""
+async def refresh_enhanced_channel_selection_ui(callback_query: CallbackQuery, state: FSMContext):
+    """Refresh the enhanced channel selection interface with modern toggle design"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
         
-        # Get available channels
-        channels = await db.get_channels(active_only=True)
+        # Get only active channels where bot is admin
+        channels = await db.get_bot_admin_channels()
+        
+        if not channels:
+            await callback_query.answer("No channels available")
+            return
+        
+        # Initialize live stats system
+        from live_channel_stats import LiveChannelStats
+        live_stats = LiveChannelStats(callback_query.bot, db)
+        
+        # Enhance channels with live subscriber counts
+        enhanced_channels = await live_stats.get_enhanced_channel_data(channels)
         
         # Get selected channels from state
         data = await state.get_data()
         selected_channels = data.get('selected_channels', [])
         
-        # Create keyboard with channels
+        # Calculate total reach with live counts
+        total_reach = await live_stats.get_total_reach(selected_channels, enhanced_channels)
+        
+        # Create enhanced channel text with better visuals
+        if language == 'ar':
+            channel_text = f"""📺 **اختر القنوات لإعلانك**
+
+📊 **المحدد:** {len(selected_channels)}/{len(enhanced_channels)} قناة
+👥 **الوصول المباشر:** {total_reach:,} مشترك
+
+💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
+        elif language == 'ru':
+            channel_text = f"""📺 **Выберите каналы для рекламы**
+
+📊 **Выбрано:** {len(selected_channels)}/{len(enhanced_channels)} каналов
+👥 **Живой охват:** {total_reach:,} подписчиков
+
+💡 Нажмите на каналы для выбора/отмены:"""
+        else:
+            channel_text = f"""📺 **Select Channels for Your Ad**
+
+📊 **Selected:** {len(selected_channels)}/{len(enhanced_channels)} channels
+👥 **Live Reach:** {total_reach:,} subscribers
+
+💡 Tap channels to toggle selection:"""
+        
+        # Create modern keyboard with toggle design
         keyboard_rows = []
-        for channel in channels:
+        for channel in enhanced_channels:
+            # Check if channel is selected
             is_selected = channel['channel_id'] in selected_channels
-            status = "[] " if is_selected else ""
+            
+            # Create enhanced button text with modern toggle design
+            button_text = live_stats.create_channel_button_text(channel, is_selected, language)
+            
             keyboard_rows.append([InlineKeyboardButton(
-                text=f"{status}{channel['name']} ({channel['subscribers']:,} subscribers)",
+                text=button_text,
                 callback_data=f"toggle_channel_{channel['channel_id']}"
             )])
         
-        # Add control buttons
-        if selected_channels:
-            keyboard_rows.append([InlineKeyboardButton(
-                text=f"Continue to Pricing ({len(selected_channels)} channels)",
-                callback_data="continue_to_duration"
+        # Add control buttons with better styling
+        control_buttons = []
+        if language == 'ar':
+            control_buttons.extend([
+                [InlineKeyboardButton(text="🔄 تحديث الإحصائيات", callback_data="refresh_channel_stats"),
+                 InlineKeyboardButton(text="🔄 اختيار الكل", callback_data="select_all_channels")],
+                [InlineKeyboardButton(text="❌ إلغاء تحديد الكل", callback_data="deselect_all_channels")]
+            ])
+            
+            if selected_channels:
+                control_buttons.append([InlineKeyboardButton(
+                    text="✅ متابعة مع القنوات المحددة", 
+                    callback_data="continue_with_channels"
+                )])
+            
+            control_buttons.append([InlineKeyboardButton(
+                text="◀️ العودة للقائمة", 
+                callback_data="back_to_main"
+            )])
+        elif language == 'ru':
+            control_buttons.extend([
+                [InlineKeyboardButton(text="🔄 Обновить статистику", callback_data="refresh_channel_stats"),
+                 InlineKeyboardButton(text="🔄 Выбрать все", callback_data="select_all_channels")],
+                [InlineKeyboardButton(text="❌ Отменить все", callback_data="deselect_all_channels")]
+            ])
+            
+            if selected_channels:
+                control_buttons.append([InlineKeyboardButton(
+                    text="✅ Продолжить с выбранными", 
+                    callback_data="continue_with_channels"
+                )])
+            
+            control_buttons.append([InlineKeyboardButton(
+                text="◀️ В главное меню", 
+                callback_data="back_to_main"
             )])
         else:
-            keyboard_rows.append([InlineKeyboardButton(
-                text="Select at least one channel",
-                callback_data="select_channels_info"
+            control_buttons.extend([
+                [InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="refresh_channel_stats"),
+                 InlineKeyboardButton(text="🔄 Select All", callback_data="select_all_channels")],
+                [InlineKeyboardButton(text="❌ Deselect All", callback_data="deselect_all_channels")]
+            ])
+            
+            if selected_channels:
+                control_buttons.append([InlineKeyboardButton(
+                    text="✅ Continue with Selected", 
+                    callback_data="continue_with_channels"
+                )])
+            
+            control_buttons.append([InlineKeyboardButton(
+                text="◀️ Back to Menu", 
+                callback_data="back_to_main"
             )])
         
-        keyboard_rows.append([InlineKeyboardButton(
-            text="Back to Menu",
-            callback_data="back_to_main"
-        )])
-        
+        keyboard_rows.extend(control_buttons)
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
         
-        # Edit the message with updated keyboard
-        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+        # Edit the message with updated content and keyboard
+        await callback_query.message.edit_text(
+            channel_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
         
     except Exception as e:
-        logger.error(f"Error refreshing channel selection: {e}")
+        logger.error(f"Error refreshing enhanced channel selection: {e}")
+        await callback_query.answer("Error refreshing interface")
+
+
+async def refresh_channel_selection_keyboard(callback_query: CallbackQuery, state: FSMContext):
+    """Legacy refresh function - redirects to enhanced version"""
+    await refresh_enhanced_channel_selection_ui(callback_query, state)
 
 
 @router.callback_query(F.data.startswith("toggle_channel_"))
 async def toggle_channel_selection(callback_query: CallbackQuery, state: FSMContext):
-    """Handle channel selection toggle"""
+    """Handle channel selection toggle with enhanced UI"""
     try:
         channel_id = callback_query.data.replace("toggle_channel_", "")
         user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
         
         # Get current selected channels
         data = await state.get_data()
@@ -1911,15 +2001,24 @@ async def toggle_channel_selection(callback_query: CallbackQuery, state: FSMCont
         # Toggle channel selection
         if channel_id in selected_channels:
             selected_channels.remove(channel_id)
+            action = "deselected"
         else:
             selected_channels.append(channel_id)
+            action = "selected"
         
         # Update state
         await state.update_data(selected_channels=selected_channels)
         
-        # Refresh the channel selection interface
-        await refresh_channel_selection_keyboard(callback_query, state)
-        await callback_query.answer(f"Channel {'selected' if channel_id in selected_channels else 'deselected'}")
+        # Refresh the enhanced channel selection interface
+        await refresh_enhanced_channel_selection_ui(callback_query, state)
+        
+        # Show toggle feedback
+        feedback_text = {
+            'en': f"Channel {action}",
+            'ar': f"تم {'اختيار' if action == 'selected' else 'إلغاء'} القناة",
+            'ru': f"Канал {'выбран' if action == 'selected' else 'отменён'}"
+        }
+        await callback_query.answer(feedback_text.get(language, feedback_text['en']))
         
     except Exception as e:
         logger.error(f"Channel toggle error: {e}")
