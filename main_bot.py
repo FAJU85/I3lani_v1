@@ -111,6 +111,16 @@ async def init_bot():
         await init_db()
         logger.info("Database initialized successfully")
         
+        # Initialize continuous payment scanner
+        logger.info("Initializing continuous payment scanner...")
+        try:
+            from continuous_payment_scanner import start_continuous_payment_monitoring
+            scanner_task = await start_continuous_payment_monitoring()
+            logger.info("✅ Continuous payment scanner initialized and running")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize payment scanner: {e}")
+            # Continue without scanner for now
+        
         # Initialize Telegram Stars system (WITHOUT Flask server)
         logger.info("Initializing Telegram Stars payment system...")
         os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler

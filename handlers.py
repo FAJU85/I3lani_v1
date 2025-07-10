@@ -705,7 +705,7 @@ async def upload_content_handler(message: Message, state: FSMContext):
     )
     
     # Skip contact info step - go directly to channel selection
-    await state.set_state(AdCreationStates.channel_selection)
+    await state.set_state(AdCreationStates.select_channels)
     
     # Show channel selection directly using message-based flow
     await show_channel_selection_for_message(message, state)
