@@ -3516,7 +3516,9 @@ async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FS
         ad_content = data.get('ad_text', '') or data.get('ad_content', '')
         photos = data.get('photos', [])
         pricing_data = data.get('pricing_data', {})
-        payment_amount = data.get('payment_amount', 0)
+        pricing_calculation = data.get('pricing_calculation', {})
+        # Fix: Use actual Stars amount from pricing calculation instead of generic payment_amount
+        payment_amount = pricing_calculation.get('total_stars', 0)
         
         # Create ad in database
         ad_id = await db.create_ad(
