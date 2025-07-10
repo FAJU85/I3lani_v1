@@ -3912,7 +3912,7 @@ With your payment, you agree to the Usage Agreement[Link]
 
 @router.callback_query(F.data == "confirm_stars_payment")
 async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Actually send the Stars invoice after confirmation"""
+    """Enhanced Stars payment handler using new payment system"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
@@ -3925,223 +3925,106 @@ async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FS
         await callback_query.answer("Payment data not found", show_alert=True)
         return
     
-    # Create Stars payment using Bot's send_invoice method
     try:
-        # Delete the current message before sending invoice to avoid confusion
-        try:
-            await callback_query.message.delete()
-        except:
-            pass
+        # Initialize enhanced Stars payment system
+        from enhanced_telegram_stars_payment import get_enhanced_stars_payment
+        stars_payment = get_enhanced_stars_payment(callback_query.bot, db)
         
-        # Send new message first
-        usd_formatted = f"{total_usd:.2f}"
-        info_text = f"""
-[Star] **Stars Payment**
-
-**Amount:** {stars_amount} [Star] (${usd_formatted})
-
-Sending payment invoice...
-
-[!] **Note:** If you change your mind, simply ignore the invoice and go back.
-        """.strip()
+        # Prepare campaign data for enhanced invoice
+        campaign_data = {
+            'duration': calculation.get('days', 7),
+            'selected_channels': data.get('selected_channels', []),
+            'posts_per_day': calculation.get('posts_per_day', 1)
+        }
         
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=" Back to Options", callback_data="show_payment_options")],
-        ])
+        pricing_data = {
+            'total_stars': stars_amount,
+            'total_usd': total_usd,
+            'posts_per_day': calculation.get('posts_per_day', 1),
+            'discount_percent': calculation.get('discount_percent', 0)
+        }
         
-        info_message = await callback_query.message.answer(info_text, reply_markup=keyboard, parse_mode='Markdown')
-        
-        # Generate unique Stars payment ID
-        from payments import payment_processor
-        stars_memo = payment_processor.generate_memo()
-        
-        # Track Stars payment for automatic confirmation
-        try:
-            from automatic_payment_confirmation import track_payment_for_user
-            
-            # Get current state data for ad information
-            user_data = await state.get_data()
-            ad_data = {
-                'duration_days': user_data.get('days', 7),
-                'posts_per_day': user_data.get('posts_per_day', 2),
-                'selected_channels': user_data.get('selected_channels', ['@i3lani', '@smshco', '@Five_SAR']),
-                'total_reach': calculation.get('total_reach', 357),
-                'payment_method': 'stars'
-            }
-            
-            await track_payment_for_user(callback_query.from_user.id, stars_memo, stars_amount, ad_data)
-            logger.info(f"✅ Stars payment tracking enabled for user {callback_query.from_user.id}, memo {stars_memo}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to track Stars payment for automatic confirmation: {e}")
-        
-        # Store unique Stars payment ID in state
-        await state.update_data(
-            stars_memo=stars_memo,
-            stars_tracked=True
+        # Create enhanced Stars invoice
+        result = await stars_payment.create_enhanced_invoice(
+            user_id, campaign_data, pricing_data, language
         )
         
-        # Send Telegram Stars invoice with unique identifier
-        bot = callback_query.bot
-        
-        try:
-            # Create Stars invoice with unique payload
-            await bot.send_invoice(
-                chat_id=user_id,
-                title=f"I3lani Advertising Campaign",
-                description=f"📢 {calculation.get('days', 7)} days campaign, {calculation.get('posts_per_day', 1)} posts/day across {len(calculation.get('selected_channels', []))} channels. Payment ID: {stars_memo}",
-                payload=f"stars_payment_{stars_memo}_{user_id}",  # Unique payload with memo
-                provider_token="",  # Empty for Stars
-                currency="XTR",  # Telegram Stars currency
-                prices=[{"label": "Campaign Price", "amount": stars_amount}],
-                max_tip_amount=0,
-                suggested_tip_amounts=[],
-                protect_content=False,
-                need_name=False,
-                need_email=False,
-                need_phone_number=False,
-                need_shipping_address=False,
-                send_phone_number_to_provider=False,
-                send_email_to_provider=False,
-                is_flexible=False
-            )
+        if result.get('success'):
+            await callback_query.answer("⭐ Enhanced Stars invoice sent!")
+            logger.info(f"✅ Enhanced Stars invoice created: {result['payment_id']}")
             
-            await callback_query.answer("⭐ Stars invoice sent!")
-            logger.info(f"✅ Stars invoice sent to user {user_id}, amount {stars_amount}, memo {stars_memo}")
-            
-            # Update info message to show invoice sent
+            # Delete confirmation message since invoice was sent
             try:
-                await info_message.edit_text(
-                    f"⭐ **Stars Invoice Sent!**\n\n**Amount:** {stars_amount} ⭐\n**Payment ID:** {stars_memo}\n\n💡 Check your chat for the payment invoice. Complete the payment to activate your campaign.\n\n🔍 Payment will be automatically confirmed when completed.",
-                    reply_markup=keyboard,
-                    parse_mode='Markdown'
-                )
+                await callback_query.message.delete()
             except:
                 pass
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to send Stars invoice: {e}")
-            await callback_query.answer("❌ Failed to send Stars invoice", show_alert=True)
-            
-            # Show error message
-            error_text = f"❌ **Payment Error**\n\nFailed to create Stars invoice. Please try again or contact support.\n\n**Error ID:** {stars_memo}"
-            try:
-                await info_message.edit_text(error_text, reply_markup=keyboard, parse_mode='Markdown')
-            except:
-                pass
-                
-    except Exception as e:
-        logger.error(f"Stars payment confirmation error: {e}")
-        await callback_query.answer("Payment system error", show_alert=True)
-
-
-# Add Telegram Stars invoice handlers
-@router.pre_checkout_query()
-async def pre_checkout_query_handler(pre_checkout_query):
-    """Handle pre-checkout query for Stars payments"""
-    try:
-        user_id = pre_checkout_query.from_user.id
-        
-        # Extract memo from payload
-        payload = pre_checkout_query.invoice_payload
-        if payload and payload.startswith("stars_payment_"):
-            parts = payload.split("_")
-            if len(parts) >= 4:
-                stars_memo = parts[2]
-                
-                logger.info(f"✅ Pre-checkout approved for user {user_id}, memo {stars_memo}")
-                
-                # Answer pre-checkout query (approve payment)
-                await pre_checkout_query.answer(ok=True)
-            else:
-                logger.warning(f"⚠️ Invalid payload format: {payload}")
-                await pre_checkout_query.answer(ok=False, error_message="Invalid payment data")
         else:
-            logger.warning(f"⚠️ Unknown payload format: {payload}")
-            await pre_checkout_query.answer(ok=False, error_message="Unknown payment type")
+            error_msg = result.get('error', 'Unknown error')
+            await callback_query.answer(f"❌ Payment error: {error_msg}", show_alert=True)
+            logger.error(f"❌ Enhanced Stars invoice failed: {error_msg}")
             
     except Exception as e:
-        logger.error(f"❌ Pre-checkout query error: {e}")
+        logger.error(f"❌ Enhanced Stars payment error: {e}")
+        await callback_query.answer("❌ Payment system error", show_alert=True)
+
+
+# Enhanced Telegram Stars invoice handlers
+@router.pre_checkout_query()
+async def enhanced_pre_checkout_query_handler(pre_checkout_query):
+    """Enhanced pre-checkout query handler for Stars payments"""
+    try:
+        from enhanced_telegram_stars_payment import handle_enhanced_pre_checkout
+        
+        result = await handle_enhanced_pre_checkout(pre_checkout_query)
+        
+        if result.get('success'):
+            logger.info(f"✅ Enhanced pre-checkout approved: {result.get('payment_id')}")
+        else:
+            logger.warning(f"❌ Enhanced pre-checkout rejected: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"❌ Enhanced pre-checkout error: {e}")
         await pre_checkout_query.answer(ok=False, error_message="Payment verification failed")
 
 
 @router.message(F.successful_payment)
-async def successful_payment_handler(message):
-    """Handle successful Stars payment"""
+async def enhanced_successful_payment_handler(message):
+    """Enhanced successful Stars payment handler"""
     try:
-        user_id = message.from_user.id
-        successful_payment = message.successful_payment
+        from enhanced_telegram_stars_payment import handle_enhanced_successful_payment
         
-        # Extract payment details
-        stars_amount = successful_payment.total_amount
-        payload = successful_payment.invoice_payload
+        result = await handle_enhanced_successful_payment(message)
         
-        logger.info(f"🌟 Stars payment received: user {user_id}, amount {stars_amount}, payload {payload}")
-        
-        # Extract memo from payload
-        stars_memo = None
-        if payload and payload.startswith("stars_payment_"):
-            parts = payload.split("_")
-            if len(parts) >= 4:
-                stars_memo = parts[2]
-        
-        if not stars_memo:
-            logger.error(f"❌ Could not extract memo from payload: {payload}")
-            await message.answer("❌ Payment processing error. Please contact support.")
-            return
-        
-        # Trigger automatic campaign creation using the same system as TON payments
-        try:
-            from automatic_payment_confirmation import handle_confirmed_payment
+        if result.get('success'):
+            logger.info(f"✅ Enhanced Stars payment processed successfully: {result.get('payment_id')}")
+            logger.info(f"   Campaign ID: {result.get('campaign_id')}")
+            logger.info(f"   Receipt sent: {result.get('receipt_sent')}")
+        else:
+            error_msg = result.get('error', 'Unknown error')
+            logger.error(f"❌ Enhanced Stars payment processing failed: {error_msg}")
             
-            # Create payment data in same format as TON payments
-            payment_data = {
-                'user_id': user_id,
-                'memo': stars_memo,
-                'amount': stars_amount,
-                'currency': 'STARS',
-                'payment_method': 'telegram_stars',
-                'provider_payment_charge_id': successful_payment.provider_payment_charge_id,
-                'telegram_payment_charge_id': successful_payment.telegram_payment_charge_id
-            }
-            
-            # Process payment confirmation (creates campaign automatically)
-            success = await handle_confirmed_payment(payment_data)
-            
-            if success:
-                # Send confirmation message to user
-                confirmation_text = f"""
-⭐ **Stars Payment Confirmed!**
-
-✅ **Payment successful:** {stars_amount} ⭐
-🆔 **Payment ID:** {stars_memo}
-🚀 **Campaign created:** Your ad campaign is now active!
-
-📊 **What's Next:**
-• Your campaign is being set up automatically
-• Publishing will begin shortly across selected channels
-• Check "My Campaigns" to track progress
-
-🎯 **Campaign Details:**
-• Duration: As per your selection
-• Channels: Your selected channels
-• Posts: Scheduled automatically
-
-Thank you for using I3lani! 🌟
-                """.strip()
-                
-                await message.answer(confirmation_text, parse_mode='Markdown')
-                logger.info(f"✅ Stars payment processed successfully for user {user_id}")
-                
-            else:
-                logger.error(f"❌ Failed to process Stars payment for user {user_id}")
-                await message.answer("❌ Payment confirmed but campaign setup failed. Please contact support.")
-        
-        except Exception as e:
-            logger.error(f"❌ Error processing Stars payment: {e}")
-            await message.answer("❌ Payment processing error. Please contact support.")
+            # Fallback notification
+            await message.answer(
+                "⚠️ Payment received but processing encountered an issue. "
+                "Please contact support with your payment details.",
+                parse_mode='Markdown'
+            )
             
     except Exception as e:
-        logger.error(f"❌ Successful payment handler error: {e}")
+        logger.error(f"❌ Enhanced Stars payment handler error: {e}")
+        
+        # Fallback to basic processing
+        try:
+            successful_payment = message.successful_payment
+            await message.answer(
+                f"✅ **Payment Received!**\n\n"
+                f"💫 Amount: {successful_payment.total_amount} ⭐\n"
+                f"📧 Reference: {successful_payment.telegram_payment_charge_id}\n\n"
+                f"Your campaign will be activated shortly.",
+                parse_mode='Markdown'
+            )
+        except Exception as fallback_error:
+            logger.error(f"❌ Fallback payment handler error: {fallback_error}")
 
 
 @router.callback_query(F.data == "pay_freq_stars")

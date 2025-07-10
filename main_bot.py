@@ -222,11 +222,33 @@ async def init_bot():
             logger.error(f"❌ Failed to initialize payment scanner: {e}")
             # Continue without scanner for now
         
-        # Initialize Telegram Stars system (WITHOUT Flask server)
-        logger.info("Initializing Telegram Stars payment system...")
-        os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler
-        stars_handler = init_stars_handler(bot)
-        logger.info("Telegram Stars system initialized successfully")
+        # Initialize Enhanced Telegram Stars payment system
+        logger.info("Initializing Enhanced Telegram Stars payment system...")
+        try:
+            from enhanced_telegram_stars_payment import get_enhanced_stars_payment
+            
+            # Initialize enhanced Stars payment system
+            enhanced_stars_payment = get_enhanced_stars_payment(bot, db)
+            
+            # Store globally for access
+            globals()['enhanced_stars_payment'] = enhanced_stars_payment
+            
+            logger.info("✅ Enhanced Telegram Stars payment system initialized")
+            logger.info("   💫 Full API compliance with Telegram Bot API 7.0")
+            logger.info("   🌍 Complete multilingual support (EN/AR/RU)")
+            logger.info("   🧾 Enhanced invoice generation with metadata")
+            logger.info("   📄 Comprehensive receipt system")
+            logger.info("   🔗 Integrated with campaign management")
+            logger.info("   💾 Database tracking and validation")
+            
+        except Exception as e:
+            logger.error(f"❌ Enhanced Stars payment initialization error: {e}")
+            
+            # Fallback to basic Stars system
+            logger.info("Initializing fallback Telegram Stars system...")
+            os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler
+            stars_handler = init_stars_handler(bot)
+            logger.info("Fallback Telegram Stars system initialized successfully")
         
         # Setup handlers
         logger.info("Setting up handlers...")
