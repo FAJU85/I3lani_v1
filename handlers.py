@@ -2965,67 +2965,79 @@ async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContex
     # Use enhanced memo from the new system
     memo = payment_request['memo']
     
-    # Create enhanced payment instructions with memo priority
+    # Create modern enhanced payment interface 
     if language == 'ar':
-        payment_text = f"""💎 **دفع TON - نظام التحقق المحسن بالمذكرة**
+        payment_text = f"""🚀 **نظام الدفع المتقدم - TON**
+        
+💰 **تفاصيل الحملة الإعلانية**
+📊 المدة: {calculation.get('days', 1)} أيام
+📈 المشاركات: {calculation.get('posts_per_day', 1)} يومياً  
+📺 القنوات: {len(selected_channels)} قناة محددة
+💵 إجمالي التكلفة: **{amount_ton:.3f} TON** (${calculation.get('total_usd', 0):.2f})
 
+🏦 **معلومات الدفع**
+**العنوان:** `{bot_wallet}`
+**المذكرة:** `{memo}`
 **المبلغ المطلوب:** {amount_ton:.3f} TON
-**عنوان المحفظة:** {bot_wallet}
-**المذكرة/الملاحظة:** `{memo}`
-**عنوان محفظتك:** {wallet_address}
 
-**خطوات الدفع المحسنة:**
-1. افتح محفظة TON الخاصة بك
-2. أرسل {amount_ton:.3f} TON إلى العنوان أعلاه
-3. **مهم جداً:** أضف المذكرة/الملاحظة `{memo}` بالضبط كما هو مكتوب
-4. أكمل الدفع
+✅ **خطوات الدفع:**
+1️⃣ أرسل **{amount_ton:.3f} TON** بالضبط
+2️⃣ استخدم المذكرة: **{memo}**
+3️⃣ التحقق التلقائي خلال 30 ثانية
 
-⏰ **مراقبة محسنة لمدة 20 دقيقة مع أولوية المذكرة**
-🔍 **تأكيد تلقائي عند مطابقة المذكرة** `{memo}`
-🎯 **نظام تحقق أكثر موثوقية للدفع**
+⏰ انتهاء الصلاحية: 20 دقيقة
+🔗 تتبع الدفع: [TonViewer](https://tonviewer.com/{bot_wallet.replace('UQ', 'EQ')})
 
-⚠️ **مهم:** المذكرة `{memo}` مطلوبة لتأكيد الدفع
-سيتم نشر إعلانك بمجرد تأكيد الدفع!"""
+🛡️ **الأمان:** نظام التحقق المزدوج (المذكرة + محفظتك)
+📱 **التأكيد:** رسالة فورية عند استلام الدفع"""
     elif language == 'ru':
-        payment_text = f"""💎 **Оплата TON - Улучшенная проверка по заметке**
+        payment_text = f"""🚀 **Расширенная система оплаты - TON**
+        
+💰 **Детали рекламной кампании**
+📊 Продолжительность: {calculation.get('days', 1)} дней
+📈 Посты: {calculation.get('posts_per_day', 1)} в день  
+📺 Каналы: {len(selected_channels)} выбранных каналов
+💵 Общая стоимость: **{amount_ton:.3f} TON** (${calculation.get('total_usd', 0):.2f})
 
+🏦 **Информация о платеже**
+**Адрес:** `{bot_wallet}`
+**Заметка:** `{memo}`
 **Требуемая сумма:** {amount_ton:.3f} TON
-**Адрес кошелька:** {bot_wallet}
-**Заметка/Memo:** `{memo}`
-**Ваш адрес кошелька:** {wallet_address}
 
-**Улучшенные шаги оплаты:**
-1. Откройте свой TON кошелек
-2. Отправьте {amount_ton:.3f} TON на адрес выше
-3. **КРИТИЧЕСКИ ВАЖНО:** Добавьте заметку/memo `{memo}` точно как написано
-4. Завершите платеж
+✅ **Шаги оплаты:**
+1️⃣ Отправьте точно **{amount_ton:.3f} TON**
+2️⃣ Используйте заметку: **{memo}**
+3️⃣ Автоматическая проверка в течение 30 секунд
 
-⏰ **Улучшенный мониторинг 20 минут с приоритетом заметки**
-🔍 **Автоматическое подтверждение при совпадении заметки** `{memo}`
-🎯 **Более надежная система проверки платежей**
+⏰ Истечение срока: 20 минут
+🔗 Отслеживание платежа: [TonViewer](https://tonviewer.com/{bot_wallet.replace('UQ', 'EQ')})
 
-⚠️ **ВАЖНО:** Заметка `{memo}` обязательна для подтверждения платежа
-Ваше объявление будет опубликовано после подтверждения платежа!"""
+🛡️ **Безопасность:** Система двойной проверки (заметка + ваш кошелек)
+📱 **Подтверждение:** Мгновенное сообщение при получении платежа"""
     else:
-        payment_text = f"""💎 **TON Payment - Enhanced Memo Verification**
+        payment_text = f"""🚀 **Advanced Payment System - TON**
+        
+💰 **Campaign Details**
+📊 Duration: {calculation.get('days', 1)} days
+📈 Posts: {calculation.get('posts_per_day', 1)} per day  
+📺 Channels: {len(selected_channels)} selected channels
+💵 Total Cost: **{amount_ton:.3f} TON** (${calculation.get('total_usd', 0):.2f})
 
+🏦 **Payment Information**
+**Address:** `{bot_wallet}`
+**Memo:** `{memo}`
 **Required Amount:** {amount_ton:.3f} TON
-**Wallet Address:** {bot_wallet}
-**Memo/Note:** `{memo}`
-**Your Wallet Address:** {wallet_address}
 
-**Enhanced Payment Steps:**
-1. Open your TON wallet
-2. Send {amount_ton:.3f} TON to the address above
-3. **CRITICAL:** Add memo/note `{memo}` exactly as written
-4. Complete the payment
+✅ **Payment Steps:**
+1️⃣ Send exactly **{amount_ton:.3f} TON**
+2️⃣ Use memo: **{memo}**
+3️⃣ Automatic verification within 30 seconds
 
-⏰ **Enhanced monitoring for 20 minutes with memo priority**
-🔍 **Automatic confirmation when memo** `{memo}` **matches**
-🎯 **More reliable payment verification system**
+⏰ Expires in: 20 minutes
+🔗 Track payment: [TonViewer](https://tonviewer.com/{bot_wallet.replace('UQ', 'EQ')})
 
-⚠️ **IMPORTANT:** Memo `{memo}` is required for payment confirmation
-Your ad will be published once payment is confirmed!"""
+🛡️ **Security:** Dual verification system (memo + your wallet)
+📱 **Confirmation:** Instant message when payment received"""
     
     # Create payment keyboard
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -3852,11 +3864,7 @@ async def clean_successful_payment_handler(message):
 
 
 
-@router.callback_query(F.data == "pay_freq_ton")
-async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle frequency TON payment button for compatibility"""
-    # Redirect to dynamic TON payment handler
-    await pay_dynamic_ton_handler(callback_query, state)
+# REMOVED: Duplicate TON payment handler - using enhanced handler at line 2864
 
 
 @router.callback_query(F.data == "cancel_payment")
@@ -4509,9 +4517,9 @@ async def process_admin_free_posting(callback_query: CallbackQuery, state: FSMCo
 async def send_payment_receipt(user_id: int, payment_data: dict, language: str):
     """Send payment receipt to user after successful payment"""
     try:
-        from main import bot
-    except ImportError:
         from main_bot import bot
+    except ImportError:
+        logger.warning("Bot import failed")
     import datetime
     
     try:
@@ -4602,9 +4610,9 @@ async def send_payment_receipt(user_id: int, payment_data: dict, language: str):
 async def send_ad_publishing_report(user_id: int, ad_data: dict, channel_name: str, language: str):
     """Send ad publishing confirmation report to user"""
     try:
-        from main import bot
-    except ImportError:
         from main_bot import bot
+    except ImportError:
+        logger.warning("Bot import failed")
     import datetime
     
     try:
@@ -4676,7 +4684,7 @@ async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext)
         await state.update_data(payment_status="expired")
         
         # Send expiration notification to user
-        from main import bot
+        from main_bot import bot
         expiration_text = f"⏰ **Payment Expired**\n\n"
         expiration_text += f"**Payment ID:** {memo}\n\n"
         expiration_text += "Your TON payment has expired. Please create a new payment to continue.\n\n"
