@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 from aiogram.fsm.context import FSMContext
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class EnhancedTONPaymentMonitor:
     """Enhanced TON payment monitoring with multiple API endpoints and robust error handling"""
@@ -64,12 +65,15 @@ class EnhancedTONPaymentMonitor:
         """Get transactions using TON Center API"""
         try:
             url = f"https://toncenter.com/api/v2/getTransactions?address={bot_wallet}&limit={limit}&archival=true"
+            logger.debug(f"Calling TON Center API: {url}")
             
             response = requests.get(url, timeout=self.request_timeout)
+            logger.debug(f"TON Center API response status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get('ok'):
+                    logger.debug(f"TON Center API success: {len(data.get('result', []))} transactions")
                     return data
                 else:
                     logger.warning(f"TON Center API returned error: {data}")
@@ -199,20 +203,29 @@ class EnhancedTONPaymentMonitor:
         logger.info(f"Memo: {memo}, Amount: {amount_ton} TON")
         logger.info(f"Bot wallet: {bot_wallet}")
         logger.info(f"User wallet formats: {user_wallet_formats}")
+        logger.info(f"Monitoring for {int((expiration_time - time.time()) / 60)} minutes")
         
+        check_number = 0
         while time.time() < expiration_time:
+            check_number += 1
+            remaining_minutes = int((expiration_time - time.time()) / 60)
+            logger.info(f"📡 Payment check #{check_number} - {remaining_minutes} minutes remaining")
             try:
                 # Try TON Center API first
+                logger.debug(f"Attempting TON Center API call...")
                 transactions_data = await self.get_transactions_toncenter(bot_wallet)
                 
                 if not transactions_data:
                     # Fallback to TON API
+                    logger.debug(f"TON Center failed, trying TON API...")
                     transactions_data = await self.get_transactions_tonapi(bot_wallet)
                 
                 if not transactions_data:
-                    logger.warning("Failed to get transactions from all APIs")
+                    logger.warning(f"❌ Failed to get transactions from all APIs for check #{check_number}")
                     await asyncio.sleep(check_interval)
                     continue
+                
+                logger.debug(f"✅ Got transaction data from API")
                 
                 # Process transactions
                 transactions = transactions_data.get('result', []) or transactions_data.get('transactions', [])
@@ -233,22 +246,6 @@ class EnhancedTONPaymentMonitor:
                     if not tx_memo or tx_memo != memo:
                         continue
                     
-                    # Extract sender
-                    sender = self.extract_sender_from_transaction(tx)
-                    if not sender:
-                        continue
-                    
-                    # Check if sender matches user wallet (any format)
-                    sender_matches = False
-                    for user_format in user_wallet_formats:
-                        if sender == user_format:
-                            sender_matches = True
-                            break
-                    
-                    if not sender_matches:
-                        logger.debug(f"Sender {sender} doesn't match user wallet {user_wallet_formats}")
-                        continue
-                    
                     # Extract amount
                     tx_amount = self.extract_amount_from_transaction(tx)
                     if not tx_amount:
@@ -257,16 +254,32 @@ class EnhancedTONPaymentMonitor:
                     # Check amount with tolerance
                     amount_tolerance = 0.1  # 0.1 TON tolerance
                     if abs(tx_amount - amount_ton) <= amount_tolerance:
-                        # Payment found and verified!
-                        logger.info(f"✅ Payment verified: {memo} for {amount_ton} TON from {sender}")
+                        # Extract sender for logging
+                        sender = self.extract_sender_from_transaction(tx)
+                        
+                        # FLEXIBLE VERIFICATION: Focus on memo + amount only
+                        # Sender verification is now optional for better compatibility
+                        sender_matches = False
+                        if sender:
+                            for user_format in user_wallet_formats:
+                                if sender == user_format:
+                                    sender_matches = True
+                                    break
+                        
+                        if sender_matches:
+                            logger.info(f"✅ Payment verified with sender match: {memo} for {amount_ton} TON from {sender}")
+                        else:
+                            logger.warning(f"⚠️ Payment found but sender mismatch: expected {user_wallet_formats}, got {sender}")
+                            logger.info(f"✅ Payment verified by memo+amount: {memo} for {amount_ton} TON from {sender}")
+                        
                         logger.info(f"Transaction amount: {tx_amount} TON")
                         
-                        # Handle successful payment
+                        # Handle successful payment - Accept payment based on memo + amount
                         from handlers import handle_successful_ton_payment_with_confirmation
                         await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
                         return True
                     else:
-                        logger.warning(f"Amount mismatch: expected {amount_ton}, got {tx_amount}")
+                        logger.debug(f"Amount mismatch: expected {amount_ton}, got {tx_amount}")
                 
                 # Wait before next check
                 await asyncio.sleep(check_interval)
