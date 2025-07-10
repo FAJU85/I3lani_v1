@@ -85,13 +85,12 @@ class CampaignPublisher:
             
             cursor.execute("""
                 SELECT cp.*, c.ad_content, c.user_id, c.campaign_name, c.ad_type,
-                       a.media_url, a.content_type
+                       c.media_url, c.content_type
                 FROM campaign_posts cp
                 JOIN campaigns c ON cp.campaign_id = c.campaign_id
-                LEFT JOIN ads a ON c.user_id = a.user_id
                 WHERE cp.status = 'scheduled'
                 AND cp.scheduled_time <= ?
-                ORDER BY cp.scheduled_time ASC, a.created_at DESC
+                ORDER BY cp.scheduled_time ASC
                 LIMIT 50
             """, (now,))
             
@@ -114,6 +113,12 @@ class CampaignPublisher:
             post_id = post['id']
             media_url = post.get('media_url')
             content_type = post.get('content_type', 'text')
+            
+            # MEDIA DEBUG LOGGING
+            logger.info(f"📤 Publishing post {post_id} for campaign {campaign_id}")
+            logger.info(f"   Content Type: {content_type}")
+            logger.info(f"   Media URL: {media_url[:50] if media_url else 'None'}...")
+            logger.info(f"   Has Media: {'YES' if media_url else 'NO'}")
             
             # Format the content for posting
             formatted_content = self._format_post_content(ad_content, campaign_id)
