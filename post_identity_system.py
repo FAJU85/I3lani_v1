@@ -159,8 +159,14 @@ class PostIdentitySystem:
     async def create_post_identity(self, campaign_id: str, user_id: int, 
                                  advertiser_username: str, content_data: Dict[str, Any],
                                  campaign_details: Dict[str, Any]) -> str:
-        """Create complete post identity with full metadata"""
+        """Create complete post identity with full metadata - ONE POST PER CAMPAIGN"""
         try:
+            # Check if post identity already exists for this campaign
+            existing_post = await self.get_post_for_campaign(campaign_id)
+            if existing_post:
+                logger.info(f"✅ Post identity already exists for campaign {campaign_id}: {existing_post.post_id}")
+                return existing_post.post_id
+            
             post_id = self.generate_post_id()
             
             # Extract content information
@@ -335,23 +341,22 @@ class PostIdentitySystem:
             logger.error(f"❌ Error logging publication: {e}")
             return False
     
-    async def get_campaign_posts(self, campaign_id: str) -> List[PostMetadata]:
-        """Get all posts for a campaign"""
+    async def get_post_for_campaign(self, campaign_id: str) -> Optional[PostMetadata]:
+        """Get the single post for a campaign (one-to-one relationship)"""
         try:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT * FROM post_identity WHERE campaign_id = ? ORDER BY created_at
+                SELECT * FROM post_identity WHERE campaign_id = ? LIMIT 1
             """, (campaign_id,))
             
-            rows = cursor.fetchall()
+            row = cursor.fetchone()
             conn.close()
             
-            posts = []
-            for row in rows:
-                post = PostMetadata(
+            if row:
+                return PostMetadata(
                     post_id=row['post_id'],
                     campaign_id=row['campaign_id'],
                     user_id=row['user_id'],
@@ -369,13 +374,12 @@ class PostIdentitySystem:
                     status=row['status'],
                     verification_hash=row['verification_hash']
                 )
-                posts.append(post)
             
-            return posts
+            return None
             
         except Exception as e:
-            logger.error(f"❌ Error getting campaign posts: {e}")
-            return []
+            logger.error(f"❌ Error getting campaign post: {e}")
+            return None
     
     async def verify_content_integrity(self, campaign_id: str) -> Dict[str, Any]:
         """Verify content integrity for all posts in a campaign"""

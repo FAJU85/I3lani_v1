@@ -56,15 +56,26 @@ class EnhancedCampaignPublisher:
                 await asyncio.sleep(self.check_interval)
     
     async def _process_due_posts(self):
-        """Process posts that are due for publishing"""
+        """Process posts that are due for publishing - ONE POST PER CAMPAIGN"""
         try:
             due_posts = await self._get_due_posts()
             
             if due_posts:
                 logger.info(f"📋 Processing {len(due_posts)} due posts")
                 
+                # Group by campaign to ensure one post per campaign
+                campaigns_processed = set()
+                
                 for post in due_posts:
-                    await self._publish_post_with_identity(post)
+                    campaign_id = post['campaign_id']
+                    
+                    # Skip if we already processed this campaign
+                    if campaign_id in campaigns_processed:
+                        logger.info(f"⏭️ Skipping duplicate post for campaign {campaign_id}")
+                        continue
+                    
+                    await self._publish_campaign_post(post)
+                    campaigns_processed.add(campaign_id)
                     
         except Exception as e:
             logger.error(f"❌ Error processing due posts: {e}")
@@ -101,19 +112,19 @@ class EnhancedCampaignPublisher:
             logger.error(f"❌ Error getting due posts: {e}")
             return []
     
-    async def _publish_post_with_identity(self, post_data: Dict):
-        """Publish post with full identity tracking and content verification"""
+    async def _publish_campaign_post(self, post_data: Dict):
+        """Publish the single post for a campaign with full identity tracking"""
         try:
             campaign_id = post_data['campaign_id']
             channel_id = post_data['channel_id']
             user_id = post_data['user_id']
             post_id = post_data['id']
             
-            # Get or create post identity
-            post_identity_id = await self._ensure_post_identity(post_data)
+            # Get or create THE post identity for this campaign (one-to-one)
+            post_identity_id = await self._ensure_campaign_post_identity(post_data)
             
             if not post_identity_id:
-                logger.error(f"❌ Failed to create post identity for post {post_id}")
+                logger.error(f"❌ Failed to create post identity for campaign {campaign_id}")
                 return False
             
             # Get verified content from post identity system
@@ -180,8 +191,8 @@ class EnhancedCampaignPublisher:
             await self._mark_post_failed(post_data['id'], str(e))
             return False
     
-    async def _ensure_post_identity(self, post_data: Dict) -> Optional[str]:
-        """Ensure post has identity tracking"""
+    async def _ensure_campaign_post_identity(self, post_data: Dict) -> Optional[str]:
+        """Ensure campaign has its single post identity (one-to-one relationship)"""
         try:
             campaign_id = post_data['campaign_id']
             user_id = post_data['user_id']
@@ -200,13 +211,13 @@ class EnhancedCampaignPublisher:
                 'ad_content': post_data['ad_content']
             }
             
-            # Create post identity if it doesn't exist
-            existing_identity = await self._find_post_identity_by_campaign_and_content(
-                campaign_id, content_data['content']
-            )
+            # Check if post identity already exists for this campaign (should be only one)
+            from post_identity_system import post_identity_system
+            existing_post = await post_identity_system.get_post_for_campaign(campaign_id)
             
-            if existing_identity:
-                return existing_identity
+            if existing_post:
+                logger.info(f"✅ Using existing post identity for campaign {campaign_id}: {existing_post.post_id}")
+                return existing_post.post_id
             
             # Create new post identity
             post_identity_id = await create_post_identity(
