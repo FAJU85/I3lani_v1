@@ -37,6 +37,7 @@ LOCK_FILE = "/tmp/i3lani_bot.lock"
 
 # Global bot instance
 bot_instance = None
+bot = None  # Add bot variable for backward compatibility
 bot_started = False
 
 def acquire_lock():
@@ -81,7 +82,7 @@ def acquire_lock():
 
 async def init_bot():
     """Initialize and start the Telegram bot"""
-    global bot_instance, bot_started
+    global bot_instance, bot, bot_started
     
     # Force cleanup any existing bot processes
     import subprocess
@@ -103,6 +104,7 @@ async def init_bot():
         
         bot = Bot(token=BOT_TOKEN)
         bot_instance = bot
+        # Set bot variable for backward compatibility
         storage = MemoryStorage()
         dp = Dispatcher(storage=storage)
         
