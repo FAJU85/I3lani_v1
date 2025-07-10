@@ -2478,14 +2478,300 @@ async def process_ton_payment(callback_query: CallbackQuery, state: FSMContext, 
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Get TON wallet address from config
+    # First, ask for user's wallet address
+    await request_user_wallet_address(callback_query, state, amount_ton)
+
+async def request_user_wallet_address(callback_query: CallbackQuery, state: FSMContext, amount_ton: float):
+    """Request user's TON wallet address before payment"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Create wallet address request message
+    if language == 'ar':
+        wallet_text = f"""💎 **دفع TON - إدخال عنوان المحفظة**
+
+المبلغ المطلوب: {amount_ton:.3f} TON
+
+**يرجى إدخال عنوان محفظة TON الخاصة بك:**
+- سيتم استخدام هذا العنوان للتحقق من الدفع
+- يجب أن يكون العنوان الذي ستدفع منه
+- تأكد من صحة العنوان لتجنب فقدان الأموال
+
+**مثال:** EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE
+
+أرسل عنوان محفظتك الآن:"""
+    elif language == 'ru':
+        wallet_text = f"""💎 **Оплата TON - Ввод адреса кошелька**
+
+Требуемая сумма: {amount_ton:.3f} TON
+
+**Пожалуйста, введите адрес вашего TON кошелька:**
+- Этот адрес будет использован для проверки платежа
+- Должен быть адрес, с которого вы будете платить
+- Убедитесь в правильности адреса во избежание потери средств
+
+**Пример:** EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE
+
+Отправьте адрес вашего кошелька сейчас:"""
+    else:
+        wallet_text = f"""💎 **TON Payment - Wallet Address Input**
+
+Required Amount: {amount_ton:.3f} TON
+
+**Please enter your TON wallet address:**
+- This address will be used to verify the payment
+- Must be the address you will pay from
+- Ensure the address is correct to avoid loss of funds
+
+**Example:** EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE
+
+Send your wallet address now:"""
+    
+    # Create keyboard with cancel option
+    if language == 'ar':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ إلغاء", callback_data="cancel_payment")]
+        ])
+    elif language == 'ru':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_payment")]
+        ])
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="cancel_payment")]
+        ])
+    
+    # Store payment amount for later use
+    await state.update_data(
+        pending_payment_amount=amount_ton,
+        payment_method='ton',
+        waiting_for_wallet_address=True
+    )
+    
+    # Set state to wait for wallet address
+    await state.set_state(AdCreationStates.waiting_wallet_address)
+    
+    await callback_query.message.edit_text(
+        wallet_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    await callback_query.answer()
+
+@router.message(AdCreationStates.waiting_wallet_address)
+async def handle_wallet_address_input(message: Message, state: FSMContext):
+    """Handle user wallet address input"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    wallet_address = message.text.strip()
+    
+    # Validate TON wallet address format
+    if not (wallet_address.startswith('EQ') or wallet_address.startswith('UQ')) or len(wallet_address) != 48:
+        if language == 'ar':
+            error_text = "❌ عنوان المحفظة غير صحيح. يجب أن يبدأ بـ EQ أو UQ ويكون 48 حرفاً. حاول مرة أخرى:"
+        elif language == 'ru':
+            error_text = "❌ Неверный адрес кошелька. Должен начинаться с EQ или UQ и быть длиной 48 символов. Попробуйте еще раз:"
+        else:
+            error_text = "❌ Invalid wallet address. Must start with EQ or UQ and be 48 characters long. Try again:"
+        
+        await message.reply(error_text)
+        return
+    
+    # Get payment data
+    data = await state.get_data()
+    amount_ton = data.get('pending_payment_amount')
+    
+    if not amount_ton:
+        await message.reply("❌ Payment session expired. Please start over.")
+        return
+    
+    # Store user wallet address
+    await state.update_data(
+        user_wallet_address=wallet_address,
+        waiting_for_wallet_address=False
+    )
+    
+    # Continue with payment processing
+    await continue_ton_payment_with_wallet(message, state, amount_ton, wallet_address)
+
+async def continue_ton_payment_with_wallet(message: Message, state: FSMContext, amount_ton: float, user_wallet: str):
+    """Continue TON payment processing with user wallet address"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get bot's wallet address from config
     from config import TON_WALLET_ADDRESS
-    wallet_address = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
+    bot_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
     
     # Generate unique memo for this payment (2 letters + 4 digits format)
     letters = ''.join(random.choices(string.ascii_uppercase, k=2))
     digits = ''.join(random.choices(string.digits, k=4))
     memo = letters + digits
+    
+    # Create payment expiration timestamp (20 minutes from now)
+    import time
+    expiration_time = int(time.time()) + (20 * 60)  # 20 minutes
+    
+    # Store payment info
+    await state.update_data(
+        payment_memo=memo,
+        payment_amount=amount_ton,
+        payment_expiration=expiration_time,
+        bot_wallet=bot_wallet,
+        user_wallet_address=user_wallet
+    )
+    
+    # Create payment instruction message
+    if language == 'ar':
+        payment_text = f"""💰 **تعليمات الدفع بـ TON**
+
+**المبلغ المطلوب:** {amount_ton:.3f} TON
+**عنوان المحفظة:** `{bot_wallet}`
+**رمز التحقق:** `{memo}`
+
+**خطوات الدفع:**
+1. افتح محفظة TON الخاصة بك
+2. أرسل {amount_ton:.3f} TON إلى العنوان أعلاه
+3. أضف رمز التحقق `{memo}` في حقل المذكرة
+4. أكد المعاملة
+
+**⏰ انتهاء الصلاحية:** 20 دقيقة
+
+✅ سيتم التحقق من الدفع تلقائياً كل 30 ثانية
+📱 ستتلقى رسالة تأكيد عند اكتمال الدفع
+
+🔒 بدفعك، أنت توافق على اتفاقية الاستخدام"""
+    elif language == 'ru':
+        payment_text = f"""💰 **Инструкции для оплаты TON**
+
+**Требуемая сумма:** {amount_ton:.3f} TON
+**Адрес кошелька:** `{bot_wallet}`
+**Код проверки:** `{memo}`
+
+**Шаги оплаты:**
+1. Откройте ваш TON кошелек
+2. Отправьте {amount_ton:.3f} TON на адрес выше
+3. Добавьте код проверки `{memo}` в поле заметки
+4. Подтвердите транзакцию
+
+**⏰ Истекает через:** 20 минут
+
+✅ Оплата будет проверена автоматически каждые 30 секунд
+📱 Вы получите подтверждение при завершении оплаты
+
+🔒 Оплачивая, вы соглашаетесь с условиями использования"""
+    else:
+        payment_text = f"""💰 **TON Payment Instructions**
+
+**Required Amount:** {amount_ton:.3f} TON
+**Wallet Address:** `{bot_wallet}`
+**Verification Code:** `{memo}`
+
+**Payment Steps:**
+1. Open your TON wallet
+2. Send {amount_ton:.3f} TON to the address above
+3. Add verification code `{memo}` in the memo field
+4. Confirm the transaction
+
+**⏰ Expires in:** 20 minutes
+
+✅ Payment will be verified automatically every 30 seconds
+📱 You will receive confirmation when payment is complete
+
+🔒 By paying, you agree to the Usage Agreement"""
+    
+    # Create keyboard with cancel option
+    if language == 'ar':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ إلغاء الدفع", callback_data="cancel_payment")]
+        ])
+    elif language == 'ru':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отменить платеж", callback_data="cancel_payment")]
+        ])
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
+        ])
+    
+    # Send payment instructions
+    await message.answer(
+        payment_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    
+    # Start monitoring for payment
+    asyncio.create_task(monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, user_wallet, state))
+
+async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_ton: float, expiration_time: int, user_wallet: str, state: FSMContext):
+    """Monitor TON payment using TON Center API with user wallet verification"""
+    import time
+    import requests
+    
+    # Monitor for 20 minutes (1200 seconds)
+    check_interval = 30  # Check every 30 seconds
+    
+    # Use consistent bot wallet address
+    from config import TON_WALLET_ADDRESS
+    bot_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
+    
+    logger.info(f"Starting TON payment monitoring for user {user_id}, memo: {memo}, amount: {amount_ton} TON")
+    
+    while time.time() < expiration_time:
+        try:
+            # Use TON Center API (working endpoint)
+            api_url = f"https://toncenter.com/api/v2/getTransactions?address={bot_wallet}&limit=10"
+            response = requests.get(api_url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok'):
+                    transactions = data.get('result', [])
+                    
+                    # Check recent transactions for our memo
+                    for tx in transactions:
+                        # Check if this is an incoming transaction
+                        if tx.get('in_msg'):
+                            in_msg = tx['in_msg']
+                            
+                            # Check if transaction has the correct memo
+                            if in_msg.get('message') == memo:
+                                # Get sender address
+                                sender_address = in_msg.get('source', '')
+                                
+                                # Verify the payment is from the user's wallet
+                                if sender_address == user_wallet:
+                                    # Get amount in nanotons and convert to TON
+                                    tx_amount_nanotons = int(in_msg.get('value', 0))
+                                    tx_amount = tx_amount_nanotons / 1000000000
+                                    
+                                    # Verify amount matches (with small tolerance for fees)
+                                    if abs(tx_amount - amount_ton) <= 0.1:  # Allow 0.1 TON tolerance
+                                        # Payment found and verified!
+                                        logger.info(f"TON payment verified: {memo} for {amount_ton} TON from {user_wallet}")
+                                        await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
+                                        return
+                                    else:
+                                        logger.warning(f"Amount mismatch: expected {amount_ton}, got {tx_amount}")
+                                else:
+                                    logger.info(f"Payment found but from wrong wallet: {sender_address} != {user_wallet}")
+                            
+                else:
+                    logger.warning(f"TON Center API error: {data}")
+            else:
+                logger.warning(f"TON Center API request failed with status {response.status_code}")
+            
+            # Wait before next check
+            await asyncio.sleep(check_interval)
+            
+        except Exception as e:
+            logger.error(f"Error monitoring TON payment: {e}")
+            await asyncio.sleep(check_interval)
+    
+    # Payment expired
+    logger.warning(f"TON payment expired for user {user_id}, memo: {memo}")
+    await handle_expired_ton_payment(user_id, memo, state)
     
     # Create payment instructions with translations
     if language == 'ar':
@@ -3160,69 +3446,26 @@ async def show_payment_options_handler(callback_query: CallbackQuery, state: FSM
 
 # TonViewer monitoring and payment verification functions
 async def monitor_ton_payment(user_id: int, memo: str, amount_ton: float, expiration_time: int, state: FSMContext):
-    """Monitor TON payment using TonViewer API"""
-    import time
-    import requests
+    """Legacy function - redirected to new monitoring system"""
+    # This function has been replaced by monitor_ton_payment_with_user_wallet
+    # Keeping for backward compatibility
+    logger.info(f"Legacy monitor_ton_payment called - redirecting to new system")
     
-    # Monitor for 20 minutes (1200 seconds)
-    start_time = time.time()
-    check_interval = 30  # Check every 30 seconds
+    # Get user wallet from state if available
+    data = await state.get_data()
+    user_wallet = data.get('user_wallet_address')
     
-    # Use consistent wallet address
-    from config import TON_WALLET_ADDRESS
-    wallet_address = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
-    
-    while time.time() < expiration_time:
-        try:
-            # Check TonViewer API for transactions
-            api_url = f"https://tonapi.io/v2/accounts/{wallet_address}/transactions"
-            headers = {
-                'Accept': 'application/json'
-            }
-            response = requests.get(api_url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                transactions = data.get('items', [])
-                
-                # Check recent transactions for our memo
-                for tx in transactions:
-                    # Check if this is an incoming transaction
-                    if tx.get('direction') == 'in':
-                        # Get the comment/memo from the transaction
-                        comment = tx.get('in_msg', {}).get('decoded_body', {}).get('comment', '')
-                        
-                        # Check if memo matches
-                        if comment == memo:
-                            # Get amount in nanotons and convert to TON
-                            tx_amount_nanotons = int(tx.get('in_msg', {}).get('value', 0))
-                            tx_amount = tx_amount_nanotons / 1000000000
-                            
-                            # Verify amount matches (with small tolerance for fees)
-                            if abs(tx_amount - amount_ton) < 0.01:
-                                # Payment found and verified!
-                                logger.info(f"TON payment verified: {memo} for {amount_ton} TON")
-                                await handle_successful_ton_payment(user_id, memo, amount_ton, state)
-                                return
-            
-            else:
-                logger.warning(f"TON API request failed with status {response.status_code}")
-            
-            # Wait before next check
-            await asyncio.sleep(check_interval)
-            
-        except Exception as e:
-            logger.error(f"Error monitoring TON payment: {e}")
-            await asyncio.sleep(check_interval)
-    
-    # Payment expired
-    await handle_expired_ton_payment(user_id, memo, state)
+    if user_wallet:
+        await monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, user_wallet, state)
+    else:
+        # If no user wallet, handle as expired
+        await handle_expired_ton_payment(user_id, memo, state)
 
 
-async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: float, state: FSMContext):
-    """Handle successful TON payment confirmation"""
+async def handle_successful_ton_payment_with_confirmation(user_id: int, memo: str, amount_ton: float, state: FSMContext):
+    """Handle successful TON payment confirmation with user notification"""
     try:
-        from main import bot
+        from main_bot import bot
         language = await get_user_language(user_id)
         
         # Get data from state
@@ -3232,7 +3475,132 @@ async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: flo
         photos = data.get('photos', []) or data.get('uploaded_photos', [])
         calculation = data.get('pricing_calculation', {})
         
+        # Get campaign details
+        days = calculation.get('days', 1)
+        posts_per_day = calculation.get('posts_per_day', 1)
+        total_posts = calculation.get('total_posts', days * posts_per_day)
+        
+        # Create confirmation message
+        if language == 'ar':
+            confirmation_text = f"""✅ **تم استلام الدفع بنجاح!**
+
+💰 **المبلغ المستلم:** {amount_ton:.3f} TON
+📅 **المدة:** {days} يوم
+📊 **عدد المنشورات:** {posts_per_day} مرة يومياً
+📺 **القنوات المختارة:** {len(selected_channels)} قناة
+📈 **إجمالي المنشورات:** {total_posts} منشور
+
+🚀 **ستبدأ حملتك الإعلانية قريباً!**
+📱 ستتلقى إشعارات عند بدء النشر في كل قناة
+
+شكراً لك على اختيار منصة I3lani! 🎯"""
+        elif language == 'ru':
+            confirmation_text = f"""✅ **Платеж успешно получен!**
+
+💰 **Получено:** {amount_ton:.3f} TON
+📅 **Длительность:** {days} дней
+📊 **Публикации:** {posts_per_day} раз в день
+📺 **Выбранные каналы:** {len(selected_channels)} каналов
+📈 **Всего публикаций:** {total_posts} публикаций
+
+🚀 **Ваша рекламная кампания скоро начнется!**
+📱 Вы получите уведомления при начале публикации в каждом канале
+
+Спасибо за выбор платформы I3lani! 🎯"""
+        else:
+            confirmation_text = f"""✅ **Payment Received Successfully!**
+
+💰 **Amount Received:** {amount_ton:.3f} TON
+📅 **Duration:** {days} days
+📊 **Posting Frequency:** {posts_per_day} times per day
+📺 **Selected Channels:** {len(selected_channels)} channels
+📈 **Total Posts:** {total_posts} posts
+
+🚀 **Your advertising campaign will start soon!**
+📱 You will receive notifications when posting begins in each channel
+
+Thank you for choosing I3lani platform! 🎯"""
+        
+        # Create main menu keyboard
+        if language == 'ar':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 القائمة الرئيسية", callback_data="back_to_main")],
+                [InlineKeyboardButton(text="📊 إعلاناتي", callback_data="my_ads")]
+            ])
+        elif language == 'ru':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                [InlineKeyboardButton(text="📊 Мои объявления", callback_data="my_ads")]
+            ])
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+                [InlineKeyboardButton(text="📊 My Ads", callback_data="my_ads")]
+            ])
+        
+        # Send confirmation message
+        await bot.send_message(
+            user_id,
+            confirmation_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
         # Create ad in database
+        await create_successful_ad_from_payment(user_id, memo, amount_ton, state)
+        
+        # Clear state
+        await state.clear()
+        
+        logger.info(f"TON payment confirmed and ad created for user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"Error handling successful TON payment: {e}")
+        # Send basic confirmation even if detailed processing fails
+        try:
+            await bot.send_message(
+                user_id,
+                f"✅ Payment received: {amount_ton:.3f} TON\n🚀 Your campaign will start soon!",
+                parse_mode='Markdown'
+            )
+        except:
+            pass
+
+async def create_successful_ad_from_payment(user_id: int, memo: str, amount_ton: float, state: FSMContext):
+    """Create ad in database after successful payment"""
+    try:
+        # Get data from state
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        ad_content = data.get('ad_content', '') or data.get('ad_text', '')
+        photos = data.get('photos', []) or data.get('uploaded_photos', [])
+        calculation = data.get('pricing_calculation', {})
+        
+        # Get campaign details
+        days = calculation.get('days', 1)
+        posts_per_day = calculation.get('posts_per_day', 1)
+        
+        # Create ad in database
+        from database import db
+        ad_id = await db.create_ad(
+            user_id=user_id,
+            content=ad_content,
+            photos=photos,
+            channels=selected_channels,
+            duration_days=days,
+            posts_per_day=posts_per_day,
+            payment_amount=amount_ton,
+            payment_method='TON',
+            payment_memo=memo,
+            status='paid'
+        )
+        
+        logger.info(f"Ad created successfully: ID {ad_id} for user {user_id}")
+        return ad_id
+        
+    except Exception as e:
+        logger.error(f"Error creating ad from payment: {e}")
+        return None
         ad_id = await db.create_ad(
             user_id=user_id,
             content=ad_content,

@@ -39,6 +39,7 @@ class AdCreationStates(StatesGroup):
     error_state = State()
     confirmation_pending = State()
     custom_duration = State()
+    waiting_wallet_address = State()
 
 
 class UserStates(StatesGroup):
