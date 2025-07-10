@@ -3588,6 +3588,24 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
         payment_status="pending"
     )
     
+    # Track memo -> user_id mapping for automatic confirmation
+    try:
+        from automatic_payment_confirmation import track_payment_for_user
+        
+        # Get current state data for ad information
+        user_data = await state.get_data()
+        ad_data = {
+            'duration_days': user_data.get('days', 7),
+            'posts_per_day': user_data.get('posts_per_day', 2),
+            'selected_channels': user_data.get('selected_channels', ['@i3lani', '@smshco', '@Five_SAR']),
+            'total_reach': 357
+        }
+        
+        await track_payment_for_user(callback_query.from_user.id, memo, total_ton, ad_data)
+        logger.info(f"✅ Payment tracking enabled for user {callback_query.from_user.id}, memo {memo}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to track payment for automatic confirmation: {e}")
+    
     # TonViewer monitoring link
     tonviewer_link = f"https://tonviewer.com/{ton_wallet}"
     

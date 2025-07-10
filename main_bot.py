@@ -122,6 +122,15 @@ async def init_bot():
         except Exception as e:
             logger.error(f"❌ Failed to initialize payment memo tracker: {e}")
         
+        # Initialize automatic payment confirmation system
+        logger.info("Initializing automatic payment confirmation...")
+        try:
+            from automatic_payment_confirmation import init_automatic_confirmation
+            await init_automatic_confirmation()
+            logger.info("✅ Automatic payment confirmation initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize automatic confirmation: {e}")
+        
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")
         try:

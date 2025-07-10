@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""
+Automatic Payment Confirmation System
+Sends automatic confirmations to users when payments are detected
+"""
+
+import asyncio
+import logging
+import sqlite3
+import json
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class AutomaticPaymentConfirmation:
+    """Automatic payment confirmation system"""
+    
+    def __init__(self, db_path: str = "bot.db"):
+        self.db_path = db_path
+        
+    async def init_tables(self):
+        """Initialize payment tracking tables"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create payment_memo_tracking table for user -> memo mapping
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS payment_memo_tracking (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    memo TEXT NOT NULL UNIQUE,
+                    amount REAL NOT NULL,
+                    payment_method TEXT DEFAULT 'TON',
+                    ad_data TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    confirmed_at TIMESTAMP NULL
+                );
+            """)
+            
+            # Create index for faster memo lookups
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_memo_tracking_memo 
+                ON payment_memo_tracking(memo);
+            """)
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info("✅ Payment confirmation tables initialized")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error initializing confirmation tables: {e}")
+            return False
+    
+    async def track_user_payment(self, user_id: int, memo: str, amount: float, ad_data: dict = None):
+        """Track user payment for automatic confirmation"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Store ad_data as JSON
+            ad_data_json = json.dumps(ad_data) if ad_data else json.dumps({
+                'duration_days': 7,
+                'posts_per_day': 2,
+                'selected_channels': ['@i3lani', '@smshco', '@Five_SAR'],
+                'total_reach': 357
+            })
+            
+            cursor.execute("""
+                INSERT OR REPLACE INTO payment_memo_tracking 
+                (user_id, memo, amount, ad_data, status)
+                VALUES (?, ?, ?, ?, 'pending')
+            """, (user_id, memo, amount, ad_data_json))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Tracking payment {memo} for user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error tracking user payment: {e}")
+            return False
+    
+    async def find_user_by_memo(self, memo: str) -> Optional[Dict[str, Any]]:
+        """Find user by payment memo"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT user_id, memo, amount, ad_data, status, created_at
+                FROM payment_memo_tracking 
+                WHERE memo = ? AND status = 'pending'
+            """, (memo,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {
+                    'user_id': row['user_id'],
+                    'memo': row['memo'],
+                    'amount': row['amount'],
+                    'ad_data': json.loads(row['ad_data']) if row['ad_data'] else {},
+                    'status': row['status'],
+                    'created_at': row['created_at']
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error finding user by memo: {e}")
+            return None
+    
+    async def send_automatic_confirmation(self, user_id: int, memo: str, amount: float, ad_data: dict):
+        """Send automatic confirmation to user"""
+        try:
+            from main_bot import bot_instance
+            
+            if not bot_instance:
+                logger.error("❌ Bot instance not available")
+                return False
+            
+            # Create confirmation message
+            confirmation_message = f"""✅ **Payment Automatically Confirmed!**
+
+💰 **Amount:** {amount} TON
+🎫 **Transaction ID:** {memo}
+📅 **Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+🎉 **Your advertisement campaign is now ACTIVE!**
+
+**Campaign Details:**
+• Duration: {ad_data.get('duration_days', 7)} days
+• Channels: {len(ad_data.get('selected_channels', []))} channels
+• Total reach: {ad_data.get('total_reach', 357)} subscribers
+• Posts per day: {ad_data.get('posts_per_day', 2)} posts
+
+Your advertisement will be published across selected channels according to your schedule.
+
+Thank you for choosing I3lani! 🚀"""
+            
+            # Create navigation keyboard
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+                [InlineKeyboardButton(text="📊 My Ads", callback_data="my_ads")]
+            ])
+            
+            # Send confirmation
+            await bot_instance.send_message(
+                user_id, 
+                confirmation_message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+            # Mark as confirmed
+            await self.mark_payment_confirmed(memo)
+            
+            # Activate campaign
+            await self.activate_campaign(user_id, memo, amount, ad_data)
+            
+            logger.info(f"✅ Automatic confirmation sent to user {user_id} for memo {memo}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error sending automatic confirmation: {e}")
+            return False
+    
+    async def mark_payment_confirmed(self, memo: str):
+        """Mark payment as confirmed"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE payment_memo_tracking 
+                SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP
+                WHERE memo = ?
+            """, (memo,))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Payment {memo} marked as confirmed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error marking payment confirmed: {e}")
+            return False
+    
+    async def activate_campaign(self, user_id: int, memo: str, amount: float, ad_data: dict):
+        """Activate user campaign"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create orders table entry
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    memo TEXT UNIQUE,
+                    amount REAL,
+                    payment_method TEXT DEFAULT 'TON',
+                    status TEXT DEFAULT 'active',
+                    ad_content TEXT,
+                    selected_channels TEXT,
+                    duration_days INTEGER DEFAULT 7,
+                    posts_per_day INTEGER DEFAULT 2,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP
+                );
+            """)
+            
+            # Insert campaign
+            from datetime import datetime, timedelta
+            expires_at = datetime.now() + timedelta(days=ad_data.get('duration_days', 7))
+            
+            cursor.execute("""
+                INSERT OR REPLACE INTO orders 
+                (user_id, memo, amount, status, ad_content, selected_channels, 
+                 duration_days, posts_per_day, expires_at)
+                VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                memo,
+                amount,
+                f"Advertisement campaign for payment {memo}",
+                ','.join(ad_data.get('selected_channels', ['@i3lani', '@smshco', '@Five_SAR'])),
+                ad_data.get('duration_days', 7),
+                ad_data.get('posts_per_day', 2),
+                expires_at
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Campaign activated for user {user_id}, memo {memo}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error activating campaign: {e}")
+            return False
+
+# Global instance
+automatic_confirmation = AutomaticPaymentConfirmation()
+
+async def init_automatic_confirmation():
+    """Initialize automatic confirmation system"""
+    return await automatic_confirmation.init_tables()
+
+async def track_payment_for_user(user_id: int, memo: str, amount: float, ad_data: dict = None):
+    """Track payment for automatic confirmation"""
+    return await automatic_confirmation.track_user_payment(user_id, memo, amount, ad_data)
+
+async def process_detected_payment(memo: str, amount: float):
+    """Process payment detected by scanner"""
+    user_data = await automatic_confirmation.find_user_by_memo(memo)
+    
+    if user_data:
+        logger.info(f"🎯 Found user {user_data['user_id']} for memo {memo}")
+        
+        # Send automatic confirmation
+        success = await automatic_confirmation.send_automatic_confirmation(
+            user_data['user_id'],
+            memo,
+            amount,
+            user_data['ad_data']
+        )
+        
+        if success:
+            logger.info(f"✅ Automatic confirmation sent for memo {memo}")
+        else:
+            logger.error(f"❌ Failed to send confirmation for memo {memo}")
+        
+        return success
+    else:
+        logger.warning(f"⚠️ No user found for memo {memo}")
+        return False
+
+if __name__ == "__main__":
+    async def test_system():
+        await init_automatic_confirmation()
+        
+        # Test tracking a payment
+        await track_payment_for_user(123456, "TE1234", 0.36, {
+            'duration_days': 7,
+            'posts_per_day': 2,
+            'selected_channels': ['@i3lani', '@smshco', '@Five_SAR'],
+            'total_reach': 357
+        })
+        
+        # Test processing detected payment
+        await process_detected_payment("TE1234", 0.36)
+    
+    asyncio.run(test_system())
