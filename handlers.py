@@ -3574,7 +3574,7 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
     # Process Stars payment
     await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
 
-async def show_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
+async def show_frequency_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
     """Show posts per day selection with the selected days"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
