@@ -189,7 +189,7 @@ async def view_campaign_handler(callback_query: CallbackQuery, state: FSMContext
         await callback_query.message.edit_text(
             id_card, 
             reply_markup=keyboard,
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
         
         await callback_query.answer()

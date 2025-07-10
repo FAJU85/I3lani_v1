@@ -341,94 +341,94 @@ class CampaignManager:
         end_date = datetime.fromisoformat(campaign['end_date'])
         remaining_days = max(0, (end_date - datetime.now()).days)
         
-        # Generate multilingual summary
+        # Generate multilingual summary using HTML formatting for better compatibility
         if language == 'ar':
-            summary = f"""🎯 **بطاقة تعريف الحملة**
+            summary = f"""🎯 <b>بطاقة تعريف الحملة</b>
 
-**معرف الحملة:** {campaign['campaign_id']}
-**الحالة:** {'نشط' if campaign['status'] == 'active' else 'غير نشط'}
-**الدفع:** {campaign['payment_amount']:.3f} {campaign['payment_method']}
-**المذكرة:** {campaign['payment_memo']}
+<b>معرف الحملة:</b> {campaign['campaign_id']}
+<b>الحالة:</b> {'نشط' if campaign['status'] == 'active' else 'غير نشط'}
+<b>الدفع:</b> {campaign['payment_amount']:.3f} {campaign['payment_method']}
+<b>المذكرة:</b> {campaign['payment_memo']}
 
-**📅 الجدولة**
-**المدة:** {campaign['duration_days']} أيام
-**المتبقي:** {remaining_days} أيام
-**تاريخ البدء:** {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
-**تاريخ الانتهاء:** {end_date.strftime('%Y-%m-%d')}
+📅 <b>الجدولة</b>
+<b>المدة:</b> {campaign['duration_days']} أيام
+<b>المتبقي:</b> {remaining_days} أيام
+<b>تاريخ البدء:</b> {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
+<b>تاريخ الانتهاء:</b> {end_date.strftime('%Y-%m-%d')}
 
-**📊 تفاصيل الحملة**
-**المنشورات يومياً:** {campaign['posts_per_day']}
-**إجمالي المنشورات:** {total_posts}
-**تم النشر:** {posts_published}
-**التقدم:** {progress_percentage:.1f}%
+📊 <b>تفاصيل الحملة</b>
+<b>المنشورات يومياً:</b> {campaign['posts_per_day']}
+<b>إجمالي المنشورات:</b> {total_posts}
+<b>تم النشر:</b> {posts_published}
+<b>التقدم:</b> {progress_percentage:.1f}%
 
-**📢 القنوات ({campaign['channel_count']})**
+📢 <b>القنوات ({campaign['channel_count']})</b>
 {chr(10).join(f"• {channel}" for channel in campaign['selected_channels'])}
-**إجمالي المتابعين:** {campaign['total_reach']} متابع
+<b>إجمالي المتابعين:</b> {campaign['total_reach']} متابع
 
-**📈 الأداء**
-**نقاط التفاعل:** {campaign.get('engagement_score', 0.0):.1f}%
-**معدل النقر:** {campaign.get('click_through_rate', 0.0):.1f}%
+📈 <b>الأداء</b>
+<b>نقاط التفاعل:</b> {campaign.get('engagement_score', 0.0):.1f}%
+<b>معدل النقر:</b> {campaign.get('click_through_rate', 0.0):.1f}%
 
-**تاريخ الإنشاء:** {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
+<b>تاريخ الإنشاء:</b> {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
         elif language == 'ru':
-            summary = f"""🎯 **ID карта кампании**
+            summary = f"""🎯 <b>ID карта кампании</b>
 
-**ID кампании:** {campaign['campaign_id']}
-**Статус:** {'АКТИВНА' if campaign['status'] == 'active' else 'НЕАКТИВНА'}
-**Платеж:** {campaign['payment_amount']:.3f} {campaign['payment_method']}
-**Мемо:** {campaign['payment_memo']}
+<b>ID кампании:</b> {campaign['campaign_id']}
+<b>Статус:</b> {'АКТИВНА' if campaign['status'] == 'active' else 'НЕАКТИВНА'}
+<b>Платеж:</b> {campaign['payment_amount']:.3f} {campaign['payment_method']}
+<b>Мемо:</b> {campaign['payment_memo']}
 
-**📅 Расписание**
-**Длительность:** {campaign['duration_days']} дней
-**Осталось:** {remaining_days} дней
-**Дата начала:** {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
-**Дата окончания:** {end_date.strftime('%Y-%m-%d')}
+📅 <b>Расписание</b>
+<b>Длительность:</b> {campaign['duration_days']} дней
+<b>Осталось:</b> {remaining_days} дней
+<b>Дата начала:</b> {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
+<b>Дата окончания:</b> {end_date.strftime('%Y-%m-%d')}
 
-**📊 Детали кампании**
-**Постов в день:** {campaign['posts_per_day']}
-**Всего постов:** {total_posts}
-**Опубликовано:** {posts_published}
-**Прогресс:** {progress_percentage:.1f}%
+📊 <b>Детали кампании</b>
+<b>Постов в день:</b> {campaign['posts_per_day']}
+<b>Всего постов:</b> {total_posts}
+<b>Опубликовано:</b> {posts_published}
+<b>Прогресс:</b> {progress_percentage:.1f}%
 
-**📢 Каналы ({campaign['channel_count']})**
+📢 <b>Каналы ({campaign['channel_count']})</b>
 {chr(10).join(f"• {channel}" for channel in campaign['selected_channels'])}
-**Общий охват:** {campaign['total_reach']} подписчиков
+<b>Общий охват:</b> {campaign['total_reach']} подписчиков
 
-**📈 Производительность**
-**Оценка вовлеченности:** {campaign.get('engagement_score', 0.0):.1f}%
-**CTR:** {campaign.get('click_through_rate', 0.0):.1f}%
+📈 <b>Производительность</b>
+<b>Оценка вовлеченности:</b> {campaign.get('engagement_score', 0.0):.1f}%
+<b>CTR:</b> {campaign.get('click_through_rate', 0.0):.1f}%
 
-**Создано:** {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
+<b>Создано:</b> {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
         else:
-            summary = f"""🎯 **Campaign ID Card**
+            summary = f"""🎯 <b>Campaign ID Card</b>
 
-**Campaign ID:** {campaign['campaign_id']}
-**Status:** {campaign['status'].upper()}
-**Payment:** {campaign['payment_amount']:.3f} {campaign['payment_method']}
-**Memo:** {campaign['payment_memo']}
+<b>Campaign ID:</b> {campaign['campaign_id']}
+<b>Status:</b> {campaign['status'].upper()}
+<b>Payment:</b> {campaign['payment_amount']:.3f} {campaign['payment_method']}
+<b>Memo:</b> {campaign['payment_memo']}
 
-**📅 Schedule**
-**Duration:** {campaign['duration_days']} days
-**Remaining:** {remaining_days} days
-**Start Date:** {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
-**End Date:** {end_date.strftime('%Y-%m-%d')}
+📅 <b>Schedule</b>
+<b>Duration:</b> {campaign['duration_days']} days
+<b>Remaining:</b> {remaining_days} days
+<b>Start Date:</b> {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
+<b>End Date:</b> {end_date.strftime('%Y-%m-%d')}
 
-**📊 Campaign Details**
-**Posts per Day:** {campaign['posts_per_day']}
-**Total Posts:** {total_posts}
-**Published:** {posts_published}
-**Progress:** {progress_percentage:.1f}%
+📊 <b>Campaign Details</b>
+<b>Posts per Day:</b> {campaign['posts_per_day']}
+<b>Total Posts:</b> {total_posts}
+<b>Published:</b> {posts_published}
+<b>Progress:</b> {progress_percentage:.1f}%
 
-**📢 Channels ({campaign['channel_count']})**
+📢 <b>Channels ({campaign['channel_count']})</b>
 {chr(10).join(f"• {channel}" for channel in campaign['selected_channels'])}
-**Total Reach:** {campaign['total_reach']} subscribers
+<b>Total Reach:</b> {campaign['total_reach']} subscribers
 
-**📈 Performance**
-**Engagement Score:** {campaign.get('engagement_score', 0.0):.1f}%
-**Click-Through Rate:** {campaign.get('click_through_rate', 0.0):.1f}%
+📈 <b>Performance</b>
+<b>Engagement Score:</b> {campaign.get('engagement_score', 0.0):.1f}%
+<b>Click-Through Rate:</b> {campaign.get('click_through_rate', 0.0):.1f}%
 
-**Created:** {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
+<b>Created:</b> {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
         
         return summary
     
