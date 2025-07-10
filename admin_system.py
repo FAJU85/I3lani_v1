@@ -237,40 +237,40 @@ Channels:
         )
 
     async def show_pricing_management(self, callback_query: CallbackQuery):
-        """Show progressive pricing management interface"""
-        # Get pricing system
-        pricing = get_pricing_system()
-        all_plans = pricing.get_all_plans()
+        """Show smart day-based pricing management interface"""
+        from frequency_pricing import FrequencyPricingSystem
+        pricing = FrequencyPricingSystem()
         
-        text = "**Progressive Pricing Management**\n\n"
-        text += "**Current Progressive Plans:**\n"
+        text = "**🧠 Smart Day-Based Pricing Management**\n\n"
+        text += "**Core Logic:** We Sell Days, You Gain Reach™\n\n"
         
-        for plan in all_plans:
-            savings = pricing.calculate_savings(plan['plan_id'])
-            text += f"• **{plan['name']}** - ${plan['discounted_price']:.0f}\n"
-            text += f"  Posts/day: {plan['posts_per_day']} | Duration: {plan['duration_months']}M\n"
-            text += f"  Discount: {plan['discount_percent']}% | Save: ${savings['savings_amount']:.0f}\n\n"
+        text += "**Current Pricing Tiers:**\n"
         
-        text += "**Progressive Pricing Features:**\n"
-        text += "• Flat-rate pricing (no per-channel fees)\n"
-        text += "• Progressive frequency (more posts with longer plans)\n"
-        text += "• Automatic discount scaling (10% to 45% off)\n"
-        text += "• Base rate: $1 per post per channel\n\n"
+        # Show sample tiers
+        sample_tiers = [1, 3, 7, 15, 30, 60, 90]
+        for days in sample_tiers:
+            tier_info = pricing.frequency_tiers.get(days)
+            if tier_info:
+                pricing_data = pricing.calculate_pricing(days)
+                text += f"• **{days} days** - {tier_info['posts_per_day']} posts/day\n"
+                text += f"  ${pricing_data['final_cost_usd']:.2f} ({tier_info['discount']}% discount)\n"
+        
+        text += "\n**Smart Pricing Features:**\n"
+        text += "• Dynamic day-based pricing (1-365 days)\n"
+        text += "• More days = More posts per day + Bigger discounts\n"
+        text += "• Automatic volume discounts (0% to 35% off)\n"
+        text += "• Base rate: $1.00 per post per day\n\n"
         
         text += "**Management Options:**\n"
         
         keyboard = [
             [
-                InlineKeyboardButton(text="📊 View All Plans", callback_data="admin_view_all_plans"),
-                InlineKeyboardButton(text="💰 Pricing Analytics", callback_data="admin_price_analytics")
+                InlineKeyboardButton(text="🧠 Smart Pricing System", callback_data="admin_smart_pricing"),
+                InlineKeyboardButton(text="📊 Pricing Table", callback_data="admin_pricing_table")
             ],
             [
-                InlineKeyboardButton(text="⚙️ Edit Base Rate", callback_data="admin_edit_base_rate"),
-                InlineKeyboardButton(text="🎯 Plan Statistics", callback_data="admin_plan_stats")
-            ],
-            [
-                InlineKeyboardButton(text="🔄 Refresh Plans", callback_data="admin_refresh_plans"),
-                InlineKeyboardButton(text="📝 Plan Details", callback_data="admin_plan_details")
+                InlineKeyboardButton(text="💰 Revenue Analytics", callback_data="admin_revenue_analytics"),
+                InlineKeyboardButton(text="🎯 Usage Statistics", callback_data="admin_usage_stats")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
@@ -917,44 +917,7 @@ async def admin_packages_callback(callback_query: CallbackQuery, state: FSMConte
     await callback_query.answer()
 
 
-@router.callback_query(F.data == "admin_view_all_plans")
-async def admin_view_all_plans_callback(callback_query: CallbackQuery, state: FSMContext):
-    """Show detailed view of all progressive plans"""
-    if not admin_system.is_admin(callback_query.from_user.id):
-        await callback_query.answer("❌ Unauthorized")
-        return
-    
-    pricing = get_pricing_system()
-    all_plans = pricing.get_all_plans()
-    
-    text = "**📊 All Progressive Plans - Detailed View**\n\n"
-    
-    for plan in all_plans:
-        savings = pricing.calculate_savings(plan['plan_id'])
-        text += f"**Plan {plan['plan_id']}: {plan['name']}**\n"
-        text += f"• Duration: {plan['duration_months']} months\n"
-        text += f"• Posts per day: {plan['posts_per_day']}\n"
-        text += f"• Total posts: {plan['total_posts']:,}\n"
-        text += f"• Original price: ${plan['base_price']:.0f}\n"
-        text += f"• Discounted price: ${plan['discounted_price']:.0f}\n"
-        text += f"• Discount: {plan['discount_percent']}%\n"
-        text += f"• Savings: ${savings['savings_amount']:.0f}\n"
-        text += f"• Stars price: {pricing.get_stars_price(plan['discounted_price'])} ⭐\n\n"
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="💰 Price Analytics", callback_data="admin_price_analytics"),
-            InlineKeyboardButton(text="📈 Usage Stats", callback_data="admin_plan_usage")
-        ],
-        [InlineKeyboardButton(text="⬅️ Back to Pricing", callback_data="admin_packages")]
-    ])
-    
-    try:
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
-    except Exception:
-        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-    
-    await callback_query.answer()
+# REMOVED: admin_view_all_plans_callback - old progressive monthly plans callback removed
 
 
 @router.callback_query(F.data == "admin_price_analytics")

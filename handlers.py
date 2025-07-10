@@ -327,131 +327,16 @@ async def create_channel_selection_keyboard(language: str, selected_channels: Li
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def create_duration_keyboard(language: str) -> InlineKeyboardMarkup:
-    """Create duration selection keyboard with progressive frequency plans"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="1 Month - $30", callback_data="duration_1_month"),
-            InlineKeyboardButton(text="2 Months - $108 (10% off)", callback_data="duration_2_months")
-        ],
-        [
-            InlineKeyboardButton(text="3 Months - $229.50 (15% off)", callback_data="duration_3_months"),
-            InlineKeyboardButton(text="4 Months - $384 (20% off)", callback_data="duration_4_months")
-        ],
-        [
-            InlineKeyboardButton(text="5 Months - $562.50 (25% off)", callback_data="duration_5_months"),
-            InlineKeyboardButton(text="6 Months - $756 (30% off)", callback_data="duration_6_months")
-        ],
-        [
-            InlineKeyboardButton(text="7 Months - $999.60 (32% off)", callback_data="duration_7_months"),
-            InlineKeyboardButton(text="8 Months - $1267.20 (34% off)", callback_data="duration_8_months")
-        ],
-        [
-            InlineKeyboardButton(text="9 Months - $1555.20 (36% off)", callback_data="duration_9_months"),
-            InlineKeyboardButton(text="10 Months - $1860 (38% off)", callback_data="duration_10_months")
-        ],
-        [
-            InlineKeyboardButton(text="11 Months - $2178 (40% off)", callback_data="duration_11_months"),
-            InlineKeyboardButton(text="12 Months - $2409 (45% off)", callback_data="duration_12_months")
-        ],
-        [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channels")]
-    ])
-    return keyboard
+# REMOVED: create_duration_keyboard - old progressive monthly plans removed
 
 
-async def show_duration_selection(callback_query: CallbackQuery, state: FSMContext):
-    """Show duration selection interface with progressive frequency plans"""
-    try:
-        user_id = callback_query.from_user.id
-        language = await get_user_language(user_id)
-        
-        data = await state.get_data()
-        selected_channels = data.get('selected_channels', [])
-        
-        duration_text = f"""
-Date **Full-Year Posting Plans (Progressive Frequency)**
-
- **Selected Channels:** {len(selected_channels)} (No per-channel fee)
-
-Target **Progressive Frequency System:**
-- Month 1: 1 post/day to Month 12: 12 posts/day
-- Automatic discount scaling (up to 45% off)
-- Base price: $1 per post (covers all channels)
-- Higher frequency = Better engagement
-
-Price **Discount Benefits:**
-- 2+ months: 10%+ discount
-- 6+ months: 30%+ discount  
-- 12 months: 45% discount (Best Value!)
-
-Choose your posting plan:
-        """.strip()
-        
-        keyboard = create_duration_keyboard(language)
-        
-        await callback_query.message.edit_text(
-            duration_text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
-        )
-        await state.set_state(AdCreationStates.duration_selection)
-        
-    except Exception as e:
-        logger.error(f"Duration selection error: {e}")
-        await callback_query.answer("Error showing duration options.")
+# REMOVED: show_duration_selection - old progressive monthly plans interface removed
         
 
-def get_progressive_plan_details(months: int) -> dict:
-    """Get progressive plan details with pricing and discount"""
-    plan_data = {
-        1: {"posts_per_day": 1, "total_days": 30, "total_posts": 30, "base_price": 30, "discount": 0, "final_price": 30},
-        2: {"posts_per_day": 2, "total_days": 60, "total_posts": 120, "base_price": 120, "discount": 10, "final_price": 108},
-        3: {"posts_per_day": 3, "total_days": 90, "total_posts": 270, "base_price": 270, "discount": 15, "final_price": 229.50},
-        4: {"posts_per_day": 4, "total_days": 120, "total_posts": 480, "base_price": 480, "discount": 20, "final_price": 384},
-        5: {"posts_per_day": 5, "total_days": 150, "total_posts": 750, "base_price": 750, "discount": 25, "final_price": 562.50},
-        6: {"posts_per_day": 6, "total_days": 180, "total_posts": 1080, "base_price": 1080, "discount": 30, "final_price": 756},
-        7: {"posts_per_day": 7, "total_days": 210, "total_posts": 1470, "base_price": 1470, "discount": 32, "final_price": 999.60},
-        8: {"posts_per_day": 8, "total_days": 240, "total_posts": 1920, "base_price": 1920, "discount": 34, "final_price": 1267.20},
-        9: {"posts_per_day": 9, "total_days": 270, "total_posts": 2430, "base_price": 2430, "discount": 36, "final_price": 1555.20},
-        10: {"posts_per_day": 10, "total_days": 300, "total_posts": 3000, "base_price": 3000, "discount": 38, "final_price": 1860},
-        11: {"posts_per_day": 11, "total_days": 330, "total_posts": 3630, "base_price": 3630, "discount": 40, "final_price": 2178},
-        12: {"posts_per_day": 12, "total_days": 365, "total_posts": 4380, "base_price": 4380, "discount": 45, "final_price": 2409}
-    }
-    return plan_data.get(months, plan_data[1])
+# REMOVED: get_progressive_plan_details - old progressive monthly plans data removed
 
 
-@router.callback_query(F.data.startswith("duration_"))
-async def duration_selection_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle progressive frequency plan selection"""
-    try:
-        duration_data = callback_query.data.replace("duration_", "")
-        
-        # Parse months from callback data
-        if duration_data.endswith("_month") or duration_data.endswith("_months"):
-            months = int(duration_data.replace("_month", "").replace("_months", ""))
-        else:
-            months = 1  # Default
-        
-        # Get plan details
-        plan_details = get_progressive_plan_details(months)
-        
-        # Store plan information in state
-        await state.update_data(
-            duration_months=months,
-            duration_days=plan_details["total_days"],
-            posts_per_day=plan_details["posts_per_day"],
-            total_posts=plan_details["total_posts"],
-            base_price=plan_details["base_price"],
-            discount_percent=plan_details["discount"],
-            final_price=plan_details["final_price"]
-        )
-        
-        # Proceed to payment
-        await proceed_to_payment_handler(callback_query, state)
-        
-    except Exception as e:
-        logger.error(f"Duration handler error: {e}")
-        await callback_query.answer("Error processing duration selection.")
+# REMOVED: duration_selection_handler - old progressive monthly plans handler removed
 
 
 def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
@@ -467,7 +352,7 @@ def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
         )],
         [InlineKeyboardButton(
             text=get_text(language, 'back'), 
-            callback_data="back_to_duration"
+            callback_data="back_to_channels"
         )]
     ])
     return keyboard
@@ -5360,18 +5245,7 @@ async def back_to_channels_handler(callback_query: CallbackQuery, state: FSMCont
     await callback_query.answer()
 
 
-@router.callback_query(F.data == "back_to_duration")
-async def back_to_duration_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Back to duration selection"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    await state.set_state(AdCreationStates.duration_selection)
-    await callback_query.message.edit_text(
-        get_text(language, 'select_duration'),
-        reply_markup=create_duration_keyboard(language)
-    )
-    await callback_query.answer()
+# REMOVED: back_to_duration_handler - old progressive monthly plans handler removed
 
 
 # Debug and Support Commands

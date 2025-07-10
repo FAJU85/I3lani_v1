@@ -78,7 +78,7 @@ LANGUAGES = {
         # Ad creation
         'send_ad_content': '◇━━ NEURAL UPLOAD ━━◇\n\nUpload your advertisement:\n• 📝 Text message\n• 📸 Photo with caption\n• 🎥 Video with caption\n\n▣ TRANSMIT DATA ▣',
         'ad_received': '◈ Neural Content Received! ✅',
-        'choose_channels': '◇━━ QUANTUM CHANNELS ━━◇\n\nSelect broadcasting channels:',
+        'choose_channels': '📢 Select Advertising Channels:',
         'select_duration': '◇━━ FREQUENCY SELECTOR ━━◇\n\nChoose campaign duration:',
         'choose_payment': '◇━━ PAYMENT PROTOCOL ━━◇\n\nSelect payment method:',
         'upload_photo': '📸 ◇ Upload Neural Image',
