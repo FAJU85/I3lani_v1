@@ -3030,64 +3030,58 @@ async def continue_ton_payment_with_wallet(message: Message, state: FSMContext, 
         user_wallet_address=user_wallet
     )
     
-    # Create payment instruction message
+    # Create optimized payment instruction message (shorter to avoid MESSAGE_TOO_LONG)
     if language == 'ar':
-        payment_text = f"""💰 **تعليمات الدفع بـ TON**
+        payment_text = f"""💰 **دفع TON**
 
-**المبلغ المطلوب:** {amount_ton:.3f} TON
-**عنوان المحفظة:** `{bot_wallet}`
-**رمز التحقق:** `{memo}`
+**المبلغ:** {amount_ton:.3f} TON
+**العنوان:** `{bot_wallet}`
+**المذكرة:** `{memo}`
 
 **خطوات الدفع:**
-1. افتح محفظة TON الخاصة بك
-2. أرسل {amount_ton:.3f} TON إلى العنوان أعلاه
-3. أضف رمز التحقق `{memo}` في حقل المذكرة
+1. افتح محفظة TON
+2. أرسل {amount_ton:.3f} TON للعنوان أعلاه
+3. أضف المذكرة `{memo}` بالضبط
 4. أكد المعاملة
 
-**⏰ انتهاء الصلاحية:** 20 دقيقة
+⏰ انتهاء الصلاحية: 20 دقيقة
+✅ تحقق تلقائي كل 30 ثانية
 
-✅ سيتم التحقق من الدفع تلقائياً كل 30 ثانية
-📱 ستتلقى رسالة تأكيد عند اكتمال الدفع
-
-🔒 بدفعك، أنت توافق على اتفاقية الاستخدام"""
+🔒 بدفعك، تتفق على شروط الاستخدام"""
     elif language == 'ru':
-        payment_text = f"""💰 **Инструкции для оплаты TON**
+        payment_text = f"""💰 **Оплата TON**
 
-**Требуемая сумма:** {amount_ton:.3f} TON
-**Адрес кошелька:** `{bot_wallet}`
-**Код проверки:** `{memo}`
+**Сумма:** {amount_ton:.3f} TON
+**Адрес:** `{bot_wallet}`
+**Заметка:** `{memo}`
 
 **Шаги оплаты:**
-1. Откройте ваш TON кошелек
+1. Откройте TON кошелек
 2. Отправьте {amount_ton:.3f} TON на адрес выше
-3. Добавьте код проверки `{memo}` в поле заметки
+3. Добавьте заметку `{memo}` точно
 4. Подтвердите транзакцию
 
-**⏰ Истекает через:** 20 минут
+⏰ Истекает через: 20 минут
+✅ Автопроверка каждые 30 секунд
 
-✅ Оплата будет проверена автоматически каждые 30 секунд
-📱 Вы получите подтверждение при завершении оплаты
-
-🔒 Оплачивая, вы соглашаетесь с условиями использования"""
+🔒 Оплачивая, вы соглашаетесь с условиями"""
     else:
-        payment_text = f"""💰 **TON Payment Instructions**
+        payment_text = f"""💰 **TON Payment**
 
-**Required Amount:** {amount_ton:.3f} TON
-**Wallet Address:** `{bot_wallet}`
-**Verification Code:** `{memo}`
+**Amount:** {amount_ton:.3f} TON
+**Address:** `{bot_wallet}`
+**Memo:** `{memo}`
 
 **Payment Steps:**
 1. Open your TON wallet
-2. Send {amount_ton:.3f} TON to the address above
-3. Add verification code `{memo}` in the memo field
-4. Confirm the transaction
+2. Send {amount_ton:.3f} TON to address above
+3. Add memo `{memo}` exactly
+4. Confirm transaction
 
-**⏰ Expires in:** 20 minutes
+⏰ Expires in: 20 minutes
+✅ Auto-verification every 30 seconds
 
-✅ Payment will be verified automatically every 30 seconds
-📱 You will receive confirmation when payment is complete
-
-🔒 By paying, you agree to the Usage Agreement"""
+🔒 By paying, you agree to Usage Agreement"""
     
     # Create keyboard with cancel option
     if language == 'ar':

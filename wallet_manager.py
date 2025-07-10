@@ -281,29 +281,69 @@ class WalletManager:
 @router.callback_query(F.data.startswith("use_existing_wallet_"))
 async def use_existing_wallet_handler(callback_query: CallbackQuery, state: FSMContext):
     """Handle using existing wallet address"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    # Extract context from callback data
-    context = callback_query.data.replace("use_existing_wallet_", "")
-    
-    # Get existing wallet from state
-    data = await state.get_data()
-    existing_wallet = data.get('existing_wallet')
-    
-    if not existing_wallet:
-        await callback_query.answer("❌ Error: No existing wallet found")
-        return
-    
-    # Continue with the appropriate flow based on context
-    if context == 'payment':
-        await continue_payment_with_wallet(callback_query, state, existing_wallet)
-    elif context == 'affiliate':
-        await continue_affiliate_with_wallet(callback_query, state, existing_wallet)
-    elif context == 'channel':
-        await continue_channel_with_wallet(callback_query, state, existing_wallet)
-    
-    await callback_query.answer()
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        # Extract context from callback data
+        context = callback_query.data.replace("use_existing_wallet_", "")
+        
+        # Get existing wallet from state data
+        data = await state.get_data()
+        existing_wallet = data.get('existing_wallet')
+        
+        # If no wallet in state, try to get from database
+        if not existing_wallet:
+            existing_wallet = await WalletManager.get_user_wallet_address(user_id)
+        
+        if not existing_wallet:
+            # Show error message in user's language
+            error_msg = {
+                'ar': "❌ خطأ: لا يوجد محفظة محفوظة",
+                'ru': "❌ Ошибка: Не найден сохраненный кошелек",
+                'en': "❌ Error: No saved wallet found"
+            }.get(language, "❌ Error: No saved wallet found")
+            
+            await callback_query.answer(error_msg, show_alert=True)
+            return
+        
+        # Show loading message
+        loading_msg = {
+            'ar': "🔄 جاري المتابعة بالمحفظة الحالية...",
+            'ru': "🔄 Продолжение с текущим кошельком...",
+            'en': "🔄 Continuing with current wallet..."
+        }.get(language, "🔄 Continuing with current wallet...")
+        
+        await callback_query.answer(loading_msg)
+        
+        # Continue with the appropriate flow based on context
+        if context == 'payment':
+            await continue_payment_with_wallet(callback_query, state, existing_wallet)
+        elif context == 'affiliate':
+            await continue_affiliate_with_wallet(callback_query, state, existing_wallet)
+        elif context == 'channel':
+            await continue_channel_with_wallet(callback_query, state, existing_wallet)
+        else:
+            # Unknown context error
+            error_msg = {
+                'ar': "❌ خطأ: سياق غير معروف",
+                'ru': "❌ Ошибка: Неизвестный контекст",
+                'en': "❌ Error: Unknown context"
+            }.get(language, "❌ Error: Unknown context")
+            
+            await callback_query.answer(error_msg, show_alert=True)
+            
+    except Exception as e:
+        logger.error(f"Error in use_existing_wallet_handler: {e}")
+        
+        # Show generic error message
+        error_msg = {
+            'ar': "❌ حدث خطأ، يرجى المحاولة مرة أخرى",
+            'ru': "❌ Произошла ошибка, попробуйте еще раз",
+            'en': "❌ An error occurred, please try again"
+        }.get(language, "❌ An error occurred, please try again")
+        
+        await callback_query.answer(error_msg, show_alert=True)
 
 @router.callback_query(F.data.startswith("enter_new_wallet_"))
 async def enter_new_wallet_handler(callback_query: CallbackQuery, state: FSMContext):
