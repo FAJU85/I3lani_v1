@@ -406,15 +406,120 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
     amount_ton = data.get('pending_payment_amount')
     
     if not amount_ton:
-        await message_or_callback.reply("❌ Payment session expired. Please start over.")
+        # Handle both Message and CallbackQuery objects
+        error_msg = "❌ Payment session expired. Please start over."
+        if hasattr(message_or_callback, 'message'):
+            # CallbackQuery
+            await message_or_callback.message.answer(error_msg)
+        else:
+            # Message
+            await message_or_callback.reply(error_msg)
         return
     
     # Store wallet address in state
     await state.update_data(user_wallet_address=wallet_address)
     
-    # Continue with existing payment flow
-    from handlers import continue_ton_payment_with_wallet
-    await continue_ton_payment_with_wallet(message_or_callback, state, amount_ton, wallet_address)
+    # Create a simplified payment processing directly here to avoid complex object handling
+    user_id = message_or_callback.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Generate payment details
+    import random
+    import string
+    import time
+    from config import TON_WALLET_ADDRESS
+    
+    bot_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
+    
+    # Generate unique memo (2 letters + 4 digits format)
+    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+    digits = ''.join(random.choices(string.digits, k=4))
+    memo = letters + digits
+    
+    # Create expiration timestamp (20 minutes from now)
+    expiration_time = int(time.time()) + (20 * 60)
+    
+    # Store payment info
+    await state.update_data(
+        payment_memo=memo,
+        payment_amount=amount_ton,
+        payment_expiration=expiration_time,
+        bot_wallet=bot_wallet
+    )
+    
+    # Create concise payment message to avoid MESSAGE_TOO_LONG
+    if language == 'ar':
+        payment_text = f"""💰 **دفع TON**
+
+**المبلغ:** {amount_ton:.3f} TON
+**العنوان:** `{bot_wallet}`
+**المذكرة:** `{memo}`
+
+**خطوات:**
+1. افتح محفظة TON
+2. أرسل {amount_ton:.3f} TON للعنوان
+3. أضف المذكرة `{memo}`
+4. أكد الدفع
+
+⏰ 20 دقيقة
+✅ تحقق تلقائي
+
+🔒 بدفعك، تتفق على الشروط"""
+    elif language == 'ru':
+        payment_text = f"""💰 **Оплата TON**
+
+**Сумма:** {amount_ton:.3f} TON
+**Адрес:** `{bot_wallet}`
+**Заметка:** `{memo}`
+
+**Шаги:**
+1. Откройте TON кошелек
+2. Отправьте {amount_ton:.3f} TON
+3. Добавьте заметку `{memo}`
+4. Подтвердите
+
+⏰ 20 минут
+✅ Автопроверка
+
+🔒 Оплачивая, соглашаетесь"""
+    else:
+        payment_text = f"""💰 **TON Payment**
+
+**Amount:** {amount_ton:.3f} TON
+**Address:** `{bot_wallet}`
+**Memo:** `{memo}`
+
+**Steps:**
+1. Open TON wallet
+2. Send {amount_ton:.3f} TON
+3. Add memo `{memo}`
+4. Confirm payment
+
+⏰ 20 minutes
+✅ Auto-verification
+
+🔒 By paying, you agree"""
+    
+    # Create cancel keyboard
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    cancel_text = "❌ إلغاء" if language == 'ar' else "❌ Отмена" if language == 'ru' else "❌ Cancel"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=cancel_text, callback_data="cancel_payment")]
+    ])
+    
+    # Send payment message
+    if hasattr(message_or_callback, 'message'):
+        # CallbackQuery
+        await message_or_callback.message.answer(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+    else:
+        # Message
+        await message_or_callback.answer(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+    
+    # Start payment monitoring using existing function from handlers
+    import asyncio
+    from handlers import monitor_ton_payment_with_user_wallet
+    asyncio.create_task(monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, wallet_address, state))
 
 async def continue_affiliate_with_wallet(message_or_callback, state: FSMContext, wallet_address: str):
     """Continue affiliate program enrollment with wallet address"""
@@ -432,7 +537,13 @@ async def continue_affiliate_with_wallet(message_or_callback, state: FSMContext,
     else:
         success_text = f"✅ TON wallet saved successfully!\n\n**Address:** `{wallet_address}`\n\n🤝 You can now join the affiliate program and receive commissions."
     
-    await message_or_callback.reply(success_text, parse_mode='Markdown')
+    # Handle both Message and CallbackQuery objects
+    if hasattr(message_or_callback, 'message'):
+        # CallbackQuery
+        await message_or_callback.message.answer(success_text, parse_mode='Markdown')
+    else:
+        # Message
+        await message_or_callback.reply(success_text, parse_mode='Markdown')
 
 async def continue_channel_with_wallet(message_or_callback, state: FSMContext, wallet_address: str):
     """Continue channel addition with wallet address"""
@@ -450,7 +561,13 @@ async def continue_channel_with_wallet(message_or_callback, state: FSMContext, w
     else:
         success_text = f"✅ TON wallet saved successfully!\n\n**Address:** `{wallet_address}`\n\n📺 You can now add your channel and receive publishing earnings."
     
-    await message_or_callback.reply(success_text, parse_mode='Markdown')
+    # Handle both Message and CallbackQuery objects
+    if hasattr(message_or_callback, 'message'):
+        # CallbackQuery
+        await message_or_callback.message.answer(success_text, parse_mode='Markdown')
+    else:
+        # Message
+        await message_or_callback.reply(success_text, parse_mode='Markdown')
 
 @router.callback_query(F.data == "cancel_wallet_input")
 async def cancel_wallet_input_handler(callback_query: CallbackQuery, state: FSMContext):
