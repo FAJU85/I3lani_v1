@@ -2480,7 +2480,7 @@ async def process_ton_payment(callback_query: CallbackQuery, state: FSMContext, 
     
     # Get TON wallet address from config
     from config import TON_WALLET_ADDRESS
-    wallet_address = TON_WALLET_ADDRESS or "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
+    wallet_address = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
     
     # Generate unique memo for this payment (2 letters + 4 digits format)
     letters = ''.join(random.choices(string.ascii_uppercase, k=2))
@@ -2567,8 +2567,10 @@ With your payment, you agree to the Usage Agreement 🔗"""
         parse_mode='Markdown'
     )
     
-    # Start payment monitoring (this would be handled by background workers)
-    # For now, we'll just show the payment interface
+    # Start payment monitoring in background
+    expiration_time = int(time.time()) + 1200  # 20 minutes from now
+    asyncio.create_task(monitor_ton_payment(user_id, memo, amount_ton, expiration_time, state))
+    
     await callback_query.answer()
 
 
@@ -2902,7 +2904,8 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
     memo = payment_processor.generate_memo()
     
     # TON wallet address (user-provided wallet address)
-    ton_wallet = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
+    from config import TON_WALLET_ADDRESS
+    ton_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
     
     # Create payment expiration timestamp (20 minutes from now)
     import time
@@ -3165,7 +3168,9 @@ async def monitor_ton_payment(user_id: int, memo: str, amount_ton: float, expira
     start_time = time.time()
     check_interval = 30  # Check every 30 seconds
     
-    wallet_address = "UQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmulB"
+    # Use consistent wallet address
+    from config import TON_WALLET_ADDRESS
+    wallet_address = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
     
     while time.time() < expiration_time:
         try:
@@ -3565,87 +3570,6 @@ Choose your preferred payment method:"""
     
     await callback_query.message.edit_text(payment_text, reply_markup=keyboard, parse_mode='Markdown')
     await callback_query.answer("Payment options shown")
-
-
-async def handle_successful_ton_payment(user_id: int, memo: str, amount_ton: float, state: FSMContext):
-    """Handle successful TON payment verification"""
-    try:
-        # Update payment status
-        await state.update_data(payment_status="confirmed")
-        
-        # Get user data
-        data = await state.get_data()
-        selected_channels = data.get('selected_channels', [])
-        ad_content = data.get('ad_text', '')  # Changed from ad_content to ad_text
-        photos = data.get('photos', [])
-        
-        # Create ad in database
-        ad_id = await db.create_ad(
-            user_id=user_id,
-            content=ad_content,
-            media_url=photos[0] if photos else None,
-            content_type='photo' if photos else 'text'
-        )
-        
-        # Get pricing data for subscription
-        calculation = data.get('pricing_calculation', {})
-        days = calculation.get('days', 1)
-        posts_per_day = calculation.get('posts_per_day', 1)
-        
-        # Create subscription for each selected channel
-        subscription_ids = []
-        for channel_id in selected_channels:
-            subscription_id = await db.create_subscription(
-                user_id=user_id,
-                ad_id=ad_id,
-                channel_id=channel_id,
-                duration_months=days,  # Using days as duration
-                total_price=data.get('payment_amount_usd', 0),
-                currency='TON',
-                posts_per_day=posts_per_day,
-                total_posts=days * posts_per_day
-            )
-            subscription_ids.append(subscription_id)
-            
-        # Activate subscriptions
-        await db.activate_subscriptions(subscription_ids, days)
-        
-        # Publish immediately to all selected channels
-        from publishing_scheduler import scheduler
-        if scheduler:
-            await scheduler.publish_immediately_after_payment(
-                user_id=user_id,
-                ad_id=ad_id,
-                selected_channels=selected_channels,
-                subscription_data=data
-            )
-        
-        # Send payment receipt to user
-        payment_data = {
-            'payment_method': 'ton',
-            'amount': amount_ton,
-            'memo': memo,
-            'selected_channels': selected_channels,
-            'days': days,
-            'posts_per_day': posts_per_day,
-            'ad_id': ad_id
-        }
-        await send_payment_receipt(user_id, payment_data, language)
-        
-        # Send publishing reports for each channel
-        channels = await db.get_channels()
-        for channel_id in selected_channels:
-            channel = next((ch for ch in channels if ch['channel_id'] == channel_id), None)
-            if channel:
-                ad_data = {
-                    'ad_id': ad_id,
-                    'ad_text': ad_content,
-                    'channel_id': channel_id
-                }
-                await send_ad_publishing_report(user_id, ad_data, channel['name'], language)
-        
-    except Exception as e:
-        logger.error(f"Error processing successful TON payment: {e}")
 
 
 async def process_admin_free_posting(callback_query: CallbackQuery, state: FSMContext):
