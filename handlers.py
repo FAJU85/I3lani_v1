@@ -707,17 +707,8 @@ async def upload_content_handler(message: Message, state: FSMContext):
     # Skip contact info step - go directly to channel selection
     await state.set_state(AdCreationStates.channel_selection)
     
-    # Go directly to enhanced channel selection without unnecessary "ad content ready" step
-    # Create a fake callback query to use the existing enhanced channel selection
-    from types import SimpleNamespace
-    fake_callback_query = SimpleNamespace(
-        from_user=message.from_user,
-        message=message,
-        bot=message.bot
-    )
-    
-    # Use the enhanced channel selection flow
-    await show_channel_selection_for_enhanced_flow(fake_callback_query, state)
+    # Show channel selection directly using message-based flow
+    await show_channel_selection_for_message(message, state)
 
 
 # Category selection handler removed - going directly to content upload
@@ -1160,6 +1151,149 @@ Thank you for using I3lani Bot!
     except Exception as e:
         logger.error(f"Free package publishing error: {e}")
         await callback_query.answer("Error creating free ad. Please try again.", show_alert=True)
+
+
+async def show_channel_selection_for_message(message: Message, state: FSMContext):
+    """Show channel selection for message-based flow"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Send typing action for better UX
+    await message.bot.send_chat_action(
+        chat_id=message.chat.id,
+        action="typing"
+    )
+    
+    # Get only active channels where bot is admin
+    channels = await db.get_bot_admin_channels()
+    
+    if not channels:
+        no_channels_text = {
+            'en': get_text('en', 'no_channels'),
+            'ar': get_text('ar', 'no_channels'),
+            'ru': get_text('ru', 'no_channels')
+        }
+        
+        await message.answer(
+            no_channels_text.get(language, no_channels_text['en']),
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Initialize live stats system
+    from live_channel_stats import LiveChannelStats
+    live_stats = LiveChannelStats(message.bot, db)
+    
+    # Enhance channels with live subscriber counts
+    enhanced_channels = await live_stats.get_enhanced_channel_data(channels)
+    
+    # Get selected channels from state
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Calculate total reach with live counts
+    total_reach = await live_stats.get_total_reach(selected_channels, enhanced_channels)
+    
+    # Create enhanced channel text with better visuals
+    if language == 'ar':
+        channel_text = f"""📺 **اختر القنوات لإعلانك**
+
+📊 **المحدد:** {len(selected_channels)}/{len(enhanced_channels)} قناة
+👥 **الوصول المباشر:** {total_reach:,} مشترك
+
+💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
+    elif language == 'ru':
+        channel_text = f"""📺 **Выберите каналы для рекламы**
+
+📊 **Выбрано:** {len(selected_channels)}/{len(enhanced_channels)} каналов
+👥 **Живой охват:** {total_reach:,} подписчиков
+
+💡 Нажмите на каналы для выбора/отмены:"""
+    else:
+        channel_text = f"""📺 **Select Channels for Your Ad**
+
+📊 **Selected:** {len(selected_channels)}/{len(enhanced_channels)} channels
+👥 **Live Reach:** {total_reach:,} subscribers
+
+💡 Click channels to select/deselect:"""
+    
+    keyboard_rows = []
+    for channel in enhanced_channels:
+        # Check if channel is selected
+        is_selected = channel['channel_id'] in selected_channels
+        
+        # Create enhanced button text with live counts and improved layout
+        button_text = live_stats.create_channel_button_text(channel, is_selected, language)
+        
+        keyboard_rows.append([InlineKeyboardButton(
+            text=button_text,
+            callback_data=f"toggle_channel_{channel['channel_id']}"
+        )])
+    
+    # Add control buttons with better styling
+    if language == 'ar':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔄 تحديث الإحصائيات", callback_data="refresh_channel_stats"),
+            InlineKeyboardButton(text="🔄 اختيار الكل", callback_data="select_all_channels")
+        ])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="❌ إلغاء تحديد الكل", callback_data="deselect_all_channels")
+        ])
+        
+        # Continue button (only show if channels are selected)
+        if selected_channels:
+            keyboard_rows.append([
+                InlineKeyboardButton(text="✅ متابعة مع القنوات المحددة", callback_data="continue_with_channels")
+            ])
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(text="◀️ العودة للقائمة", callback_data="back_to_main")
+        ])
+    elif language == 'ru':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔄 Обновить статистику", callback_data="refresh_channel_stats"),
+            InlineKeyboardButton(text="🔄 Выбрать все", callback_data="select_all_channels")
+        ])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="❌ Отменить все", callback_data="deselect_all_channels")
+        ])
+        
+        # Continue button (only show if channels are selected)
+        if selected_channels:
+            keyboard_rows.append([
+                InlineKeyboardButton(text="✅ Продолжить с выбранными", callback_data="continue_with_channels")
+            ])
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(text="◀️ В главное меню", callback_data="back_to_main")
+        ])
+    else:
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="refresh_channel_stats"),
+            InlineKeyboardButton(text="🔄 Select All", callback_data="select_all_channels")
+        ])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="❌ Deselect All", callback_data="deselect_all_channels")
+        ])
+        
+        # Continue button (only show if channels are selected)
+        if selected_channels:
+            keyboard_rows.append([
+                InlineKeyboardButton(text="✅ Continue with Selected", callback_data="continue_with_channels")
+            ])
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(text="◀️ Back to Menu", callback_data="back_to_main")
+        ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    # Send new message instead of editing (for message-based flow)
+    await message.answer(
+        channel_text,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
 
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
