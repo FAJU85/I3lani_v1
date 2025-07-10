@@ -1268,6 +1268,111 @@ Last updated: July 2025"""
         except Exception as e:
             print(f"Error getting UI stats: {e}")
             return {}
+    
+    async def log_fraud_attempt(self, fraud_log: Dict):
+        """Log fraud attempt for security monitoring"""
+        try:
+            # Create fraud_logs table if it doesn't exist
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    CREATE TABLE IF NOT EXISTS fraud_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        transaction_hash TEXT,
+                        transaction_amount REAL,
+                        transaction_sender TEXT,
+                        transaction_memo TEXT,
+                        expected_memo TEXT,
+                        expected_wallet TEXT,
+                        risk_level TEXT,
+                        status TEXT,
+                        admin_reviewed BOOLEAN DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Insert fraud log
+                await db.execute('''
+                    INSERT INTO fraud_logs (
+                        timestamp, type, transaction_hash, transaction_amount,
+                        transaction_sender, transaction_memo, expected_memo,
+                        expected_wallet, risk_level, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    fraud_log['timestamp'],
+                    fraud_log['type'],
+                    fraud_log['transaction_hash'],
+                    fraud_log['transaction_amount'],
+                    fraud_log['transaction_sender'],
+                    fraud_log['transaction_memo'],
+                    fraud_log['expected_memo'],
+                    fraud_log['expected_wallet'],
+                    fraud_log['risk_level'],
+                    fraud_log['status']
+                ))
+                
+                await db.commit()
+                logger.info(f"Fraud attempt logged to database")
+                
+        except Exception as e:
+            logger.error(f"Error logging fraud attempt: {e}")
+    
+    async def get_fraud_logs(self, limit: int = 50) -> List[Dict]:
+        """Get fraud logs for admin review"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                async with db.execute('''
+                    SELECT * FROM fraud_logs 
+                    ORDER BY created_at DESC 
+                    LIMIT ?
+                ''', (limit,)) as cursor:
+                    rows = await cursor.fetchall()
+                    columns = [description[0] for description in cursor.description]
+                    return [dict(zip(columns, row)) for row in rows]
+        except Exception as e:
+            logger.error(f"Error getting fraud logs: {e}")
+            return []
+    
+    async def mark_fraud_log_reviewed(self, fraud_log_id: int):
+        """Mark fraud log as reviewed by admin"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    UPDATE fraud_logs 
+                    SET admin_reviewed = 1 
+                    WHERE id = ?
+                ''', (fraud_log_id,))
+                await db.commit()
+        except Exception as e:
+            logger.error(f"Error marking fraud log as reviewed: {e}")
+    
+    async def get_payment_security_stats(self) -> Dict:
+        """Get payment security statistics"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Get fraud attempts count
+                fraud_count_cursor = await db.execute('''
+                    SELECT COUNT(*) FROM fraud_logs WHERE type = 'wallet_mismatch_fraud_attempt'
+                ''')
+                fraud_count = await fraud_count_cursor.fetchone()
+                
+                # Get recent fraud attempts (last 24 hours)
+                recent_fraud_cursor = await db.execute('''
+                    SELECT COUNT(*) FROM fraud_logs 
+                    WHERE type = 'wallet_mismatch_fraud_attempt' 
+                    AND datetime(created_at) > datetime('now', '-1 day')
+                ''')
+                recent_fraud = await recent_fraud_cursor.fetchone()
+                
+                return {
+                    'total_fraud_attempts': fraud_count[0] if fraud_count else 0,
+                    'recent_fraud_attempts': recent_fraud[0] if recent_fraud else 0,
+                    'security_status': 'active'
+                }
+        except Exception as e:
+            logger.error(f"Error getting payment security stats: {e}")
+            return {'total_fraud_attempts': 0, 'recent_fraud_attempts': 0, 'security_status': 'unknown'}
 
 # Global database instance
 db = Database()

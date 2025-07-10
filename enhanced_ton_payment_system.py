@@ -247,17 +247,25 @@ class EnhancedTONPaymentSystem:
                 if amount_match:
                     logger.info(f"💰 Amount match: {transaction.amount} ≈ {expected_amount}")
                     
-                    # Optional: Wallet address verification (for additional security)
+                    # CRITICAL: Wallet address verification (mandatory for security)
                     wallet_match = self._is_wallet_match(transaction.sender, user_wallet)
                     
                     if wallet_match:
                         logger.info(f"🔒 Wallet match: {transaction.sender} == {user_wallet}")
                         return transaction
                     else:
-                        # Log wallet mismatch but still proceed with memo + amount match
-                        logger.warning(f"⚠️ Wallet mismatch: {transaction.sender} != {user_wallet}")
-                        logger.info(f"✅ Proceeding with memo + amount match (wallet verification optional)")
-                        return transaction
+                        # SECURITY ENHANCEMENT: Reject payment if wallet doesn't match
+                        logger.error(f"🚨 SECURITY ALERT: Wallet mismatch for memo {expected_memo}")
+                        logger.error(f"   Expected wallet: {user_wallet}")
+                        logger.error(f"   Actual sender: {transaction.sender}")
+                        logger.error(f"   Amount: {transaction.amount} TON")
+                        logger.error(f"   Transaction hash: {transaction.hash}")
+                        
+                        # Log potential fraud attempt
+                        await self._log_potential_fraud(transaction, expected_memo, user_wallet)
+                        
+                        # Do not proceed - reject payment for security
+                        continue
                 else:
                     logger.warning(f"❌ Amount mismatch: {transaction.amount} != {expected_amount}")
             else:
@@ -328,6 +336,124 @@ class EnhancedTONPaymentSystem:
     def get_active_monitors_count(self) -> int:
         """Get number of active payment monitors"""
         return len(self.active_monitors)
+    
+    async def _log_potential_fraud(self, transaction: TONTransaction, expected_memo: str, expected_wallet: str):
+        """Log potential fraud attempt for security monitoring"""
+        try:
+            fraud_log = {
+                'timestamp': datetime.now().isoformat(),
+                'type': 'wallet_mismatch_fraud_attempt',
+                'transaction_hash': transaction.hash,
+                'transaction_amount': transaction.amount,
+                'transaction_sender': transaction.sender,
+                'transaction_memo': transaction.memo,
+                'expected_memo': expected_memo,
+                'expected_wallet': expected_wallet,
+                'risk_level': 'HIGH',
+                'status': 'blocked'
+            }
+            
+            # Log to system logger
+            logger.error(f"🚨 FRAUD ATTEMPT BLOCKED: {fraud_log}")
+            
+            # Store in database for admin review (if database available)
+            try:
+                from database import db
+                await db.log_fraud_attempt(fraud_log)
+            except Exception as db_error:
+                logger.warning(f"Could not store fraud log in database: {db_error}")
+            
+            # Send alert to admin (if available)
+            await self._send_fraud_alert_to_admin(fraud_log)
+            
+        except Exception as e:
+            logger.error(f"Error logging fraud attempt: {e}")
+    
+    async def _send_fraud_alert_to_admin(self, fraud_log: dict):
+        """Send fraud alert to admin users"""
+        try:
+            from config import ADMIN_IDS
+            from main_bot import bot
+            
+            if not ADMIN_IDS:
+                return
+            
+            alert_message = f"""🚨 **SECURITY ALERT - Payment Fraud Attempt Blocked**
+
+**Transaction Details:**
+• Hash: `{fraud_log['transaction_hash']}`
+• Amount: {fraud_log['transaction_amount']} TON
+• Sender: `{fraud_log['transaction_sender']}`
+• Memo: `{fraud_log['transaction_memo']}`
+
+**Expected Details:**
+• Memo: `{fraud_log['expected_memo']}`
+• Wallet: `{fraud_log['expected_wallet']}`
+
+**Risk Level:** {fraud_log['risk_level']}
+**Status:** Payment blocked and rejected
+
+**Action Required:** Review transaction for potential fraud pattern."""
+            
+            for admin_id in ADMIN_IDS:
+                try:
+                    await bot.send_message(chat_id=admin_id, text=alert_message, parse_mode='Markdown')
+                except Exception as send_error:
+                    logger.error(f"Failed to send fraud alert to admin {admin_id}: {send_error}")
+                    
+        except Exception as e:
+            logger.error(f"Error sending fraud alert: {e}")
+    
+    async def validate_payment_security(self, payment_request: Dict) -> Dict:
+        """Validate payment request security parameters"""
+        security_checks = {
+            'memo_format': False,
+            'wallet_format': False,
+            'amount_valid': False,
+            'expiration_valid': False,
+            'user_wallet_required': False,
+            'overall_secure': False
+        }
+        
+        try:
+            # Check memo format (2 letters + 4 digits)
+            memo = payment_request.get('memo', '')
+            import re
+            security_checks['memo_format'] = bool(re.match(r'^[A-Z]{2}\d{4}$', memo))
+            
+            # Check wallet format
+            user_wallet = payment_request.get('user_wallet', '')
+            security_checks['wallet_format'] = bool(user_wallet and (
+                user_wallet.startswith('UQ') or user_wallet.startswith('EQ')
+            ) and len(user_wallet) >= 48)
+            
+            # Check amount validity
+            amount = payment_request.get('amount_ton', 0)
+            security_checks['amount_valid'] = amount > 0
+            
+            # Check expiration validity
+            expires_at = payment_request.get('expires_at', '')
+            if expires_at:
+                from datetime import datetime
+                expiry_time = datetime.fromisoformat(expires_at)
+                security_checks['expiration_valid'] = expiry_time > datetime.now()
+            
+            # Check user wallet requirement
+            security_checks['user_wallet_required'] = bool(user_wallet)
+            
+            # Overall security assessment
+            security_checks['overall_secure'] = all([
+                security_checks['memo_format'],
+                security_checks['wallet_format'],
+                security_checks['amount_valid'],
+                security_checks['expiration_valid'],
+                security_checks['user_wallet_required']
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error validating payment security: {e}")
+        
+        return security_checks
 
 # Global instance
 enhanced_ton_payment_system = None
