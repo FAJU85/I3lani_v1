@@ -29,6 +29,11 @@ class Database:
                 await db.execute('ALTER TABLE users ADD COLUMN free_trial_used BOOLEAN DEFAULT FALSE')
                 await db.execute('ALTER TABLE users ADD COLUMN free_trial_date TIMESTAMP')
                 await db.commit()
+            
+            # Add TON wallet address column if it doesn't exist
+            if 'ton_wallet_address' not in column_names:
+                await db.execute('ALTER TABLE users ADD COLUMN ton_wallet_address TEXT')
+                await db.commit()
             # Users table
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS users (
@@ -781,7 +786,7 @@ Last updated: July 2025"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 cursor = await db.execute('''
-                    SELECT wallet_address FROM users WHERE user_id = ?
+                    SELECT ton_wallet_address FROM users WHERE user_id = ?
                 ''', (user_id,))
                 result = await cursor.fetchone()
                 return result[0] if result and result[0] else None
@@ -793,14 +798,25 @@ Last updated: July 2025"""
         """Set user's TON wallet address"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
+                # First ensure user exists
                 await db.execute('''
-                    UPDATE users SET wallet_address = ? WHERE user_id = ?
+                    INSERT OR IGNORE INTO users (user_id, username, language, created_at, ton_wallet_address) 
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (user_id, None, 'en', datetime.now().isoformat(), wallet_address))
+                
+                # Then update the wallet address
+                await db.execute('''
+                    UPDATE users SET ton_wallet_address = ? WHERE user_id = ?
                 ''', (wallet_address, user_id))
                 await db.commit()
                 return True
         except Exception as e:
             print(f"Error setting user wallet: {e}")
             return False
+    
+    async def set_user_wallet_address(self, user_id: int, wallet_address: str) -> bool:
+        """Set user's TON wallet address (alias for compatibility)"""
+        return await self.set_user_wallet(user_id, wallet_address)
     
     async def create_withdrawal_request(self, user_id: int, amount: float, wallet_address: str) -> Optional[int]:
         """Create a withdrawal request"""

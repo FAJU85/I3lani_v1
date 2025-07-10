@@ -358,3 +358,27 @@ Would you like to try again?
 
 # Global payment processor instance
 payment_processor = PaymentProcessor()
+
+# Utility functions for backward compatibility
+def generate_memo(user_id: int) -> str:
+    """Generate payment memo for user"""
+    return payment_processor.generate_memo()
+
+def get_bot_wallet_address() -> str:
+    """Get bot's TON wallet address"""
+    return TON_WALLET_ADDRESS
+
+async def start_payment_monitoring(user_id: int, memo: str, amount: float, user_wallet: str):
+    """Start monitoring TON payment"""
+    # Find payment by memo
+    payment = await db.fetchone(
+        "SELECT payment_id FROM payments WHERE memo = ?",
+        (memo,)
+    )
+    
+    if payment:
+        payment_id = payment['payment_id']
+        # Start monitoring task
+        asyncio.create_task(payment_processor._monitor_ton_payment(payment_id, memo, amount))
+    else:
+        print(f"⚠️ Payment not found for memo: {memo}")

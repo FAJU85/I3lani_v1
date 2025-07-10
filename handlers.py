@@ -18,12 +18,13 @@ from logger import log_success, log_error, log_info, StepNames
 
 logger = logging.getLogger(__name__)
 
-from states import AdCreationStates, UserStates
+from states import AdCreationStates, UserStates, WalletStates
 from languages import get_text, get_currency_info, LANGUAGES
 from ui_integration import get_mapped_text, get_button_text, get_message_text
 from database import db, ensure_user_exists, get_user_language
 from payments import payment_processor
 from config import ADMIN_IDS
+from wallet_manager import WalletManager
 import os
 from datetime import datetime, timedelta
 from callback_error_handler import safe_callback_answer, safe_callback_edit
@@ -2430,7 +2431,7 @@ async def frequency_change_duration_handler(callback_query: CallbackQuery, state
 
 @router.callback_query(F.data == "pay_freq_ton")
 async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle TON payment for frequency pricing"""
+    """Handle TON payment for frequency pricing with comprehensive wallet management"""
     user_id = callback_query.from_user.id
     
     # Check if user is admin for free posting privilege
@@ -2447,8 +2448,16 @@ async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMCon
         await callback_query.answer("❌ Pricing data not found")
         return
     
-    # Process TON payment
-    await process_ton_payment(callback_query, state, pricing_data['cost_ton'])
+    # Store payment data for wallet manager
+    await state.update_data(
+        pending_payment_amount=pricing_data['cost_ton'],
+        payment_method='ton',
+        payment_currency='TON'
+    )
+    
+    # Use WalletManager to request wallet address
+    from wallet_manager import WalletManager
+    await WalletManager.request_wallet_address(callback_query, state, 'payment')
 
 @router.callback_query(F.data == "pay_freq_stars")
 async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -2472,6 +2481,118 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
     # Process Stars payment
     await process_stars_payment(callback_query, state, pricing_data['cost_stars'])
 
+
+async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContext, amount_ton: float, wallet_address: str):
+    """Continue TON payment process with user's wallet address"""
+    user_id = message_or_callback.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Import payment utilities
+    from payments import generate_memo, get_bot_wallet_address
+    
+    # Generate unique memo for payment verification
+    memo = generate_memo(user_id)
+    bot_wallet = get_bot_wallet_address()
+    
+    # Create payment instructions
+    if language == 'ar':
+        payment_text = f"""💎 **دفع TON - تعليمات الدفع**
+
+**المبلغ المطلوب:** {amount_ton:.3f} TON
+**عنوان المحفظة:** {bot_wallet}
+**المذكرة:** {memo}
+**عنوان محفظتك:** {wallet_address}
+
+**خطوات الدفع:**
+1. افتح محفظة TON الخاصة بك
+2. أرسل {amount_ton:.3f} TON إلى العنوان أعلاه
+3. أضف المذكرة بالضبط كما هو مكتوب
+4. أكمل الدفع
+
+⏰ **انتهاء صلاحية الدفع:** 20 دقيقة
+🔍 **المراقبة:** سيتم تأكيد الدفع تلقائياً
+
+سيتم نشر إعلانك بمجرد تأكيد الدفع!"""
+    elif language == 'ru':
+        payment_text = f"""💎 **Оплата TON - Инструкции по оплате**
+
+**Требуемая сумма:** {amount_ton:.3f} TON
+**Адрес кошелька:** {bot_wallet}
+**Memo:** {memo}
+**Ваш адрес кошелька:** {wallet_address}
+
+**Шаги оплаты:**
+1. Откройте свой TON кошелек
+2. Отправьте {amount_ton:.3f} TON на адрес выше
+3. Добавьте memo точно как написано
+4. Завершите платеж
+
+⏰ **Истечение платежа:** 20 минут
+🔍 **Мониторинг:** Платеж подтвердится автоматически
+
+Ваше объявление будет опубликовано после подтверждения платежа!"""
+    else:
+        payment_text = f"""💎 **TON Payment - Payment Instructions**
+
+**Required Amount:** {amount_ton:.3f} TON
+**Wallet Address:** {bot_wallet}
+**Memo:** {memo}
+**Your Wallet Address:** {wallet_address}
+
+**Payment Steps:**
+1. Open your TON wallet
+2. Send {amount_ton:.3f} TON to the address above
+3. Add the memo exactly as written
+4. Complete the payment
+
+⏰ **Payment Expires:** 20 minutes
+🔍 **Monitoring:** Payment will be confirmed automatically
+
+Your ad will be published once payment is confirmed!"""
+    
+    # Create payment keyboard
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
+    ])
+    
+    # Store payment info in database
+    payment_id = await db.create_payment(
+        user_id=user_id,
+        subscription_id=0,  # Will be updated later
+        amount=amount_ton,
+        currency='TON',
+        payment_method='ton',
+        memo=memo
+    )
+    
+    # Update state with payment information
+    await state.update_data(
+        payment_id=payment_id, 
+        payment_memo=memo,
+        user_wallet_address=wallet_address
+    )
+    
+    # Show payment instructions
+    if hasattr(message_or_callback, 'message'):
+        await message_or_callback.message.edit_text(
+            payment_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+    else:
+        await message_or_callback.reply(
+            payment_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+    
+    # Start automatic payment monitoring
+    try:
+        from payments import start_payment_monitoring
+        await start_payment_monitoring(user_id, memo, amount_ton, wallet_address)
+    except Exception as e:
+        logger.error(f"Failed to start payment monitoring: {e}")
+        # Continue without monitoring - user can check manually
 
 async def process_ton_payment(callback_query: CallbackQuery, state: FSMContext, amount_ton: float):
     """Process TON payment with blockchain verification"""
@@ -6609,6 +6730,10 @@ Thank you for using I3lani Bot!
 def setup_handlers(dp):
     """Setup all handlers"""
     dp.include_router(router)
+    
+    # Include wallet manager router
+    from wallet_manager import router as wallet_router
+    dp.include_router(wallet_router)
     
     # Content moderation handlers
     @router.callback_query(F.data == "admin_moderation")

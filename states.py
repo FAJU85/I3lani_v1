@@ -42,6 +42,22 @@ class AdCreationStates(StatesGroup):
     waiting_wallet_address = State()
 
 
+class WalletStates(StatesGroup):
+    """States for TON wallet address management"""
+    # TON payment wallet collection
+    payment_wallet_input = State()
+    
+    # Affiliate program wallet collection
+    affiliate_wallet_input = State()
+    
+    # Channel addition wallet collection
+    channel_wallet_input = State()
+    
+    # General wallet management
+    wallet_update = State()
+    wallet_verification = State()
+
+
 class UserStates(StatesGroup):
     """General user states"""
     main_menu = State()
