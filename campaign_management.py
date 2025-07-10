@@ -474,6 +474,11 @@ async def get_user_campaign_list(user_id: int, limit: int = 10) -> List[Dict[str
     """Get user's campaigns"""
     return await campaign_manager.get_user_campaigns(user_id, limit)
 
+async def create_campaign_for_payment(user_id: int, payment_memo: str, payment_amount: float, 
+                                    ad_data: Dict[str, Any], payment_method: str = 'TON') -> str:
+    """Create campaign for payment confirmation - FIXES BUG WHERE NEW CAMPAIGNS DON'T APPEAR"""
+    return await campaign_manager.create_campaign(user_id, payment_memo, payment_amount, ad_data, payment_method)
+
 async def get_campaign_id_card(campaign_id: str, language: str = 'en') -> str:
     """Get campaign ID card summary with language support"""
     return await campaign_manager.get_campaign_summary(campaign_id, language)
