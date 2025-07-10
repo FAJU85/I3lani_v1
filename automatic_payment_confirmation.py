@@ -165,8 +165,12 @@ Thank you for choosing I3lani! 🚀"""
             # Mark as confirmed
             await self.mark_payment_confirmed(memo)
             
-            # Activate campaign
-            await self.activate_campaign(user_id, memo, amount, ad_data)
+            # Activate campaign and get campaign ID
+            campaign_id = await self.activate_campaign(user_id, memo, amount, ad_data)
+            
+            # Update confirmation message to include campaign ID
+            if campaign_id:
+                confirmation_message += f"\n\n**🎯 Campaign ID:** {campaign_id}"
             
             logger.info(f"✅ Automatic confirmation sent to user {user_id} for memo {memo}")
             return True
@@ -198,54 +202,21 @@ Thank you for choosing I3lani! 🚀"""
             return False
     
     async def activate_campaign(self, user_id: int, memo: str, amount: float, ad_data: dict):
-        """Activate user campaign"""
+        """Activate user campaign with unique ID"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            # Create campaign using the new campaign management system
+            from campaign_management import create_campaign_for_payment
             
-            # Create orders table entry
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    memo TEXT UNIQUE,
-                    amount REAL,
-                    payment_method TEXT DEFAULT 'TON',
-                    status TEXT DEFAULT 'active',
-                    ad_content TEXT,
-                    selected_channels TEXT,
-                    duration_days INTEGER DEFAULT 7,
-                    posts_per_day INTEGER DEFAULT 2,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    expires_at TIMESTAMP
-                );
-            """)
+            campaign_id = await create_campaign_for_payment(
+                user_id, memo, amount, ad_data, 'TON'
+            )
             
-            # Insert campaign
-            from datetime import datetime, timedelta
-            expires_at = datetime.now() + timedelta(days=ad_data.get('duration_days', 7))
-            
-            cursor.execute("""
-                INSERT OR REPLACE INTO orders 
-                (user_id, memo, amount, status, ad_content, selected_channels, 
-                 duration_days, posts_per_day, expires_at)
-                VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)
-            """, (
-                user_id,
-                memo,
-                amount,
-                f"Advertisement campaign for payment {memo}",
-                ','.join(ad_data.get('selected_channels', ['@i3lani', '@smshco', '@Five_SAR'])),
-                ad_data.get('duration_days', 7),
-                ad_data.get('posts_per_day', 2),
-                expires_at
-            ))
-            
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"✅ Campaign activated for user {user_id}, memo {memo}")
-            return True
+            if campaign_id:
+                logger.info(f"✅ Campaign {campaign_id} activated for user {user_id}, memo {memo}")
+                return campaign_id
+            else:
+                logger.error(f"❌ Failed to create campaign for user {user_id}, memo {memo}")
+                return False
             
         except Exception as e:
             logger.error(f"❌ Error activating campaign: {e}")

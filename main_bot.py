@@ -131,6 +131,15 @@ async def init_bot():
         except Exception as e:
             logger.error(f"❌ Failed to initialize automatic confirmation: {e}")
         
+        # Initialize campaign management system
+        logger.info("Initializing campaign management system...")
+        try:
+            from campaign_management import init_campaign_system
+            await init_campaign_system()
+            logger.info("✅ Campaign management system initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize campaign system: {e}")
+        
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")
         try:
@@ -150,6 +159,12 @@ async def init_bot():
         # Setup handlers
         logger.info("Setting up handlers...")
         setup_handlers(dp)
+        
+        # Setup campaign handlers
+        logger.info("Setting up campaign handlers...")
+        from campaign_handlers import setup_campaign_handlers
+        setup_campaign_handlers(dp)
+        logger.info("Campaign handlers setup completed")
         setup_admin_handlers(dp)
         setup_stars_handlers(dp)
         

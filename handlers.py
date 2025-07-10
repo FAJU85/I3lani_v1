@@ -179,11 +179,25 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
         'ru': '💼 Партнерская программа'
     }
     
+    # My Campaigns button
+    my_campaigns_text = {
+        'en': '📋 My Campaigns',
+        'ar': '📋 حملاتي',
+        'ru': '📋 Мои кампании'
+    }
+    
     keyboard_rows.append([
         InlineKeyboardButton(
             text=my_ads_text.get(language, my_ads_text['en']), 
             callback_data="my_ads"
         ),
+        InlineKeyboardButton(
+            text=my_campaigns_text.get(language, my_campaigns_text['en']), 
+            callback_data="my_campaigns"
+        )
+    ])
+    
+    keyboard_rows.append([
         InlineKeyboardButton(
             text=partner_program_text.get(language, partner_program_text['en']), 
             callback_data="join_partner_program"
