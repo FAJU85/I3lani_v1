@@ -141,54 +141,76 @@ async def init_bot():
         except Exception as e:
             logger.error(f"❌ Failed to initialize campaign system: {e}")
         
-        # Initialize campaign publisher system with enhanced startup
-        logger.info("Initializing campaign publisher system...")
+        # Initialize Post Identity System and Enhanced Campaign Publisher
+        logger.info("Initializing Post Identity System and Enhanced Campaign Publisher...")
         try:
-            from campaign_publisher import init_campaign_publisher, get_campaign_publisher
-            logger.info("✅ Campaign publisher module imported successfully")
+            from post_identity_system import init_post_identity_system
+            from enhanced_campaign_publisher import init_enhanced_campaign_publisher
             
-            campaign_publisher = await init_campaign_publisher(bot)
-            logger.info(f"Campaign publisher initialization result: {campaign_publisher}")
+            # Initialize Post Identity System first
+            post_identity_success = await init_post_identity_system()
+            if post_identity_success:
+                logger.info("✅ Post Identity System initialized successfully")
+            else:
+                logger.error("❌ Post Identity System initialization failed")
             
-            if campaign_publisher:
-                logger.info("✅ Campaign publisher system initialized and running")
-                logger.info(f"Campaign publisher running status: {campaign_publisher.running}")
+            # Initialize Enhanced Campaign Publisher
+            enhanced_publisher = await init_enhanced_campaign_publisher(bot)
+            
+            if enhanced_publisher:
+                logger.info("✅ Enhanced Campaign Publisher initialized with Post Identity System")
+                logger.info(f"Enhanced publisher running status: {enhanced_publisher.running}")
                 
                 # Store globally for access
-                globals()['campaign_publisher'] = campaign_publisher
+                globals()['enhanced_publisher'] = enhanced_publisher
+                globals()['campaign_publisher'] = enhanced_publisher  # Backward compatibility
                 
-                # Verify the publisher is actually running
-                await asyncio.sleep(2)  # Give it more time to start
-                if campaign_publisher.running:
-                    logger.info("✅ Campaign publisher confirmed running - automatic publishing active")
-                    logger.info("🔄 Campaign publisher will check for posts every 30 seconds")
+                # Verify the publisher is running
+                await asyncio.sleep(2)
+                if enhanced_publisher.running:
+                    logger.info("✅ Enhanced publisher confirmed running - content integrity guaranteed")
+                    logger.info("🔄 Enhanced publisher will check for posts every 30 seconds")
+                    logger.info("🆔 All posts will have unique IDs and full metadata tracking")
                     
-                    # Test immediate publishing capability
+                    # Test immediate publishing capability with content verification
                     try:
-                        due_posts = await campaign_publisher._get_due_posts()
-                        logger.info(f"📊 Found {len(due_posts)} posts ready for publishing")
+                        due_posts = await enhanced_publisher._get_due_posts()
+                        logger.info(f"📊 Found {len(due_posts)} posts ready for verified publishing")
                         
                         if len(due_posts) > 0:
-                            logger.info("🚀 Processing due posts immediately...")
-                            await campaign_publisher._process_scheduled_posts()
-                            logger.info("✅ Initial publishing check completed")
+                            logger.info("🚀 Processing due posts with content integrity verification...")
+                            await enhanced_publisher._process_due_posts()
+                            logger.info("✅ Initial verified publishing check completed")
                         
                     except Exception as pub_error:
-                        logger.error(f"❌ Error in initial publishing check: {pub_error}")
+                        logger.error(f"❌ Error in initial verified publishing check: {pub_error}")
                     
                 else:
-                    logger.warning("⚠️ Campaign publisher not running after initialization")
+                    logger.warning("⚠️ Enhanced publisher not running after initialization")
                     
             else:
-                logger.error("❌ Campaign publisher initialization returned None")
+                logger.error("❌ Enhanced Campaign Publisher initialization failed")
+                
+                # Fallback to original publisher
+                logger.info("Attempting fallback to original campaign publisher...")
+                try:
+                    from campaign_publisher import init_campaign_publisher
+                    fallback_publisher = await init_campaign_publisher(bot)
+                    if fallback_publisher:
+                        globals()['campaign_publisher'] = fallback_publisher
+                        logger.info("✅ Fallback campaign publisher initialized")
+                    else:
+                        logger.error("❌ Fallback publisher also failed")
+                except Exception as fallback_error:
+                    logger.error(f"❌ Fallback publisher error: {fallback_error}")
                 
         except Exception as e:
-            logger.error(f"❌ Failed to initialize campaign publisher: {e}")
+            logger.error(f"❌ Failed to initialize Enhanced Campaign Publisher: {e}")
             import traceback
-            logger.error(f"Campaign publisher full traceback: {traceback.format_exc()}")
+            logger.error(f"Enhanced publisher full traceback: {traceback.format_exc()}")
             
-            # Try to continue without campaign publisher
-            logger.warning("Continuing bot startup without campaign publisher...")
+            # Try to continue without enhanced publisher
+            logger.warning("Continuing bot startup without enhanced publisher...")
         
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")
