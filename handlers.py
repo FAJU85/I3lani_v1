@@ -1273,7 +1273,7 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
             continue_text = f"▶️ Продолжить ({len(selected_channels)} выбрано)"
         else:
             continue_text = f"▶️ Continue ({len(selected_channels)} selected)"
-        callback_data = "proceed_to_payment"
+        callback_data = "continue_with_channels"
     else:
         if language == 'ar':
             continue_text = "⚠️ اختر القنوات أولاً"
@@ -5519,90 +5519,14 @@ async def proceed_to_payment_handler(callback_query: CallbackQuery, state: FSMCo
             else:
                 package_details = {'price_usd': 0.0, 'name': 'Free Plan'}
         
-        # Get progressive plan details from state
-        final_price = data.get('final_price', 30)  # Default to 1 month plan
-        duration_months = data.get('duration_months', 1)
-        duration_days = data.get('duration_days', 30)
-        posts_per_day = data.get('posts_per_day', 1)
-        total_posts = data.get('total_posts', 30)
-        base_price = data.get('base_price', 30)
-        discount_percent = data.get('discount_percent', 0)
-        
-        # Calculate pricing based on progressive plan (0 fee per channel for now)
-        total_price_usd = final_price  # No per-channel fee currently
-        total_price_stars = int(total_price_usd * 34)  # 1 USD ≈ 34 Stars
-        
-        # Get channel details for display
-        channel_pricing_details = []
-        all_channels = await db.get_channels(active_only=True)
-        for channel_id in selected_channels:
-            for channel in all_channels:
-                if channel['channel_id'] == channel_id:
-                    channel_pricing_details.append({
-                        'name': channel['name'],
-                        'plan_price_usd': final_price,
-                        'plan_price_stars': int(final_price * 34),
-                        'posts_per_day': posts_per_day,
-                        'total_posts': total_posts,
-                        'duration_months': duration_months,
-                        'discount_percent': discount_percent
-                    })
-                    break
-        
-        # Check if payment is needed
-        if total_price_usd == 0:
-            # Free package - proceed to publishing
-            await handle_free_package_publishing(callback_query, state)
-            return
-        
-        # Show payment method selection with duration-based pricing
-        await state.update_data(
-            selected_channels=selected_channels,
-            package_details=package_details,
-            total_price_usd=total_price_usd,
-            total_price_stars=total_price_stars,
-            channel_pricing_details=channel_pricing_details,
-            duration_days=duration_days
-        )
+        # FIXED: Removed old progressive plan logic - using dynamic day-based pricing instead
+        # No need to calculate pricing here, it's handled in the dynamic selector
         await state.set_state(AdCreationStates.payment_method)
         
-        # Create detailed pricing text with progressive plan breakdown
-        plan_text = f"{duration_months} month(s)" if duration_months == 1 else f"{duration_months} months"
-        
-        pricing_breakdown = f"- Plan Price: ${final_price:.2f} ({posts_per_day} posts/day × {total_posts} posts)"
-        if discount_percent > 0:
-            pricing_breakdown += f" (Save {discount_percent}%)"
-        pricing_breakdown += "\n- Channel Coverage: All selected channels included"
-        
-        payment_text = f"""
- **Payment Required - Progressive Plan**
-
- **Selected Channels:** {len(selected_channels)} (No per-channel fee)
- **Plan Duration:** {plan_text}
-Stats **Posting Frequency:** {posts_per_day} posts/day per channel
-Growth **Total Posts:** {total_posts * len(selected_channels):,} posts across all channels
-
-Tip **Plan Details:**
-{pricing_breakdown}
-
-Price **Total Price:** ${total_price_usd:.2f} USD
-Star **Stars Price:** {total_price_stars:,} Stars
-
-Choose your payment method:
-        """.strip()
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="payment_stars")],
-            [InlineKeyboardButton(text="💎 TON Cryptocurrency", callback_data="payment_ton")],
-            [InlineKeyboardButton(text="◀️ Back to Channels", callback_data="back_to_channels")]
-        ])
-        
-        await callback_query.message.edit_text(
-            payment_text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
-        )
-        await callback_query.answer(f"Proceeding to payment for {len(selected_channels)} channels!")
+        # FIXED: Use dynamic day-based pricing system instead of old progressive monthly plans
+        # Redirect to proper dynamic day-based pricing flow
+        await show_dynamic_days_selector(callback_query, state, 1)
+        await callback_query.answer(f"Proceeding to smart day-based pricing for {len(selected_channels)} channels!")
         
     except Exception as e:
         logger.error(f"Proceed to payment error: {e}")
