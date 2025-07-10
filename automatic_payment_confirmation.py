@@ -63,12 +63,21 @@ class AutomaticPaymentConfirmation:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # Store ad_data as JSON
+            # Get actual user ad content if not provided
+            if not ad_data or 'ad_content' not in ad_data:
+                actual_ad_content = await self._get_user_ad_content(user_id)
+                if actual_ad_content:
+                    if not ad_data:
+                        ad_data = {}
+                    ad_data.update(actual_ad_content)
+            
+            # Store ad_data as JSON with fallback
             ad_data_json = json.dumps(ad_data) if ad_data else json.dumps({
                 'duration_days': 7,
                 'posts_per_day': 2,
                 'selected_channels': ['@i3lani', '@smshco', '@Five_SAR'],
-                'total_reach': 357
+                'total_reach': 357,
+                'ad_content': f'Advertisement content for user {user_id}'
             })
             
             cursor.execute("""
@@ -221,6 +230,39 @@ Thank you for choosing I3lani! 🚀"""
         except Exception as e:
             logger.error(f"❌ Error activating campaign: {e}")
             return False
+    
+    async def _get_user_ad_content(self, user_id: int) -> dict:
+        """Get actual user ad content from database"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get most recent ad by user
+            cursor.execute('''
+                SELECT ad_id, content, content_type, media_url, channels
+                FROM ads 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ''', (user_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {
+                    'ad_content': row['content'],
+                    'content_type': row['content_type'],
+                    'media_url': row['media_url'],
+                    'ad_id': row['ad_id']
+                }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting user ad content: {e}")
+            return {}
 
 # Global instance
 automatic_confirmation = AutomaticPaymentConfirmation()

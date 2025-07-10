@@ -80,16 +80,18 @@ class CampaignPublisher:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            # Get posts scheduled for now or past due
+            # Get posts scheduled for now or past due with media info
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             cursor.execute("""
-                SELECT cp.*, c.ad_content, c.user_id, c.campaign_name
+                SELECT cp.*, c.ad_content, c.user_id, c.campaign_name, c.ad_type,
+                       a.media_url, a.content_type
                 FROM campaign_posts cp
                 JOIN campaigns c ON cp.campaign_id = c.campaign_id
+                LEFT JOIN ads a ON c.user_id = a.user_id
                 WHERE cp.status = 'scheduled'
                 AND cp.scheduled_time <= ?
-                ORDER BY cp.scheduled_time ASC
+                ORDER BY cp.scheduled_time ASC, a.created_at DESC
                 LIMIT 50
             """, (now,))
             
@@ -110,6 +112,8 @@ class CampaignPublisher:
             campaign_id = post['campaign_id']
             ad_content = post['ad_content']
             post_id = post['id']
+            media_url = post.get('media_url')
+            content_type = post.get('content_type', 'text')
             
             # Format the content for posting
             formatted_content = self._format_post_content(ad_content, campaign_id)
@@ -119,12 +123,32 @@ class CampaignPublisher:
             if not channel_info:
                 raise Exception(f"Channel {channel_username} not found or not accessible")
             
-            # Publish to channel
-            await self.bot.send_message(
-                chat_id=channel_info['telegram_channel_id'],
-                text=formatted_content,
-                parse_mode='HTML'
-            )
+            # Publish to channel with media support
+            chat_id = channel_info['telegram_channel_id']
+            
+            if content_type == 'photo' and media_url:
+                # Send photo with caption
+                await self.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=media_url,
+                    caption=formatted_content,
+                    parse_mode='HTML'
+                )
+            elif content_type == 'video' and media_url:
+                # Send video with caption
+                await self.bot.send_video(
+                    chat_id=chat_id,
+                    video=media_url,
+                    caption=formatted_content,
+                    parse_mode='HTML'
+                )
+            else:
+                # Send text message
+                await self.bot.send_message(
+                    chat_id=chat_id,
+                    text=formatted_content,
+                    parse_mode='HTML'
+                )
             
             # Mark as published
             await self._mark_post_published(post_id)
