@@ -3104,6 +3104,21 @@ async def continue_ton_payment_with_wallet(message: Message, state: FSMContext, 
         parse_mode='Markdown'
     )
     
+    # Store payment memo for tracking
+    try:
+        from payment_memo_tracker import memo_tracker
+        ad_data = await state.get_data()
+        await memo_tracker.store_payment_memo(
+            user_id=user_id,
+            memo=memo,
+            amount=amount_ton,
+            ad_data=ad_data,
+            payment_method='TON'
+        )
+        logger.info(f"✅ Stored payment memo {memo} for user {user_id}")
+    except Exception as e:
+        logger.error(f"❌ Error storing payment memo: {e}")
+    
     # Start enhanced payment monitoring
     from enhanced_ton_payment_monitoring import monitor_ton_payment_enhanced
     asyncio.create_task(monitor_ton_payment_enhanced(user_id, memo, amount_ton, expiration_time, user_wallet, state, bot_wallet))

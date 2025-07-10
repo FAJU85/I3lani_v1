@@ -113,30 +113,38 @@ class ContinuousPaymentScanner:
         try:
             logger.info(f"🔄 Confirming missed payment {memo}...")
             
-            # For missed payments, we need to find the user and create a basic ad entry
-            # Since we don't have the original user context, create a simple confirmation
+            # Try to find the user who made this payment using memo tracker
+            from payment_memo_tracker import memo_tracker
+            user_info = await memo_tracker.get_user_by_memo(memo)
             
-            # For missed payments, we'll use the existing confirmation system
-            # Import the actual confirmation handler
-            try:
-                from handlers import handle_successful_ton_payment_with_confirmation
-                from aiogram.fsm.context import FSMContext
-                from aiogram.fsm.storage.memory import MemoryStorage
+            if user_info:
+                user_id = user_info['user_id']
+                logger.info(f"✅ Found user {user_id} for payment {memo}")
                 
-                # Create a minimal state context for the confirmation
-                storage = MemoryStorage()
-                state = FSMContext(storage=storage, key=f"payment:{memo}")
+                # Send confirmation message to user
+                success = await self.send_payment_confirmation_to_user(
+                    user_id, memo, amount, user_info['ad_data']
+                )
                 
-                # We don't have the original user_id, so we'll use a fallback approach
-                # For now, just mark as confirmed and log
+                if success:
+                    # Mark payment as confirmed in database
+                    await memo_tracker.confirm_payment(memo)
+                    logger.info(f"✅ Payment {memo} confirmed and user {user_id} notified")
+                    return True
+                else:
+                    logger.error(f"❌ Failed to send confirmation to user {user_id}")
+                    return False
+            else:
+                # If no user found, try legacy approach
+                logger.warning(f"⚠️ No user found for memo {memo}, using legacy confirmation")
+                
+                # For legacy payments without memo tracking, just mark as confirmed
                 logger.info(f"✅ Payment {memo} confirmed automatically by scanner")
-                
                 return True
                 
-            except Exception as import_error:
-                logger.error(f"Import error for confirmation: {import_error}")
-                # Still mark as confirmed to prevent reprocessing
-                return True
+        except Exception as e:
+            logger.error(f"❌ Error confirming payment {memo}: {e}")
+            return False
             
             if user_id:
                 # Create ad entry for confirmed payment
@@ -204,19 +212,104 @@ class ContinuousPaymentScanner:
             logger.error(f"Error creating ad from payment: {e}")
             return False
     
-    async def send_payment_confirmation(self, user_id: int, memo: str, amount: float):
-        """Send payment confirmation message to user"""
+    async def send_payment_confirmation_to_user(self, user_id: int, memo: str, amount: float, ad_data: dict):
+        """Send comprehensive payment confirmation message to user"""
         try:
             from main_bot import bot_instance
+            from languages import get_user_language, get_text
             
             if bot_instance:
-                message = f"✅ Payment Confirmed!\n\nMemo: {memo}\nAmount: {amount} TON\n\nYour payment has been automatically confirmed by our system."
+                # Get user language
+                try:
+                    language = await get_user_language(user_id)
+                except:
+                    language = 'en'  # Default to English
                 
-                await bot_instance.send_message(user_id, message)
-                logger.info(f"✅ Confirmation message sent to user {user_id}")
+                # Create comprehensive confirmation message
+                if language == 'ar':
+                    confirmation_text = f"""✅ تم تأكيد الدفع!
+
+💰 المبلغ المستلم: {amount:.3f} TON
+🎫 رقم المعاملة: {memo}
+
+🎉 تم تفعيل خطة إعلانك بنجاح!
+
+📊 تفاصيل الحملة:
+• المدة: {ad_data.get('days', 1)} أيام
+• عدد المنشورات يومياً: {ad_data.get('posts_per_day', 1)}
+• القنوات المختارة: {len(ad_data.get('selected_channels', []))}
+
+🚀 سيتم نشر إعلانك قريباً على القنوات المختارة.
+
+شكراً لاختيارك إعلاني!"""
+                elif language == 'ru':
+                    confirmation_text = f"""✅ Платеж подтвержден!
+
+💰 Получена сумма: {amount:.3f} TON
+🎫 ID транзакции: {memo}
+
+🎉 Ваш рекламный план успешно активирован!
+
+📊 Детали кампании:
+• Продолжительность: {ad_data.get('days', 1)} дней
+• Постов в день: {ad_data.get('posts_per_day', 1)}
+• Выбранные каналы: {len(ad_data.get('selected_channels', []))}
+
+🚀 Ваше объявление скоро будет опубликовано в выбранных каналах.
+
+Спасибо за выбор I3lani!"""
+                else:
+                    confirmation_text = f"""✅ Payment Confirmed!
+
+💰 Amount Received: {amount:.3f} TON
+🎫 Transaction ID: {memo}
+
+🎉 Your ad plan has been successfully activated!
+
+📊 Campaign Details:
+• Duration: {ad_data.get('days', 1)} days
+• Posts per day: {ad_data.get('posts_per_day', 1)}
+• Selected channels: {len(ad_data.get('selected_channels', []))}
+
+🚀 Your advertisement will be published soon across selected channels.
+
+Thank you for choosing I3lani!"""
+                
+                # Create navigation keyboard
+                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                
+                if language == 'ar':
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="🏠 القائمة الرئيسية", callback_data="back_to_main")],
+                        [InlineKeyboardButton(text="📊 إعلاناتي", callback_data="my_ads")]
+                    ])
+                elif language == 'ru':
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                        [InlineKeyboardButton(text="📊 Мои объявления", callback_data="my_ads")]
+                    ])
+                else:
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+                        [InlineKeyboardButton(text="📊 My Ads", callback_data="my_ads")]
+                    ])
+                
+                await bot_instance.send_message(
+                    user_id, 
+                    confirmation_text,
+                    reply_markup=keyboard,
+                    parse_mode='Markdown'
+                )
+                
+                logger.info(f"✅ Comprehensive confirmation message sent to user {user_id}")
+                return True
+            else:
+                logger.error("❌ Bot instance not available")
+                return False
             
         except Exception as e:
-            logger.error(f"Error sending confirmation to user {user_id}: {e}")
+            logger.error(f"❌ Error sending confirmation to user {user_id}: {e}")
+            return False
     
     async def run_continuous_scanner(self):
         """Run the continuous payment scanner"""

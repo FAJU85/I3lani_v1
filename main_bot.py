@@ -111,6 +111,15 @@ async def init_bot():
         await init_db()
         logger.info("Database initialized successfully")
         
+        # Initialize payment memo tracker
+        logger.info("Initializing payment memo tracker...")
+        try:
+            from payment_memo_tracker import init_payment_memo_tracker
+            await init_payment_memo_tracker()
+            logger.info("✅ Payment memo tracker initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize payment memo tracker: {e}")
+        
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")
         try:
