@@ -70,13 +70,12 @@ class CleanStarsPayment:
                 title = "I3lani Advertising Campaign"
                 description = f"📢 {days} days campaign, {posts_per_day} posts/day across {len(channels)} channels. Payment ID: {payment_id}"
             
-            # Create payload with all campaign data
+            # Create minimal payload (Telegram has strict size limits)
             payload = json.dumps({
                 'payment_id': payment_id,
                 'user_id': user_id,
-                'campaign_data': campaign_data,
-                'pricing_data': pricing_data,
-                'created_at': datetime.now().isoformat()
+                'service': 'i3lani_ads',
+                'amount': stars_amount
             })
             
             # Create price breakdown
@@ -111,11 +110,7 @@ class CleanStarsPayment:
                 max_tip_amount=0,
                 suggested_tip_amounts=[],
                 start_parameter=f"stars_{payment_id}",
-                provider_data=json.dumps({
-                    'service': 'I3lani_Advertising',
-                    'payment_id': payment_id,
-                    'version': '3.0'
-                }),
+                provider_data=None,
                 need_name=False,
                 need_phone_number=False,
                 need_email=False,
