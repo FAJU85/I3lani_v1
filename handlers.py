@@ -2461,16 +2461,154 @@ async def days_info_handler(callback_query: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "days_confirm")
 async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Confirm days selection and continue to frequency tier selection"""
-    data = await state.get_data()
-    selected_days = data.get('selected_days', 1)
+    """Confirm days selection and continue to posts per day selection"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        data = await state.get_data()
+        selected_days = data.get('selected_days', 1)
+        selected_channels = data.get('selected_channels', [])
+        
+        # Store selected days
+        await state.update_data(selected_days=selected_days)
+        
+        # Show posts per day selection
+        await show_posts_per_day_selection(callback_query, state, selected_days, selected_channels)
+        
+    except Exception as e:
+        logger.error(f"Error in days_confirm_handler: {e}")
+        await callback_query.answer("Error confirming days selection")
+
+
+async def show_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int, selected_channels: list):
+    """Show posts per day selection interface"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
     
-    # Calculate pricing and show payment summary
-    pricing = FrequencyPricingSystem()
-    pricing_data = pricing.calculate_pricing(selected_days)
-    await state.update_data(pricing_data=pricing_data)
+    # Calculate pricing for different posts per day options
+    from dynamic_pricing import DynamicPricing
     
-    await show_frequency_payment_summary(callback_query, state, pricing_data)
+    options = [1, 2, 3, 5, 8, 10]
+    pricing_options = []
+    
+    for posts_per_day in options:
+        calculation = DynamicPricing.calculate_total_cost(
+            days=days,
+            posts_per_day=posts_per_day,
+            channels=selected_channels
+        )
+        pricing_options.append({
+            'posts_per_day': posts_per_day,
+            'total_usd': calculation['total_usd'],
+            'total_stars': calculation['total_stars'],
+            'discount_percent': calculation['discount_percent']
+        })
+    
+    # Create header text
+    if language == 'ar':
+        header = f"""📊 **اختر عدد المنشورات يومياً**
+
+🗓️ **المدة:** {days} أيام
+📢 **القنوات:** {len(selected_channels)} قناة
+
+💰 **خيارات التسعير:**"""
+    elif language == 'ru':
+        header = f"""📊 **Выберите количество постов в день**
+
+🗓️ **Длительность:** {days} дней
+📢 **Каналы:** {len(selected_channels)} канала
+
+💰 **Варианты цен:**"""
+    else:
+        header = f"""📊 **Choose Posts Per Day**
+
+🗓️ **Duration:** {days} days
+📢 **Channels:** {len(selected_channels)} channels
+
+💰 **Pricing Options:**"""
+    
+    # Create keyboard with pricing options
+    keyboard_rows = []
+    
+    for option in pricing_options:
+        posts = option['posts_per_day']
+        usd = option['total_usd']
+        stars = option['total_stars']
+        discount = option['discount_percent']
+        
+        if discount > 0:
+            if language == 'ar':
+                button_text = f"{posts} منشور/يوم - ${usd:.2f} ({discount}% خصم)"
+            elif language == 'ru':
+                button_text = f"{posts} пост/день - ${usd:.2f} ({discount}% скидка)"
+            else:
+                button_text = f"{posts} posts/day - ${usd:.2f} ({discount}% off)"
+        else:
+            if language == 'ar':
+                button_text = f"{posts} منشور/يوم - ${usd:.2f}"
+            elif language == 'ru':
+                button_text = f"{posts} пост/день - ${usd:.2f}"
+            else:
+                button_text = f"{posts} posts/day - ${usd:.2f}"
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"select_posts_{posts}"
+            )
+        ])
+    
+    # Add back button
+    back_text = "رجوع" if language == 'ar' else "Назад" if language == 'ru' else "Back"
+    keyboard_rows.append([
+        InlineKeyboardButton(text=back_text, callback_data="back_to_days")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    try:
+        await callback_query.message.edit_text(
+            header,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        await callback_query.answer()
+    except Exception as e:
+        logger.error(f"Error showing posts per day selection: {e}")
+
+
+@router.callback_query(F.data.startswith("select_posts_"))
+async def select_posts_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle posts per day selection"""
+    try:
+        posts_per_day = int(callback_query.data.replace("select_posts_", ""))
+        
+        # Get state data
+        data = await state.get_data()
+        selected_days = data.get('selected_days', 1)
+        selected_channels = data.get('selected_channels', [])
+        
+        # Calculate final pricing
+        from dynamic_pricing import DynamicPricing
+        calculation = DynamicPricing.calculate_total_cost(
+            days=selected_days,
+            posts_per_day=posts_per_day,
+            channels=selected_channels
+        )
+        
+        # Store pricing calculation
+        await state.update_data(
+            selected_posts_per_day=posts_per_day,
+            pricing_calculation=calculation
+        )
+        
+        # Show payment options (TON and Stars)
+        await show_payment_options(callback_query, state)
+        
+    except Exception as e:
+        logger.error(f"Error in select_posts_handler: {e}")
+        await callback_query.answer("Error selecting posts per day")
 
 # Frequency Pricing System Handlers
 @router.callback_query(F.data.startswith("freq_tier_"))
