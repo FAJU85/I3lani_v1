@@ -23,6 +23,7 @@ from admin_system import setup_admin_handlers
 from stars_handler import init_stars_handler, setup_stars_handlers
 from channel_manager import init_channel_manager, handle_my_chat_member
 from publishing_scheduler import init_scheduler
+from campaign_publisher import init_campaign_publisher
 from troubleshooting import init_troubleshooting_system
 from troubleshooting_handlers import troubleshooting_router, init_troubleshooting_handlers
 from admin_ui_control import router as ui_control_router
@@ -139,6 +140,17 @@ async def init_bot():
             logger.info("✅ Campaign management system initialized")
         except Exception as e:
             logger.error(f"❌ Failed to initialize campaign system: {e}")
+        
+        # Initialize campaign publisher system
+        logger.info("Initializing campaign publisher system...")
+        try:
+            campaign_publisher = await init_campaign_publisher(bot)
+            if campaign_publisher:
+                logger.info("✅ Campaign publisher system initialized and running")
+            else:
+                logger.warning("⚠️ Campaign publisher failed to initialize")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize campaign publisher: {e}")
         
         # Initialize continuous payment scanner
         logger.info("Initializing continuous payment scanner...")
