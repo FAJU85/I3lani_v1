@@ -3625,98 +3625,36 @@ Select posts per day:"""
 
 @router.callback_query(F.data == "pay_dynamic_ton")
 async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle TON payment for dynamic pricing with wallet address and memo"""
+    """Handle TON payment for dynamic pricing with enhanced modern payment system"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
+    
+    # Check if user is admin for free posting privilege
+    from config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        # Admin gets free posting!
+        await process_admin_free_posting(callback_query, state)
+        return
     
     data = await state.get_data()
     calculation = data.get('pricing_calculation', {})
     
     if not calculation or 'total_ton' not in calculation:
-        await callback_query.answer("Invalid payment data")
+        await callback_query.answer("❌ Invalid payment data")
         return
     
     total_ton = calculation['total_ton']
-    total_usd = calculation['total_usd']
     
-    # Generate payment memo
-    memo = payment_processor.generate_memo()
-    
-    # TON wallet address (user-provided wallet address)
-    from config import TON_WALLET_ADDRESS
-    ton_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
-    
-    # Create payment expiration timestamp (20 minutes from now)
-    import time
-    expiration_time = int(time.time()) + (20 * 60)  # 20 minutes
-    
-    # Store payment info for monitoring
+    # Store payment data for wallet manager
     await state.update_data(
-        payment_memo=memo,
-        payment_amount_ton=total_ton,
-        payment_amount_usd=total_usd,
-        payment_expiration=expiration_time,
-        payment_status="pending"
+        pending_payment_amount=total_ton,
+        payment_method='ton',
+        payment_currency='TON'
     )
     
-    # Track memo -> user_id mapping for automatic confirmation
-    try:
-        from automatic_payment_confirmation import track_payment_for_user
-        
-        # Get current state data for ad information
-        user_data = await state.get_data()
-        ad_data = {
-            'duration_days': user_data.get('days', 7),
-            'posts_per_day': user_data.get('posts_per_day', 2),
-            'selected_channels': user_data.get('selected_channels', ['@i3lani', '@smshco', '@Five_SAR']),
-            'total_reach': 357
-        }
-        
-        await track_payment_for_user(callback_query.from_user.id, memo, total_ton, ad_data)
-        logger.info(f"✅ Payment tracking enabled for user {callback_query.from_user.id}, memo {memo}")
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to track payment for automatic confirmation: {e}")
-    
-    # TonViewer monitoring link
-    tonviewer_link = f"https://tonviewer.com/{ton_wallet}"
-    
-    text = f"**TON Payment Required**\n\n"
-    text += f"**Amount:** {total_ton} TON (${total_usd:.2f})\n"
-    text += f"**Wallet Address:**\n`{ton_wallet}`\n\n"
-    text += f"**Payment Memo:**\n`{memo}`\n\n"
-    text += f"**⏰ Payment expires in 20 minutes**\n\n"
-    text += f"**Instructions:**\n"
-    text += f"1. Send exactly **{total_ton} TON** to the wallet address above\n"
-    text += f"2. Include the memo: `{memo}`\n"
-    text += f"3. Payment will be verified automatically\n\n"
-    text += f"**Monitor your payment:** [TonViewer]({tonviewer_link})\n\n"
-    text += f"[!] Payment automatically confirmed when detected on blockchain\n\n"
-    text += f"With your payment, you agree to the Usage Agreement[Link]"
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="[X] Cancel Payment", callback_data="cancel_payment")],
-        [InlineKeyboardButton(text="[Refresh] Try Different Payment", callback_data="show_payment_options")]
-    ])
-    
-    try:
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
-    except (AttributeError, Exception):
-        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-    
-    await callback_query.answer("TON payment details provided!")
-    
-    # Start monitoring payment in background
-    asyncio.create_task(monitor_ton_payment(user_id, memo, total_ton, expiration_time, state))
-    
-    # Add manual confirmation for admin users (testing)
-    if user_id in ADMIN_IDS:
-        keyboard.inline_keyboard.insert(-1, [
-            InlineKeyboardButton(text="[Admin] Manual Confirm", callback_data=f"admin_confirm_ton_{memo}")
-        ])
-        try:
-            await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
-        except:
-            pass
+    # Use WalletManager to request wallet address and continue with enhanced payment
+    from wallet_manager import WalletManager
+    await WalletManager.request_wallet_address(callback_query, state, 'payment')
 
 
 
@@ -4682,6 +4620,9 @@ async def handle_expired_ton_payment(user_id: int, memo: str, state: FSMContext)
     try:
         # Update payment status
         await state.update_data(payment_status="expired")
+        
+        # Get user language
+        language = await get_user_language(user_id)
         
         # Send expiration notification to user
         from main_bot import bot
