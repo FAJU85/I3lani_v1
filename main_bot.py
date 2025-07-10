@@ -158,9 +158,24 @@ async def init_bot():
                 globals()['campaign_publisher'] = campaign_publisher
                 
                 # Verify the publisher is actually running
-                await asyncio.sleep(1)  # Give it a moment to start
+                await asyncio.sleep(2)  # Give it more time to start
                 if campaign_publisher.running:
                     logger.info("✅ Campaign publisher confirmed running - automatic publishing active")
+                    logger.info("🔄 Campaign publisher will check for posts every 30 seconds")
+                    
+                    # Test immediate publishing capability
+                    try:
+                        due_posts = await campaign_publisher._get_due_posts()
+                        logger.info(f"📊 Found {len(due_posts)} posts ready for publishing")
+                        
+                        if len(due_posts) > 0:
+                            logger.info("🚀 Processing due posts immediately...")
+                            await campaign_publisher._process_scheduled_posts()
+                            logger.info("✅ Initial publishing check completed")
+                        
+                    except Exception as pub_error:
+                        logger.error(f"❌ Error in initial publishing check: {pub_error}")
+                    
                 else:
                     logger.warning("⚠️ Campaign publisher not running after initialization")
                     
