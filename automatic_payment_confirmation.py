@@ -217,6 +217,34 @@ Thank you for choosing I3lani! 🚀"""
             logger.error(f"❌ Error marking payment confirmed: {e}")
             return False
     
+    async def mark_payment_confirmed(self, memo: str, campaign_id: str = None):
+        """Mark payment as confirmed with optional campaign ID"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE payment_memo_tracking 
+                SET status = 'confirmed', 
+                    confirmed_at = CURRENT_TIMESTAMP,
+                    ad_data = CASE 
+                        WHEN ? IS NOT NULL THEN 
+                            json_set(COALESCE(ad_data, '{}'), '$.campaign_id', ?)
+                        ELSE ad_data 
+                    END
+                WHERE memo = ?
+            """, (campaign_id, campaign_id, memo))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Payment {memo} marked as confirmed with campaign {campaign_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error marking payment confirmed: {e}")
+            return False
+    
     async def activate_campaign(self, user_id: int, memo: str, amount: float, ad_data: dict):
         """Activate user campaign with unique ID"""
         try:
@@ -281,6 +309,58 @@ async def init_automatic_confirmation():
 async def track_payment_for_user(user_id: int, memo: str, amount: float, ad_data: dict = None):
     """Track payment for automatic confirmation"""
     return await automatic_confirmation.track_user_payment(user_id, memo, amount, ad_data)
+
+async def handle_confirmed_payment(payment_data: dict):
+    """Handle confirmed payment and create campaign automatically"""
+    try:
+        user_id = payment_data['user_id']
+        memo = payment_data['memo']
+        amount = payment_data['amount']
+        currency = payment_data.get('currency', 'TON')
+        payment_method = payment_data.get('payment_method', 'blockchain')
+        
+        logger.info(f"🎯 Processing confirmed {currency} payment: user {user_id}, memo {memo}, amount {amount}")
+        
+        # Get tracked payment data
+        user_data = await automatic_confirmation.find_user_by_memo(memo)
+        
+        if not user_data:
+            logger.error(f"❌ No tracked payment found for memo {memo}")
+            return False
+        
+        # Create campaign automatically using campaign management system
+        try:
+            from campaign_management import create_campaign_for_payment
+            
+            campaign_data = {
+                'user_id': user_id,
+                'payment_memo': memo,
+                'payment_amount': amount,
+                'payment_currency': currency,
+                'payment_method': payment_method,
+                'ad_data': user_data.get('ad_data', {})
+            }
+            
+            campaign_id = await create_campaign_for_payment(campaign_data)
+            
+            if campaign_id:
+                logger.info(f"✅ Campaign {campaign_id} created for {currency} payment {memo}")
+                
+                # Mark payment as confirmed
+                await automatic_confirmation.mark_payment_confirmed(memo, campaign_id)
+                
+                return True
+            else:
+                logger.error(f"❌ Failed to create campaign for {currency} payment {memo}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error creating campaign for {currency} payment: {e}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Error handling confirmed {payment_data.get('currency', 'unknown')} payment: {e}")
+        return False
 
 async def process_detected_payment(memo: str, amount: float):
     """Process payment detected by scanner"""
