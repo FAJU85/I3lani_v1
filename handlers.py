@@ -2624,64 +2624,94 @@ async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContex
     # Import payment utilities
     from payments import generate_memo, get_bot_wallet_address
     
-    # Generate unique memo for payment verification
-    memo = generate_memo(user_id)
-    bot_wallet = get_bot_wallet_address()
+    # Initialize enhanced payment system with memo-based verification
+    from enhanced_ton_payment_system import get_enhanced_ton_payment_system
     
-    # Create payment instructions
+    bot_wallet = get_bot_wallet_address()
+    enhanced_payment_system = get_enhanced_ton_payment_system(bot_wallet)
+    
+    # Get campaign details from state
+    data = await state.get_data()
+    calculation = data.get('pricing_calculation', {})
+    selected_channels = data.get('selected_channels', [])
+    
+    # Create enhanced payment request
+    payment_request = await enhanced_payment_system.create_payment_request(
+        user_id=user_id,
+        amount_ton=amount_ton,
+        user_wallet=wallet_address,
+        campaign_details={
+            'days': calculation.get('days', 1),
+            'posts_per_day': calculation.get('posts_per_day', 1),
+            'total_posts': calculation.get('total_posts', 1),
+            'selected_channels': selected_channels,
+            'total_usd': calculation.get('total_usd', 0)
+        }
+    )
+    
+    # Use enhanced memo from the new system
+    memo = payment_request['memo']
+    
+    # Create enhanced payment instructions with memo priority
     if language == 'ar':
-        payment_text = f"""💎 **دفع TON - تعليمات الدفع**
+        payment_text = f"""💎 **دفع TON - نظام التحقق المحسن بالمذكرة**
 
 **المبلغ المطلوب:** {amount_ton:.3f} TON
 **عنوان المحفظة:** {bot_wallet}
-**المذكرة:** {memo}
+**المذكرة/الملاحظة:** `{memo}`
 **عنوان محفظتك:** {wallet_address}
 
-**خطوات الدفع:**
+**خطوات الدفع المحسنة:**
 1. افتح محفظة TON الخاصة بك
 2. أرسل {amount_ton:.3f} TON إلى العنوان أعلاه
-3. أضف المذكرة بالضبط كما هو مكتوب
+3. **مهم جداً:** أضف المذكرة/الملاحظة `{memo}` بالضبط كما هو مكتوب
 4. أكمل الدفع
 
-⏰ **انتهاء صلاحية الدفع:** 20 دقيقة
-🔍 **المراقبة:** سيتم تأكيد الدفع تلقائياً
+⏰ **مراقبة محسنة لمدة 20 دقيقة مع أولوية المذكرة**
+🔍 **تأكيد تلقائي عند مطابقة المذكرة** `{memo}`
+🎯 **نظام تحقق أكثر موثوقية للدفع**
 
+⚠️ **مهم:** المذكرة `{memo}` مطلوبة لتأكيد الدفع
 سيتم نشر إعلانك بمجرد تأكيد الدفع!"""
     elif language == 'ru':
-        payment_text = f"""💎 **Оплата TON - Инструкции по оплате**
+        payment_text = f"""💎 **Оплата TON - Улучшенная проверка по заметке**
 
 **Требуемая сумма:** {amount_ton:.3f} TON
 **Адрес кошелька:** {bot_wallet}
-**Memo:** {memo}
+**Заметка/Memo:** `{memo}`
 **Ваш адрес кошелька:** {wallet_address}
 
-**Шаги оплаты:**
+**Улучшенные шаги оплаты:**
 1. Откройте свой TON кошелек
 2. Отправьте {amount_ton:.3f} TON на адрес выше
-3. Добавьте memo точно как написано
+3. **КРИТИЧЕСКИ ВАЖНО:** Добавьте заметку/memo `{memo}` точно как написано
 4. Завершите платеж
 
-⏰ **Истечение платежа:** 20 минут
-🔍 **Мониторинг:** Платеж подтвердится автоматически
+⏰ **Улучшенный мониторинг 20 минут с приоритетом заметки**
+🔍 **Автоматическое подтверждение при совпадении заметки** `{memo}`
+🎯 **Более надежная система проверки платежей**
 
+⚠️ **ВАЖНО:** Заметка `{memo}` обязательна для подтверждения платежа
 Ваше объявление будет опубликовано после подтверждения платежа!"""
     else:
-        payment_text = f"""💎 **TON Payment - Payment Instructions**
+        payment_text = f"""💎 **TON Payment - Enhanced Memo Verification**
 
 **Required Amount:** {amount_ton:.3f} TON
 **Wallet Address:** {bot_wallet}
-**Memo:** {memo}
+**Memo/Note:** `{memo}`
 **Your Wallet Address:** {wallet_address}
 
-**Payment Steps:**
+**Enhanced Payment Steps:**
 1. Open your TON wallet
 2. Send {amount_ton:.3f} TON to the address above
-3. Add the memo exactly as written
+3. **CRITICAL:** Add memo/note `{memo}` exactly as written
 4. Complete the payment
 
-⏰ **Payment Expires:** 20 minutes
-🔍 **Monitoring:** Payment will be confirmed automatically
+⏰ **Enhanced monitoring for 20 minutes with memo priority**
+🔍 **Automatic confirmation when memo** `{memo}` **matches**
+🎯 **More reliable payment verification system**
 
+⚠️ **IMPORTANT:** Memo `{memo}` is required for payment confirmation
 Your ad will be published once payment is confirmed!"""
     
     # Create payment keyboard
@@ -2720,12 +2750,29 @@ Your ad will be published once payment is confirmed!"""
             parse_mode='Markdown'
         )
     
-    # Start automatic payment monitoring
+    # Start enhanced payment monitoring with memo-based verification
     try:
-        from payments import start_payment_monitoring
-        await start_payment_monitoring(user_id, memo, amount_ton, wallet_address)
+        # Define success callback for payment confirmation
+        async def on_payment_success(payment_request, matching_transaction):
+            """Handle successful payment confirmation"""
+            await handle_successful_ton_payment_with_confirmation(
+                user_id, payment_request['memo'], amount_ton, state
+            )
+        
+        # Define failure callback for payment timeout
+        async def on_payment_failure(payment_request, reason):
+            """Handle payment failure or timeout"""
+            await handle_expired_ton_payment(user_id, payment_request['memo'], state)
+        
+        # Start enhanced monitoring with memo priority
+        await enhanced_payment_system.start_payment_monitoring(
+            payment_request, on_payment_success, on_payment_failure
+        )
+        
+        logger.info(f"✅ Enhanced payment monitoring started for {user_id} with memo: {memo}")
+        
     except Exception as e:
-        logger.error(f"Failed to start payment monitoring: {e}")
+        logger.error(f"Failed to start enhanced payment monitoring: {e}")
         # Continue without monitoring - user can check manually
 
 async def process_ton_payment(callback_query: CallbackQuery, state: FSMContext, amount_ton: float):
@@ -2959,6 +3006,20 @@ async def continue_ton_payment_with_wallet(message: Message, state: FSMContext, 
     # Start monitoring for payment
     asyncio.create_task(monitor_ton_payment_with_user_wallet(user_id, memo, amount_ton, expiration_time, user_wallet, state))
 
+def normalize_wallet_address(address: str) -> str:
+    """Normalize TON wallet address by converting to standard format"""
+    if not address:
+        return address
+    
+    # Remove any whitespace
+    address = address.strip()
+    
+    # Convert EQ prefix to UQ for consistent comparison
+    if address.startswith('EQ'):
+        address = 'UQ' + address[2:]
+    
+    return address
+
 async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_ton: float, expiration_time: int, user_wallet: str, state: FSMContext):
     """Monitor TON payment using TON Center API with user wallet verification - Enhanced with official best practices"""
     import time
@@ -2971,9 +3032,12 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
     from config import TON_WALLET_ADDRESS
     bot_wallet = TON_WALLET_ADDRESS or "EQDZpONCwPqBcWezyEGK9ikCHMknoyTrBL-L2hATQbClmrSE"
     
+    # Normalize user wallet address for comparison
+    normalized_user_wallet = normalize_wallet_address(user_wallet)
+    
     logger.info(f"Starting TON payment monitoring for user {user_id}, memo: {memo}, amount: {amount_ton} TON")
     logger.info(f"Monitoring bot wallet: {bot_wallet}")
-    logger.info(f"Expected from user wallet: {user_wallet}")
+    logger.info(f"Expected from user wallet: {user_wallet} (normalized: {normalized_user_wallet})")
     
     # Track last checked transaction to avoid duplicates
     last_lt = None
@@ -3013,11 +3077,12 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
                             # Check if transaction has the correct memo
                             tx_memo = in_msg.get('message', '')
                             if tx_memo == memo:
-                                # Get sender address
+                                # Get sender address and normalize it
                                 sender_address = in_msg.get('source', '')
+                                normalized_sender = normalize_wallet_address(sender_address)
                                 
-                                # Verify the payment is from the user's wallet
-                                if sender_address == user_wallet:
+                                # Verify the payment is from the user's wallet (using normalized addresses)
+                                if normalized_sender == normalized_user_wallet:
                                     # Get amount in nanotons and convert to TON
                                     tx_amount_nanotons = int(in_msg.get('value', 0))
                                     tx_amount = tx_amount_nanotons / 1000000000
@@ -3032,7 +3097,7 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
                                     else:
                                         logger.warning(f"Amount mismatch: expected {amount_ton}, got {tx_amount}")
                                 else:
-                                    logger.info(f"Payment found but from wrong wallet: {sender_address} != {user_wallet}")
+                                    logger.debug(f"Payment found but from different wallet: {sender_address} (normalized: {normalized_sender}) != {normalized_user_wallet}")
                             
                     # Update pagination parameters for next iteration
                     if transactions:
@@ -3058,92 +3123,6 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
     # Payment expired
     logger.warning(f"TON payment expired for user {user_id}, memo: {memo}")
     await handle_expired_ton_payment(user_id, memo, state)
-    
-    # Create payment instructions with translations
-    if language == 'ar':
-        payment_text = f"""💎 **دفع TON**
-
-**المبلغ:** {amount_ton:.3f} TON
-**عنوان المحفظة:** `{wallet_address}`
-**كود التحقق:** `{memo}`
-
-**التعليمات:**
-1. افتح محفظة TON
-2. أرسل {amount_ton:.3f} TON تماماً
-3. اكتب `{memo}` في خانة التعليق
-4. سيتم التحقق تلقائياً خلال 30 ثانية
-
-⏰ ينتهي الدفع خلال 20 دقيقة
-
-مع دفعك، أنت توافق على شروط الاستخدام 🔗"""
-    elif language == 'ru':
-        payment_text = f"""💎 **Оплата TON**
-
-**Сумма:** {amount_ton:.3f} TON
-**Адрес кошелька:** `{wallet_address}`
-**Код проверки:** `{memo}`
-
-**Инструкции:**
-1. Откройте кошелек TON
-2. Отправьте точно {amount_ton:.3f} TON
-3. Введите `{memo}` в поле комментария
-4. Автоматическая проверка в течение 30 секунд
-
-⏰ Оплата истекает через 20 минут
-
-Совершая платеж, вы соглашаетесь с Условиями использования 🔗"""
-    else:
-        payment_text = f"""💎 **TON Payment**
-
-**Amount:** {amount_ton:.3f} TON
-**Wallet Address:** `{wallet_address}`
-**Verification Code:** `{memo}`
-
-**Instructions:**
-1. Open TON wallet
-2. Send exactly {amount_ton:.3f} TON
-3. Write `{memo}` in comment field
-4. Automatic verification within 30 seconds
-
-⏰ Payment expires in 20 minutes
-
-With your payment, you agree to the Usage Agreement 🔗"""
-    
-    # Create keyboard with cancel option
-    if language == 'ar':
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ إلغاء الدفع", callback_data="cancel_payment")]
-        ])
-    elif language == 'ru':
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отменить платеж", callback_data="cancel_payment")]
-        ])
-    else:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
-        ])
-    
-    # Store payment data
-    await state.update_data(
-        payment_method='ton',
-        payment_amount=amount_ton,
-        payment_memo=memo,
-        payment_wallet=wallet_address,
-        payment_expiry=int(time.time()) + 1200  # 20 minutes
-    )
-    
-    # Send payment instructions
-    await callback_query.message.edit_text(
-        payment_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    
-    # Start payment monitoring in background
-    expiration_time = int(time.time()) + 1200  # 20 minutes from now
-    asyncio.create_task(monitor_ton_payment(user_id, memo, amount_ton, expiration_time, state))
-    
-    await callback_query.answer()
 
 
 async def process_stars_payment(callback_query: CallbackQuery, state: FSMContext, amount_stars: int):
@@ -3766,46 +3745,37 @@ async def handle_successful_ton_payment_with_confirmation(user_id: int, memo: st
         posts_per_day = calculation.get('posts_per_day', 1)
         total_posts = calculation.get('total_posts', days * posts_per_day)
         
-        # Create confirmation message
-        if language == 'ar':
-            confirmation_text = f"""✅ **تم استلام الدفع بنجاح!**
+        # Create comprehensive confirmation message using translations
+        confirmation_title = get_text(language, 'ton_payment_confirmed')
+        payment_verified = get_text(language, 'payment_verified')
+        campaign_starting = get_text(language, 'campaign_starting')
+        campaign_details = get_text(language, 'campaign_details_confirmed')
+        amount_received = get_text(language, 'payment_amount_received')
+        duration_label = get_text(language, 'campaign_will_run')
+        frequency_label = get_text(language, 'posting_frequency_confirmed')
+        channels_label = get_text(language, 'channels_confirmed')
+        total_posts_label = get_text(language, 'total_posts_confirmed')
+        publishing_notifications = get_text(language, 'publishing_notifications')
+        thank_you = get_text(language, 'thank_you_choosing')
+        status_active = get_text(language, 'campaign_status_active')
+        
+        # Build comprehensive confirmation message
+        confirmation_text = f"""{confirmation_title}
 
-💰 **المبلغ المستلم:** {amount_ton:.3f} TON
-📅 **المدة:** {days} يوم
-📊 **عدد المنشورات:** {posts_per_day} مرة يومياً
-📺 **القنوات المختارة:** {len(selected_channels)} قناة
-📈 **إجمالي المنشورات:** {total_posts} منشور
+{payment_verified}
 
-🚀 **ستبدأ حملتك الإعلانية قريباً!**
-📱 ستتلقى إشعارات عند بدء النشر في كل قناة
+{amount_received} {amount_ton:.3f} TON
+{duration_label} {days} {'days' if language == 'en' else 'أيام' if language == 'ar' else 'дней'}
+{frequency_label} {posts_per_day} {'times per day' if language == 'en' else 'مرة يومياً' if language == 'ar' else 'раз в день'}
+{channels_label} {len(selected_channels)} {'channels' if language == 'en' else 'قناة' if language == 'ar' else 'каналов'}
+{total_posts_label} {total_posts} {'posts' if language == 'en' else 'منشور' if language == 'ar' else 'публикаций'}
 
-شكراً لك على اختيار منصة I3lani! 🎯"""
-        elif language == 'ru':
-            confirmation_text = f"""✅ **Платеж успешно получен!**
+{campaign_starting}
+{status_active}
 
-💰 **Получено:** {amount_ton:.3f} TON
-📅 **Длительность:** {days} дней
-📊 **Публикации:** {posts_per_day} раз в день
-📺 **Выбранные каналы:** {len(selected_channels)} каналов
-📈 **Всего публикаций:** {total_posts} публикаций
+📱 {publishing_notifications}
 
-🚀 **Ваша рекламная кампания скоро начнется!**
-📱 Вы получите уведомления при начале публикации в каждом канале
-
-Спасибо за выбор платформы I3lani! 🎯"""
-        else:
-            confirmation_text = f"""✅ **Payment Received Successfully!**
-
-💰 **Amount Received:** {amount_ton:.3f} TON
-📅 **Duration:** {days} days
-📊 **Posting Frequency:** {posts_per_day} times per day
-📺 **Selected Channels:** {len(selected_channels)} channels
-📈 **Total Posts:** {total_posts} posts
-
-🚀 **Your advertising campaign will start soon!**
-📱 You will receive notifications when posting begins in each channel
-
-Thank you for choosing I3lani platform! 🎯"""
+🎯 {thank_you}"""
         
         # Create main menu keyboard
         if language == 'ar':

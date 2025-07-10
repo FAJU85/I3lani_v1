@@ -160,6 +160,20 @@ LANGUAGES = {
         'receipt_thank_you': 'Thank you for using I3lani Bot!',
         'receipt_support': 'Support: /support',
         
+        # TON Payment Confirmation Messages
+        'ton_payment_confirmed': '✅ **TON Payment Confirmed!**',
+        'payment_verified': 'Your TON payment has been verified on the blockchain!',
+        'campaign_starting': '🚀 **Your advertising campaign is starting now!**',
+        'campaign_details_confirmed': '📊 **Campaign Details:**',
+        'payment_amount_received': '💰 **Amount Received:**',
+        'campaign_will_run': '📅 **Campaign Duration:**',
+        'posting_frequency_confirmed': '📊 **Posting Frequency:**',
+        'channels_confirmed': '📺 **Channels:**',
+        'total_posts_confirmed': '📈 **Total Posts:**',
+        'publishing_notifications': '📱 You will receive notifications when your ad is published in each channel',
+        'thank_you_choosing': 'Thank you for choosing I3lani platform!',
+        'campaign_status_active': '🟢 Status: ACTIVE',
+        
         # Ad publishing notifications
         'ad_published_title': '✅ **Ad Published Successfully!**',
         'ad_published_message': 'Your advertisement has been published successfully!',
@@ -463,6 +477,20 @@ Questions? Use /support to get help!""",
         'receipt_thank_you': 'شكراً لاستخدام بوت I3lani!',
         'receipt_support': 'للدعم: /support',
         
+        # TON Payment Confirmation Messages
+        'ton_payment_confirmed': '✅ **تم تأكيد دفع TON!**',
+        'payment_verified': 'تم التحقق من دفع TON الخاص بك على البلوك تشين!',
+        'campaign_starting': '🚀 **حملتك الإعلانية تبدأ الآن!**',
+        'campaign_details_confirmed': '📊 **تفاصيل الحملة:**',
+        'payment_amount_received': '💰 **المبلغ المستلم:**',
+        'campaign_will_run': '📅 **مدة الحملة:**',
+        'posting_frequency_confirmed': '📊 **تكرار النشر:**',
+        'channels_confirmed': '📺 **القنوات:**',
+        'total_posts_confirmed': '📈 **إجمالي المنشورات:**',
+        'publishing_notifications': '📱 ستتلقى إشعارات عند نشر إعلانك في كل قناة',
+        'thank_you_choosing': 'شكراً لاختيار منصة I3lani!',
+        'campaign_status_active': '🟢 الحالة: نشط',
+        
         # Ad publishing notifications
         'ad_published_title': '✅ **تم نشر إعلانك بنجاح!**',
         'ad_published_message': 'تم نشر إعلانك بنجاح!',
@@ -761,6 +789,20 @@ Questions? Use /support to get help!""",
         'total_posts': 'Всего постов:',
         'receipt_thank_you': 'Спасибо за использование I3lani Bot!',
         'receipt_support': 'Поддержка: /support',
+        
+        # TON Payment Confirmation Messages
+        'ton_payment_confirmed': '✅ **TON платеж подтвержден!**',
+        'payment_verified': 'Ваш TON платеж был подтвержден на блокчейне!',
+        'campaign_starting': '🚀 **Ваша рекламная кампания начинается сейчас!**',
+        'campaign_details_confirmed': '📊 **Детали кампании:**',
+        'payment_amount_received': '💰 **Получено:**',
+        'campaign_will_run': '📅 **Длительность кампании:**',
+        'posting_frequency_confirmed': '📊 **Частота публикации:**',
+        'channels_confirmed': '📺 **Каналы:**',
+        'total_posts_confirmed': '📈 **Всего постов:**',
+        'publishing_notifications': '📱 Вы получите уведомления при публикации в каждом канале',
+        'thank_you_choosing': 'Спасибо за выбор платформы I3lani!',
+        'campaign_status_active': '🟢 Статус: АКТИВЕН',
         
         # Ad publishing notifications
         'ad_published_title': '✅ **Объявление успешно опубликовано!**',
