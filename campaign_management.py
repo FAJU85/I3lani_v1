@@ -320,12 +320,17 @@ class CampaignManager:
             logger.error(f"❌ Error scheduling campaign posts: {e}")
             return 0
     
-    async def get_campaign_summary(self, campaign_id: str) -> str:
-        """Generate campaign summary text"""
+    async def get_campaign_summary(self, campaign_id: str, language: str = 'en') -> str:
+        """Generate campaign summary text with multilingual support"""
         campaign = await self.get_campaign_by_id(campaign_id)
         
         if not campaign:
-            return "Campaign not found"
+            if language == 'ar':
+                return "❌ لم يتم العثور على الحملة"
+            elif language == 'ru':
+                return "❌ Кампания не найдена"
+            else:
+                return "❌ Campaign not found"
         
         # Calculate progress
         total_posts = campaign.get('total_posts', 0)
@@ -336,7 +341,67 @@ class CampaignManager:
         end_date = datetime.fromisoformat(campaign['end_date'])
         remaining_days = max(0, (end_date - datetime.now()).days)
         
-        summary = f"""🎯 **Campaign ID Card**
+        # Generate multilingual summary
+        if language == 'ar':
+            summary = f"""🎯 **بطاقة تعريف الحملة**
+
+**معرف الحملة:** {campaign['campaign_id']}
+**الحالة:** {'نشط' if campaign['status'] == 'active' else 'غير نشط'}
+**الدفع:** {campaign['payment_amount']:.3f} {campaign['payment_method']}
+**المذكرة:** {campaign['payment_memo']}
+
+**📅 الجدولة**
+**المدة:** {campaign['duration_days']} أيام
+**المتبقي:** {remaining_days} أيام
+**تاريخ البدء:** {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
+**تاريخ الانتهاء:** {end_date.strftime('%Y-%m-%d')}
+
+**📊 تفاصيل الحملة**
+**المنشورات يومياً:** {campaign['posts_per_day']}
+**إجمالي المنشورات:** {total_posts}
+**تم النشر:** {posts_published}
+**التقدم:** {progress_percentage:.1f}%
+
+**📢 القنوات ({campaign['channel_count']})**
+{chr(10).join(f"• {channel}" for channel in campaign['selected_channels'])}
+**إجمالي المتابعين:** {campaign['total_reach']} متابع
+
+**📈 الأداء**
+**نقاط التفاعل:** {campaign.get('engagement_score', 0.0):.1f}%
+**معدل النقر:** {campaign.get('click_through_rate', 0.0):.1f}%
+
+**تاريخ الإنشاء:** {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
+        elif language == 'ru':
+            summary = f"""🎯 **ID карта кампании**
+
+**ID кампании:** {campaign['campaign_id']}
+**Статус:** {'АКТИВНА' if campaign['status'] == 'active' else 'НЕАКТИВНА'}
+**Платеж:** {campaign['payment_amount']:.3f} {campaign['payment_method']}
+**Мемо:** {campaign['payment_memo']}
+
+**📅 Расписание**
+**Длительность:** {campaign['duration_days']} дней
+**Осталось:** {remaining_days} дней
+**Дата начала:** {datetime.fromisoformat(campaign['start_date']).strftime('%Y-%m-%d')}
+**Дата окончания:** {end_date.strftime('%Y-%m-%d')}
+
+**📊 Детали кампании**
+**Постов в день:** {campaign['posts_per_day']}
+**Всего постов:** {total_posts}
+**Опубликовано:** {posts_published}
+**Прогресс:** {progress_percentage:.1f}%
+
+**📢 Каналы ({campaign['channel_count']})**
+{chr(10).join(f"• {channel}" for channel in campaign['selected_channels'])}
+**Общий охват:** {campaign['total_reach']} подписчиков
+
+**📈 Производительность**
+**Оценка вовлеченности:** {campaign.get('engagement_score', 0.0):.1f}%
+**CTR:** {campaign.get('click_through_rate', 0.0):.1f}%
+
+**Создано:** {datetime.fromisoformat(campaign['created_at']).strftime('%Y-%m-%d %H:%M')}"""
+        else:
+            summary = f"""🎯 **Campaign ID Card**
 
 **Campaign ID:** {campaign['campaign_id']}
 **Status:** {campaign['status'].upper()}
@@ -409,9 +474,9 @@ async def get_user_campaign_list(user_id: int, limit: int = 10) -> List[Dict[str
     """Get user's campaigns"""
     return await campaign_manager.get_user_campaigns(user_id, limit)
 
-async def get_campaign_id_card(campaign_id: str) -> str:
-    """Get campaign ID card summary"""
-    return await campaign_manager.get_campaign_summary(campaign_id)
+async def get_campaign_id_card(campaign_id: str, language: str = 'en') -> str:
+    """Get campaign ID card summary with language support"""
+    return await campaign_manager.get_campaign_summary(campaign_id, language)
 
 if __name__ == "__main__":
     async def test_campaign_system():

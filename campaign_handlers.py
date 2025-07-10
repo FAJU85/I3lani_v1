@@ -152,8 +152,8 @@ async def view_campaign_handler(callback_query: CallbackQuery, state: FSMContext
         # Extract campaign ID from callback data
         campaign_id = callback_query.data.replace("view_campaign_", "")
         
-        # Get campaign ID card
-        id_card = await get_campaign_id_card(campaign_id)
+        # Get campaign ID card with language support
+        id_card = await get_campaign_id_card(campaign_id, language)
         
         if not id_card or id_card == "Campaign not found":
             if language == 'ar':
