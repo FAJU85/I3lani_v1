@@ -567,6 +567,14 @@ Last updated: July 2025"""
             await db.commit()
             return cursor.lastrowid
     
+    async def update_payment_subscription(self, payment_id: int, subscription_id: int):
+        """Update payment record with subscription ID"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute('''
+                UPDATE payments SET subscription_id = ? WHERE payment_id = ?
+            ''', (subscription_id, payment_id))
+            await db.commit()
+    
     async def activate_subscriptions(self, subscription_ids: List[int], duration_days: int) -> bool:
         """Activate subscriptions after payment confirmation"""
         try:

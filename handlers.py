@@ -3448,165 +3448,9 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
     await handle_expired_ton_payment(user_id, memo, state)
 
 
-async def process_stars_payment(callback_query: CallbackQuery, state: FSMContext, amount_stars: int):
-    """Process Telegram Stars payment"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    # Create payment preview with translations
-    if language == 'ar':
-        preview_text = f"""⭐ **دفع Telegram Stars**
 
-**المبلغ:** {amount_stars:,} Stars
 
-هل تريد المتابعة مع هذا الدفع؟
 
-مع دفعك، أنت توافق على شروط الاستخدام 🔗"""
-        confirm_text = "تأكيد الدفع"
-        cancel_text = "إلغاء"
-    elif language == 'ru':
-        preview_text = f"""⭐ **Оплата Telegram Stars**
-
-**Сумма:** {amount_stars:,} Stars
-
-Хотите продолжить с этим платежом?
-
-Совершая платеж, вы соглашаетесь с Условиями использования 🔗"""
-        confirm_text = "Подтвердить оплату"
-        cancel_text = "Отмена"
-    else:
-        preview_text = f"""⭐ **Telegram Stars Payment**
-
-**Amount:** {amount_stars:,} Stars
-
-Do you want to proceed with this payment?
-
-With your payment, you agree to the Usage Agreement 🔗"""
-        confirm_text = "Confirm Payment"
-        cancel_text = "Cancel"
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=confirm_text, callback_data="confirm_stars_payment")],
-        [InlineKeyboardButton(text=cancel_text, callback_data="cancel_payment")]
-    ])
-    
-    # Store payment data
-    await state.update_data(
-        payment_method='stars',
-        payment_amount=amount_stars
-    )
-    
-    await callback_query.message.edit_text(
-        preview_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-    await callback_query.answer()
-
-@router.callback_query(F.data == "confirm_stars_payment")
-async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle Stars payment confirmation"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    try:
-        # Get data from state
-        data = await state.get_data()
-        selected_channels = data.get('selected_channels', [])
-        ad_content = data.get('ad_text', '') or data.get('ad_content', '')
-        photos = data.get('photos', [])
-        pricing_data = data.get('pricing_data', {})
-        pricing_calculation = data.get('pricing_calculation', {})
-        # Fix: Use actual Stars amount from pricing calculation instead of generic payment_amount
-        payment_amount = pricing_calculation.get('total_stars', 0)
-        
-        # Create ad in database
-        ad_id = await db.create_ad(
-            user_id=user_id,
-            content=ad_content,
-            media_url=photos[0] if photos else None,
-            content_type='photo' if photos else 'text'
-        )
-        
-        # Get pricing data
-        days = pricing_data.get('days', 1)
-        posts_per_day = pricing_data.get('posts_per_day', 1)
-        total_posts = days * posts_per_day
-        
-        # Create subscription for each selected channel
-        subscription_ids = []
-        for channel_id in selected_channels:
-            subscription_id = await db.create_subscription(
-                user_id=user_id,
-                ad_id=ad_id,
-                channel_id=channel_id,
-                duration_months=days,
-                total_price=payment_amount,
-                currency='STARS',
-                posts_per_day=posts_per_day,
-                total_posts=total_posts
-            )
-            subscription_ids.append(subscription_id)
-        
-        # Create payment record
-        payment_id = await db.create_payment(
-            user_id=user_id,
-            subscription_id=subscription_ids[0] if subscription_ids else None,
-            amount=payment_amount,
-            currency='STARS',
-            payment_method='telegram_stars',
-            memo=f'STARS{subscription_ids[0]:04d}' if subscription_ids else 'STARS_PAYMENT'
-        )
-        
-        # Activate subscriptions
-        await db.activate_subscriptions(subscription_ids, days)
-        
-        # Publish immediately
-        from publishing_scheduler import scheduler
-        if scheduler:
-            await scheduler.publish_immediately_after_payment(
-                user_id=user_id,
-                ad_id=ad_id,
-                selected_channels=selected_channels,
-                subscription_data=data
-            )
-        
-        # Send payment receipt
-        payment_data = {
-            'payment_method': 'stars',
-            'amount': payment_amount,
-            'memo': f'STARS{subscription_ids[0]:04d}' if subscription_ids else 'STARS_PAYMENT',
-            'selected_channels': selected_channels,
-            'days': days,
-            'posts_per_day': posts_per_day,
-            'ad_id': ad_id
-        }
-        await send_payment_receipt(user_id, payment_data, language)
-        
-        # Send publishing reports for each channel
-        channels = await db.get_channels()
-        for channel_id in selected_channels:
-            channel = next((ch for ch in channels if ch['channel_id'] == channel_id), None)
-            if channel:
-                ad_data = {
-                    'ad_id': ad_id,
-                    'ad_text': ad_content,
-                    'channel_id': channel_id
-                }
-                await send_ad_publishing_report(user_id, ad_data, channel['name'], language)
-        
-        # Clear state
-        await state.clear()
-        
-    except Exception as e:
-        logger.error(f"Error confirming Stars payment: {e}")
-        await callback_query.answer("❌ Payment confirmation failed")
-        await callback_query.message.edit_text(
-            "❌ Payment confirmation failed. Please try again or contact support.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")]
-            ])
-        )
 
 @router.callback_query(F.data == "pay_freq_stars")
 async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -3863,99 +3707,73 @@ async def pay_dynamic_ton_handler(callback_query: CallbackQuery, state: FSMConte
             pass
 
 
+
+
+
+
+
+
+# Clean Stars Payment System Handlers
 @router.callback_query(F.data == "pay_dynamic_stars")
 async def pay_dynamic_stars_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle Telegram Stars payment for dynamic pricing"""
+    """Handle Telegram Stars payment - Clean implementation"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
-    
-    data = await state.get_data()
-    calculation = data.get('pricing_calculation', {})
-    
-    if not calculation or 'total_stars' not in calculation:
-        await callback_query.answer("Invalid payment data - please recalculate pricing", show_alert=True)
-        return
-    
-    stars_price = calculation['total_stars']
-    total_usd = calculation['total_usd']
-    
-    # Show payment confirmation message with cancellation option
-    usd_formatted = f"{total_usd:.2f}"
-    text = f"""
-[Star] **Telegram Stars Payment**
-
-**Amount:** {stars_price} [Star] (${usd_formatted})
-**Campaign Details:** {calculation.get('days', 1)} days, {calculation.get('posts_per_day', 1)} posts/day
-**Channels:** {len(calculation.get('selected_channels', []))} selected
-
-**Payment Options:**
-- Click 'Pay Now' to send Stars invoice
-- Click 'Cancel' to return to pricing
-
-With your payment, you agree to the Usage Agreement[Link]
-    """.strip()
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="[Star] Pay Now", callback_data="confirm_stars_payment")],
-        [InlineKeyboardButton(text="[X] Cancel Payment", callback_data="cancel_payment")],
-        [InlineKeyboardButton(text="[Refresh] Recalculate", callback_data="recalculate_dynamic")]
-    ])
-    
-    # Store Stars payment data for later confirmation
-    await state.update_data(
-        stars_payment_amount=stars_price,
-        stars_payment_usd=total_usd,
-        payment_ready=True
-    )
-    
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
-    await callback_query.answer("Stars payment ready - confirm to proceed")
-
-
-@router.callback_query(F.data == "confirm_stars_payment")
-async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Enhanced Stars payment handler using new payment system"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    data = await state.get_data()
-    stars_amount = data.get('stars_payment_amount')
-    total_usd = data.get('stars_payment_usd')
-    calculation = data.get('pricing_calculation', {})
-    
-    if not stars_amount:
-        await callback_query.answer("Payment data not found", show_alert=True)
-        return
     
     try:
-        # Initialize enhanced Stars payment system
-        from enhanced_telegram_stars_payment import get_enhanced_stars_payment
-        stars_payment = get_enhanced_stars_payment(callback_query.bot, db)
+        # Get state data
+        data = await state.get_data()
+        calculation = data.get('pricing_calculation', {})
+        selected_channels = data.get('selected_channels', [])
+        ad_content = data.get('ad_text', '') or data.get('ad_content', '')
+        photos = data.get('photos', [])
         
-        # Prepare campaign data for enhanced invoice
+        # Validate required data
+        if not calculation or 'total_stars' not in calculation:
+            await callback_query.answer("Invalid payment data - please recalculate pricing", show_alert=True)
+            return
+        
+        if not selected_channels:
+            await callback_query.answer("No channels selected", show_alert=True)
+            return
+        
+        # Extract pricing data
+        stars_amount = calculation['total_stars']
+        usd_amount = calculation['total_usd']
+        days = calculation.get('days', 1)
+        posts_per_day = calculation.get('posts_per_day', 1)
+        
+        # Create campaign data
         campaign_data = {
-            'duration': calculation.get('days', 7),
-            'selected_channels': data.get('selected_channels', []),
-            'posts_per_day': calculation.get('posts_per_day', 1)
+            'duration': days,
+            'selected_channels': selected_channels,
+            'posts_per_day': posts_per_day,
+            'ad_content': ad_content,
+            'photos': photos
         }
         
         pricing_data = {
             'total_stars': stars_amount,
-            'total_usd': total_usd,
-            'posts_per_day': calculation.get('posts_per_day', 1),
+            'total_usd': usd_amount,
+            'days': days,
+            'posts_per_day': posts_per_day,
             'discount_percent': calculation.get('discount_percent', 0)
         }
         
-        # Create enhanced Stars invoice
-        result = await stars_payment.create_enhanced_invoice(
+        # Initialize clean Stars payment system
+        from clean_stars_payment_system import get_clean_stars_payment
+        stars_payment = get_clean_stars_payment(callback_query.bot, db)
+        
+        # Create Stars invoice
+        result = await stars_payment.create_payment_invoice(
             user_id, campaign_data, pricing_data, language
         )
         
         if result.get('success'):
-            await callback_query.answer("⭐ Enhanced Stars invoice sent!")
-            logger.info(f"✅ Enhanced Stars invoice created: {result['payment_id']}")
+            await callback_query.answer("⭐ Stars payment invoice sent!")
+            logger.info(f"✅ Stars invoice created: {result['payment_id']}")
             
-            # Delete confirmation message since invoice was sent
+            # Delete the confirmation message since invoice was sent
             try:
                 await callback_query.message.delete()
             except:
@@ -3963,49 +3781,51 @@ async def confirm_stars_payment_handler(callback_query: CallbackQuery, state: FS
         else:
             error_msg = result.get('error', 'Unknown error')
             await callback_query.answer(f"❌ Payment error: {error_msg}", show_alert=True)
-            logger.error(f"❌ Enhanced Stars invoice failed: {error_msg}")
+            logger.error(f"❌ Stars invoice creation failed: {error_msg}")
             
     except Exception as e:
-        logger.error(f"❌ Enhanced Stars payment error: {e}")
+        logger.error(f"❌ Stars payment handler error: {e}")
         await callback_query.answer("❌ Payment system error", show_alert=True)
 
+@router.callback_query(F.data == "pay_freq_stars")
+async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle frequency Stars payment - redirect to dynamic handler"""
+    await pay_dynamic_stars_handler(callback_query, state)
 
-# Enhanced Telegram Stars invoice handlers
 @router.pre_checkout_query()
-async def enhanced_pre_checkout_query_handler(pre_checkout_query):
-    """Enhanced pre-checkout query handler for Stars payments"""
+async def clean_pre_checkout_query_handler(pre_checkout_query):
+    """Clean pre-checkout query handler for Stars payments"""
     try:
-        from enhanced_telegram_stars_payment import handle_enhanced_pre_checkout
+        from clean_stars_payment_system import handle_clean_pre_checkout
         
-        result = await handle_enhanced_pre_checkout(pre_checkout_query)
+        result = await handle_clean_pre_checkout(pre_checkout_query)
         
         if result.get('success'):
-            logger.info(f"✅ Enhanced pre-checkout approved: {result.get('payment_id')}")
+            logger.info(f"✅ Pre-checkout approved for Stars payment")
         else:
-            logger.warning(f"❌ Enhanced pre-checkout rejected: {result.get('error')}")
+            logger.warning(f"❌ Pre-checkout rejected for Stars payment")
             
     except Exception as e:
-        logger.error(f"❌ Enhanced pre-checkout error: {e}")
+        logger.error(f"❌ Pre-checkout error: {e}")
         await pre_checkout_query.answer(ok=False, error_message="Payment verification failed")
 
-
 @router.message(F.successful_payment)
-async def enhanced_successful_payment_handler(message):
-    """Enhanced successful Stars payment handler"""
+async def clean_successful_payment_handler(message):
+    """Clean successful Stars payment handler"""
     try:
-        from enhanced_telegram_stars_payment import handle_enhanced_successful_payment
+        from clean_stars_payment_system import handle_clean_successful_payment
         
-        result = await handle_enhanced_successful_payment(message)
+        result = await handle_clean_successful_payment(message)
         
         if result.get('success'):
-            logger.info(f"✅ Enhanced Stars payment processed successfully: {result.get('payment_id')}")
+            logger.info(f"✅ Stars payment processed successfully: {result.get('payment_id')}")
             logger.info(f"   Campaign ID: {result.get('campaign_id')}")
             logger.info(f"   Receipt sent: {result.get('receipt_sent')}")
         else:
             error_msg = result.get('error', 'Unknown error')
-            logger.error(f"❌ Enhanced Stars payment processing failed: {error_msg}")
+            logger.error(f"❌ Stars payment processing failed: {error_msg}")
             
-            # Fallback notification
+            # Send error notification
             await message.answer(
                 "⚠️ Payment received but processing encountered an issue. "
                 "Please contact support with your payment details.",
@@ -4013,9 +3833,9 @@ async def enhanced_successful_payment_handler(message):
             )
             
     except Exception as e:
-        logger.error(f"❌ Enhanced Stars payment handler error: {e}")
+        logger.error(f"❌ Stars payment handler error: {e}")
         
-        # Fallback to basic processing
+        # Fallback processing
         try:
             successful_payment = message.successful_payment
             await message.answer(
@@ -4029,11 +3849,7 @@ async def enhanced_successful_payment_handler(message):
             logger.error(f"❌ Fallback payment handler error: {fallback_error}")
 
 
-@router.callback_query(F.data == "pay_freq_stars")
-async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle frequency Stars payment button for compatibility"""
-    # Redirect to dynamic Stars payment handler
-    await pay_dynamic_stars_handler(callback_query, state)
+
 
 
 @router.callback_query(F.data == "pay_freq_ton")
@@ -4098,7 +3914,7 @@ async def show_payment_options_handler(callback_query: CallbackQuery, state: FSM
 [Money] **Payment Summary**
 
 **Campaign:** {calculation['days']} days x {calculation['posts_per_day']} posts/day
-**Channels:** {len(calculation.get('selected_channels', []))} selected
+**Channels:** {len(data.get('selected_channels', []))} selected
 **Total Posts:** {calculation['total_posts']}
 
 **Pricing:**
