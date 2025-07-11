@@ -387,8 +387,30 @@ async def init_bot():
         init_translation_system()
         logger.info("Translation system initialized")
         
-        # Register chat member handler
-        dp.my_chat_member.register(handle_my_chat_member)
+        # Initialize comprehensive publishing fix system
+        logger.info("Initializing comprehensive publishing and channel integration fixes...")
+        try:
+            from comprehensive_publishing_fix import run_comprehensive_fix
+            comprehensive_fix = await run_comprehensive_fix(bot, db)
+            logger.info("✅ Comprehensive publishing fix system initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize comprehensive publishing fix: {e}")
+        
+        # Register enhanced chat member handler with comprehensive fix
+        async def enhanced_handle_my_chat_member(chat_member_updated):
+            """Enhanced chat member handler with comprehensive fixes"""
+            try:
+                # Call original handler
+                await handle_my_chat_member(chat_member_updated)
+                
+                # Call comprehensive fix handler for auto-channel addition
+                if comprehensive_fix:
+                    await comprehensive_fix.handle_new_channel_addition(chat_member_updated)
+                    
+            except Exception as e:
+                logger.error(f"Error in enhanced chat member handler: {e}")
+        
+        dp.my_chat_member.register(enhanced_handle_my_chat_member)
         
         # Clean up invalid channels first
         logger.info("Syncing existing channels...")

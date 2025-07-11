@@ -157,23 +157,40 @@ class EnhancedCampaignPublisher:
             logger.info(f"   Content: {content_to_publish[:50]}...")
             logger.info(f"   Type: {content_type}")
             
-            # Publish based on content type
+            # Publish based on content type with enhanced media handling
             message = None
             
-            if content_type == 'photo' and media_url:
+            logger.info(f"🎬 Publishing content type '{content_type}' with media: {bool(media_url)}")
+            
+            if content_type in ['photo', 'image', 'text+photo', 'text+image'] and media_url:
+                logger.info(f"📸 Publishing photo to {channel_id}")
                 message = await self.bot.send_photo(
                     chat_id=channel_id,
                     photo=media_url,
                     caption=content_to_publish
                 )
-            elif content_type == 'video' and media_url:
+            elif content_type in ['video', 'text+video'] and media_url:
+                logger.info(f"🎥 Publishing video to {channel_id}")
                 message = await self.bot.send_video(
                     chat_id=channel_id,
                     video=media_url,
                     caption=content_to_publish
                 )
+            elif content_type in ['image_only', 'photo_only'] and media_url:
+                logger.info(f"📸 Publishing image only to {channel_id}")
+                message = await self.bot.send_photo(
+                    chat_id=channel_id,
+                    photo=media_url
+                )
+            elif content_type in ['video_only'] and media_url:
+                logger.info(f"🎥 Publishing video only to {channel_id}")
+                message = await self.bot.send_video(
+                    chat_id=channel_id,
+                    video=media_url
+                )
             else:
-                # Text only
+                # Text only or fallback
+                logger.info(f"💬 Publishing text only to {channel_id}")
                 message = await self.bot.send_message(
                     chat_id=channel_id,
                     text=content_to_publish
@@ -195,14 +212,36 @@ class EnhancedCampaignPublisher:
                 await self._mark_post_published(post_id)
                 
                 logger.info(f"✅ Successfully published {post_identity_id} to {channel_id}")
+                
+                # Log per-channel publishing success
+                await self._log_channel_publishing_success(
+                    campaign_id, channel_id, message.message_id, 
+                    content_type, media_url
+                )
+                
                 return True
             else:
                 logger.error(f"❌ Failed to publish {post_identity_id} to {channel_id}")
+                
+                # Log per-channel publishing failure
+                await self._log_channel_publishing_failure(
+                    campaign_id, channel_id, content_type, "No message returned"
+                )
+                
                 return False
                 
         except Exception as e:
             logger.error(f"❌ Error publishing post with identity: {e}")
             await self._mark_post_failed(post_data['id'], str(e))
+            
+            # Log per-channel publishing failure
+            await self._log_channel_publishing_failure(
+                post_data['campaign_id'], 
+                post_data['channel_id'], 
+                post_data.get('content_type', 'unknown'), 
+                str(e)
+            )
+            
             return False
     
     async def _ensure_campaign_post_identity(self, post_data: Dict) -> Optional[str]:
