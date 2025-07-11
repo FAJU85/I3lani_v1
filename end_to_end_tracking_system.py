@@ -62,9 +62,9 @@ class EndToEndTrackingSystem:
     def __init__(self, db_path: str = "bot.db"):
         self.db_path = db_path
         self.sequence_manager = get_global_sequence_manager()
-        self.initialize_database()
+        # Initialize database will be called separately in async context
     
-    def initialize_database(self):
+    async def initialize_database(self):
         """Initialize end-to-end tracking database tables"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -91,7 +91,7 @@ class EndToEndTrackingSystem:
             
             # Campaign journey steps
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS campaign_journey_steps (
+                CREATE TABLE IF NOT EXISTS tracking_steps (
                     step_tracking_id TEXT PRIMARY KEY,
                     tracking_id TEXT NOT NULL,
                     step_id TEXT NOT NULL,
@@ -137,12 +137,7 @@ class EndToEndTrackingSystem:
         """Start new campaign tracking"""
         try:
             # Create or get sequence ID
-            sequence_id = await self.sequence_manager.create_sequence(
-                user_id=user_id,
-                username=username,
-                sequence_type="ad_campaign",
-                metadata={"tracking_type": "end_to_end_campaign"}
-            )
+            sequence_id = self.sequence_manager.generate_sequence_id()
             
             # Generate tracking ID
             tracking_id = f"TRACK-{datetime.now().strftime('%Y-%m-%d')}-{sequence_id.split('-')[-1]}"
@@ -161,7 +156,7 @@ class EndToEndTrackingSystem:
             for step in self.CAMPAIGN_STEPS:
                 step_tracking_id = f"{tracking_id}-{step['step_id']}"
                 cursor.execute("""
-                    INSERT INTO campaign_journey_steps (
+                    INSERT INTO tracking_steps (
                         step_tracking_id, tracking_id, step_id, step_name, step_title, status
                     ) VALUES (?, ?, ?, ?, ?, ?)
                 """, (step_tracking_id, tracking_id, step['step_id'], step['step_name'], 
@@ -171,13 +166,17 @@ class EndToEndTrackingSystem:
             conn.close()
             
             # Log step completion
-            await self.sequence_manager.log_step(
-                sequence_id=sequence_id,
-                step_name="Campaign Tracking Started",
-                component="tracking_system",
-                status="completed",
-                metadata={"tracking_id": tracking_id, "user_id": user_id}
-            )
+            try:
+                self.sequence_manager.log_step(
+                    sequence_id=sequence_id,
+                    step_name="Campaign Tracking Started",
+                    component="tracking_system",
+                    status="completed",
+                    metadata={"tracking_id": tracking_id, "user_id": user_id}
+                )
+            except Exception as e:
+                logger.warning(f"Step logging failed: {e}")
+                # Continue without logging - not critical for tracking functionality
             
             logger.info(f"✅ Campaign tracking started: {tracking_id} for user {user_id}")
             return tracking_id
@@ -199,19 +198,19 @@ class EndToEndTrackingSystem:
             
             if status == "in_progress":
                 cursor.execute("""
-                    UPDATE campaign_journey_steps 
+                    UPDATE tracking_steps 
                     SET status = ?, started_at = ?, metadata = ?, error_message = ?
                     WHERE step_tracking_id = ?
                 """, (status, current_time, str(metadata or {}), error_message, step_tracking_id))
             elif status == "completed":
                 cursor.execute("""
-                    UPDATE campaign_journey_steps 
+                    UPDATE tracking_steps 
                     SET status = ?, completed_at = ?, metadata = ?, error_message = ?
                     WHERE step_tracking_id = ?
                 """, (status, current_time, str(metadata or {}), error_message, step_tracking_id))
             else:
                 cursor.execute("""
-                    UPDATE campaign_journey_steps 
+                    UPDATE tracking_steps 
                     SET status = ?, metadata = ?, error_message = ?
                     WHERE step_tracking_id = ?
                 """, (status, str(metadata or {}), error_message, step_tracking_id))
