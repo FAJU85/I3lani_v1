@@ -1,6 +1,7 @@
 """
 Message and callback handlers for I3lani Telegram Bot
 """
+from step_title_system import get_step_title, create_titled_message
 from aiogram import Router, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -52,6 +53,17 @@ def create_language_keyboard() -> InlineKeyboardMarkup:
     """Create modern language selection keyboard"""
     return create_modern_language_selector()
 
+
+
+def get_user_language_and_create_titled_message(user_id: int, step_key: str, content: str) -> str:
+    """Helper function to get user language and create titled message"""
+    try:
+        from database import get_user_language
+        language = get_user_language(user_id) or "en"
+        return create_titled_message(step_key, content, language, user_id)
+    except Exception as e:
+        logger.error(f"Error creating titled message: {e}")
+        return content
 
 async def is_user_partner(user_id: int) -> bool:
     """Check if user is a partner/affiliate"""
@@ -519,6 +531,10 @@ async def show_main_menu(message_or_query, language: str):
     # Always show regular interface for all users (as requested by user)
     # Neural network interface was confusing, so we use simple, clear language
     text = await create_regular_main_menu_text(language, user_id)
+    
+    # Add step title to the main menu text
+    titled_text = get_user_language_and_create_titled_message(user_id, "main_menu", text)
+    
     keyboard = await create_regular_main_menu_keyboard(language, user_id)
     logger.info(f"👤 Regular interface for user {user_id}")
     
@@ -529,17 +545,17 @@ async def show_main_menu(message_or_query, language: str):
     logger.info(f"📝 Main menu text preview: {text[:50]}...")
     
     if isinstance(message_or_query, Message):
-        await message_or_query.answer(text, reply_markup=keyboard, parse_mode='HTML')
+        await message_or_query.answer(titled_text, reply_markup=keyboard, parse_mode='HTML')
     else:
         try:
             # Use fade transition for smoother UX
             await ui_effects.fade_transition(message_or_query.message, 
                                            message_or_query.message.text or "Loading...", 
-                                           text)
+                                           titled_text)
             await message_or_query.message.edit_reply_markup(reply_markup=keyboard)
         except Exception as e:
             # If edit fails, send new message
-            await message_or_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
+            await message_or_query.message.answer(titled_text, reply_markup=keyboard, parse_mode='HTML')
 
 
 @router.callback_query(F.data.startswith("lang_"))
@@ -1210,26 +1226,29 @@ async def show_channel_selection_for_message(message: Message, state: FSMContext
     
     # Create enhanced channel text with better visuals
     if language == 'ar':
-        channel_text = f"""📺 **اختر القنوات لإعلانك**
+        channel_content = f"""📺 **اختر القنوات لإعلانك**
 
 📊 **المحدد:** {len(selected_channels)}/{len(enhanced_channels)} قناة
 👥 **الوصول المباشر:** {total_reach:,} مشترك
 
 💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
     elif language == 'ru':
-        channel_text = f"""📺 **Выберите каналы для рекламы**
+        channel_content = f"""📺 **Выберите каналы для рекламы**
 
 📊 **Выбрано:** {len(selected_channels)}/{len(enhanced_channels)} каналов
 👥 **Живой охват:** {total_reach:,} подписчиков
 
 💡 Нажмите на каналы для выбора/отмены:"""
     else:
-        channel_text = f"""📺 **Select Channels for Your Ad**
+        channel_content = f"""📺 **Select Channels for Your Ad**
 
 📊 **Selected:** {len(selected_channels)}/{len(enhanced_channels)} channels
 👥 **Live Reach:** {total_reach:,} subscribers
 
 💡 Click channels to select/deselect:"""
+    
+    # Add step title to the channel selection content
+    channel_text = get_user_language_and_create_titled_message(user_id, "select_channels", channel_content)
     
     keyboard_rows = []
     for channel in enhanced_channels:
@@ -1513,7 +1532,7 @@ async def show_settings_handler(callback_query: CallbackQuery):
         if language not in LANGUAGES:
             language = 'en'
         
-        settings_text = f"""
+        settings_content = f"""
 {get_text(language, 'settings_title')}
 
 {get_text(language, 'current_language', language_name=LANGUAGES[language]['name'], flag=LANGUAGES[language]['flag'])}
@@ -1522,6 +1541,9 @@ async def show_settings_handler(callback_query: CallbackQuery):
 
 {get_text(language, 'account_info', user_id=user_id, language=language.upper())}
         """.strip()
+        
+        # Add step title to the settings content
+        settings_text = get_user_language_and_create_titled_message(user_id, "settings", settings_content)
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
@@ -1567,7 +1589,10 @@ async def show_help_handler(callback_query: CallbackQuery):
         if language not in LANGUAGES:
             language = 'en'
         
-        help_text = get_text(language, 'help_text')
+        help_content = get_text(language, 'help_text')
+        
+        # Add step title to the help content  
+        help_text = get_user_language_and_create_titled_message(user_id, "help", help_content)
         
         await callback_query.message.edit_text(
             help_text,
@@ -1608,7 +1633,7 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         await state.set_state(AdCreationStates.upload_photos)
         
         # Modern, psychologically calming text design using get_text
-        text = f"""
+        content = f"""
 {get_text(language, 'create_ad_header')}
 
 {get_text(language, 'create_ad_step1_title')}
@@ -1619,6 +1644,9 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
 
 {get_text(language, 'create_ad_modern_design')}
         """.strip()
+        
+        # Add step title to the create ad content
+        text = get_user_language_and_create_titled_message(user_id, "create_ad_start", content)
         
         # Create modern confirmation keyboard with calming design
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
