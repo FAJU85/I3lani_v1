@@ -96,7 +96,11 @@ class AdminSystem:
             ],
             [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
-                InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement")
+                InlineKeyboardButton(text="🧪 Test Bot Workflow", callback_data="admin_test_workflow")
+            ],
+            [
+                InlineKeyboardButton(text="📄 Usage Agreement", callback_data="admin_agreement"),
+                InlineKeyboardButton(text="📋 Test History", callback_data="admin_test_history")
             ],
             [
                 InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics"),
@@ -2556,3 +2560,197 @@ Days | Posts/Day | Discount | Daily Rate | Final Price
     except Exception as e:
         logger.error(f"Error showing pricing table: {e}")
         await callback_query.answer("Error displaying pricing table", show_alert=True)
+
+@router.callback_query(F.data == "admin_test_workflow")
+async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle test bot workflow button"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("ERROR: Access denied.")
+        return
+    
+    # Import here to avoid circular imports
+    from admin_bot_test_system import run_admin_bot_test
+    from aiogram import Bot
+    from config import BOT_TOKEN
+    
+    await callback_query.message.edit_text(
+        "🧪 **Bot Workflow Test Starting...**\n\n"
+        "⏳ Running comprehensive bot functionality test\n"
+        "📊 Testing all systems including multimedia support\n"
+        "🔍 This may take 30-60 seconds...",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+        ])
+    )
+    await callback_query.answer()
+    
+    try:
+        # Create bot instance
+        bot = Bot(token=BOT_TOKEN)
+        
+        # Run comprehensive test
+        test_suite = await run_admin_bot_test(bot, user_id)
+        
+        # Format results
+        status_emoji = "✅" if test_suite.success_rate >= 80 else "⚠️" if test_suite.success_rate >= 60 else "❌"
+        status_text = ("FULLY OPERATIONAL" if test_suite.success_rate >= 80 else 
+                      "NEEDS ATTENTION" if test_suite.success_rate >= 60 else 
+                      "REQUIRES IMMEDIATE ATTENTION")
+        
+        text = f"""🧪 **Bot Workflow Test Complete**
+
+{status_emoji} **System Status:** {status_text}
+
+📊 **Test Results:**
+• Total Tests: {test_suite.total_tests}
+• Passed: {test_suite.passed_tests} ✅
+• Failed: {test_suite.failed_tests} ❌
+• Warnings: {test_suite.warning_tests} ⚠️
+• Success Rate: {test_suite.success_rate:.1f}%
+
+🕐 **Test Duration:** {(test_suite.completed_at - test_suite.started_at).total_seconds():.1f} seconds
+
+📋 **Test Suite ID:** {test_suite.suite_id}"""
+        
+        keyboard = [
+            [InlineKeyboardButton(text="📋 View Full Report", callback_data=f"view_test_report_{test_suite.suite_id}")],
+            [InlineKeyboardButton(text="📋 Test History", callback_data="admin_test_history")],
+            [InlineKeyboardButton(text="🔄 Run Again", callback_data="admin_test_workflow")],
+            [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+        ]
+        
+        await callback_query.message.edit_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode='Markdown'
+        )
+        
+        await bot.session.close()
+        
+    except Exception as e:
+        await callback_query.message.edit_text(
+            f"❌ **Test Failed**\n\n"
+            f"Error: {str(e)}\n\n"
+            f"Please check system status and try again.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Try Again", callback_data="admin_test_workflow")],
+                [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+            ])
+        )
+
+@router.callback_query(F.data == "admin_test_history")
+async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle test history button"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("ERROR: Access denied.")
+        return
+    
+    # Import here to avoid circular imports
+    from admin_bot_test_system import get_admin_test_system
+    from aiogram import Bot
+    from config import BOT_TOKEN
+    
+    try:
+        bot = Bot(token=BOT_TOKEN)
+        test_system = get_admin_test_system(bot)
+        
+        # Get test history
+        test_history = await test_system.get_test_history(user_id, limit=10)
+        
+        if not test_history:
+            text = "📋 **Test History**\n\n⚠️ No test records found.\n\nRun your first test to see history here."
+        else:
+            text = f"📋 **Test History** (Last {len(test_history)} tests)\n\n"
+            
+            for i, test in enumerate(test_history, 1):
+                status_emoji = "✅" if test['success_rate'] >= 80 else "⚠️" if test['success_rate'] >= 60 else "❌"
+                started_time = datetime.fromisoformat(test['started_at']).strftime('%m/%d %H:%M')
+                
+                text += f"{i}. {status_emoji} **{test['suite_id']}**\n"
+                text += f"   • {started_time} - {test['success_rate']:.1f}% success\n"
+                text += f"   • {test['passed_tests']}/{test['total_tests']} tests passed\n\n"
+        
+        keyboard = [
+            [InlineKeyboardButton(text="🧪 Run New Test", callback_data="admin_test_workflow")],
+            [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+        ]
+        
+        await callback_query.message.edit_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode='Markdown'
+        )
+        await callback_query.answer()
+        
+        await bot.session.close()
+        
+    except Exception as e:
+        await callback_query.message.edit_text(
+            f"❌ **Error Loading Test History**\n\n"
+            f"Error: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+            ])
+        )
+        await callback_query.answer()
+
+@router.callback_query(F.data.startswith("view_test_report_"))
+async def view_test_report_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle view test report button"""
+    user_id = callback_query.from_user.id
+    
+    if not admin_system.is_admin(user_id):
+        await callback_query.answer("ERROR: Access denied.")
+        return
+    
+    suite_id = callback_query.data.replace("view_test_report_", "")
+    
+    try:
+        import sqlite3
+        conn = sqlite3.connect("bot.db")
+        cursor = conn.cursor()
+        
+        # Get test suite details
+        cursor.execute("""
+            SELECT final_report FROM admin_test_suites 
+            WHERE suite_id = ? AND admin_user_id = ?
+        """, (suite_id, user_id))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            await callback_query.answer("Test report not found.")
+            return
+        
+        report = result[0]
+        
+        # Truncate report if too long for Telegram
+        if len(report) > 4000:
+            report = report[:3900] + "\n\n... (Report truncated for display)"
+        
+        keyboard = [
+            [InlineKeyboardButton(text="📋 Test History", callback_data="admin_test_history")],
+            [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+        ]
+        
+        await callback_query.message.edit_text(
+            report,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode='Markdown'
+        )
+        await callback_query.answer()
+        
+    except Exception as e:
+        await callback_query.message.edit_text(
+            f"❌ **Error Loading Report**\n\n"
+            f"Error: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
+            ])
+        )
+        await callback_query.answer()
