@@ -262,12 +262,12 @@ async def create_partner_main_menu_keyboard(language: str, user_id: int) -> Inli
     if can_use_trial:
         keyboard_rows.append([
             InlineKeyboardButton(
-                text="🎁 ⚡ QUANTUM GIFT ⚡ Free Neural Trial (1 Day)", 
+                text="🎁 ✨ FREE TRIAL ✨ One Day Free (1 Day)", 
                 callback_data="free_trial"
             )
         ])
     
-    # Primary Neural Actions Row
+    # Primary Actions Row
     keyboard_rows.append([
         InlineKeyboardButton(
             text=get_text(language, 'create_ad'), 
@@ -544,7 +544,7 @@ async def show_main_menu(message_or_query, language: str):
     await ui_effects.typing_simulation(bot, chat_id, "Loading your personalized interface...")
     
     # Always show regular interface for all users (as requested by user)
-    # Neural network interface was confusing, so we use simple, clear language
+    # Simple, clear interface for better user experience
     text = await create_regular_main_menu_text(language, user_id)
     
     # Add step title to the main menu text
@@ -5210,10 +5210,10 @@ async def view_earnings_handler(callback_query: CallbackQuery):
         
         # Create Web3-themed earnings dashboard
         earnings_metrics = {
-            'Quantum_Balance': f'{pending_rewards:.2f}',
-            'Neural_Tier': tier,
-            'Network_Nodes': referral_count,
-            'Total_Mined': f'{total_earnings:.2f}',
+            'Current_Balance': f'{pending_rewards:.2f}',
+            'Tier_Level': tier,
+            'Referrals_Count': referral_count,
+            'Total_Earned': f'{total_earnings:.2f}',
             'Progress_Level': f'{progress_percentage:.1f}%'
         }
         
@@ -5232,11 +5232,11 @@ async def view_earnings_handler(callback_query: CallbackQuery):
         separator_section = Web3UI.create_neon_separator(35, "quantum")
         
         milestone_section = """
-◇━━━ MILESTONE PROTOCOL ━━━◇
-◈ 5 Network Nodes → +2.5 TON Quantum Bonus
-◈ 10 Network Nodes → +6.0 TON Neural Reward  
-◈ 25 Network Nodes → +20.0 TON Matrix Bonus
-◈ 50 Network Nodes → +50.0 TON Nexus Prize
+🎯 **Referral Rewards**
+🎁 5 Referrals → +2.5 TON Bonus
+🎁 10 Referrals → +6.0 TON Reward  
+🎁 25 Referrals → +20.0 TON Bonus
+🎁 50 Referrals → +50.0 TON Prize
 """
         
         earnings_text = f"""
@@ -5263,7 +5263,7 @@ async def view_earnings_handler(callback_query: CallbackQuery):
         
         keyboard_buttons = [
             [
-                InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Neural Stats", "quantum"), callback_data="referral_stats"),
+                InlineKeyboardButton(text="📊 Referral Stats", callback_data="referral_stats"),
                 InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Network Expansion", "neural"), callback_data="share_earn")
             ]
         ]
@@ -5275,7 +5275,7 @@ async def view_earnings_handler(callback_query: CallbackQuery):
             ])
         
         keyboard_buttons.append([
-            InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Neural Pathways", "back"), callback_data="share_earn")
+            InlineKeyboardButton(text="🔙 Back to Referrals", callback_data="share_earn")
         ])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -5497,7 +5497,7 @@ async def confirm_payout_handler(callback_query: CallbackQuery, state: FSMContex
         header_section = Web3UI.create_neural_header("QUANTUM WITHDRAWAL INITIATED", "Transaction Confirmed")
         dashboard_section = Web3UI.create_fintech_dashboard("TRANSACTION MATRIX", payout_metrics)
         
-        protocol_sequence = '''Neural Protocol Sequence:
+        payment_sequence = '''Payment Process:
 ◈ Quantum Support Contact → 24 hour window
 ◈ Wallet Verification → TON address required
 ◈ Blockchain Transfer → Quantum vault transmission
@@ -5619,35 +5619,35 @@ async def referral_stats_handler(callback_query: CallbackQuery):
         
         from web3_ui import Web3UI
         
-        # Create Web3-themed referral statistics
-        neural_metrics = {
-            'Neural_Tier': tier,
-            'Mining_Rate': f'{rate} TON',
-            'Network_Nodes': referral_count,
-            'Next_Protocol': next_tier.replace(' more referrals needed', ' nodes required')
+        # Create referral statistics
+        referral_metrics = {
+            'Tier_Level': tier,
+            'Reward_Rate': f'{rate} TON',
+            'Referrals_Count': referral_count,
+            'Next_Tier': next_tier.replace(' more referrals needed', ' referrals needed')
         }
         
-        milestone_text = '''Milestone Quantum Rewards:
-◈ 5 Network Nodes → +2.5 TON
-◈ 10 Network Nodes → +6.0 TON
-◈ 25 Network Nodes → +20.0 TON
-◈ 50 Network Nodes → +50.0 TON'''
+        milestone_text = '''Milestone Referral Rewards:
+🎁 5 Referrals → +2.5 TON
+🎁 10 Referrals → +6.0 TON
+🎁 25 Referrals → +20.0 TON
+🎁 50 Referrals → +50.0 TON'''
         
         # Build referral stats with Web3 components
         header_section = Web3UI.create_neural_header("NEURAL NETWORK ANALYTICS", "Referral Mining Protocol")
-        dashboard_section = Web3UI.create_fintech_dashboard("NETWORK STATISTICS", neural_metrics)
+        dashboard_section = Web3UI.create_fintech_dashboard("REFERRAL STATISTICS", referral_metrics)
         
         tier_protocols = '''
-◇ INITIATE → 0.5 TON per node
-◈ NAVIGATOR → 0.8 TON per node (5+ nodes)
-◆ ARCHITECT → 1.2 TON per node (15+ nodes)
-⬢ QUANTUM → 2.0 TON per node (25+ nodes)'''
+🔷 BASIC → 0.5 TON per referral
+🔶 SILVER → 0.8 TON per referral (5+ referrals)
+🔵 GOLD → 1.2 TON per referral (15+ referrals)
+💎 PREMIUM → 2.0 TON per referral (25+ referrals)'''
         
         protocols_section = Web3UI.create_quantum_section("TIER PROTOCOLS", tier_protocols, "process")
         milestone_section = Web3UI.create_holographic_display(milestone_text, "neural")
         
-        neural_link = f"Neural Link: https://t.me/I3lani_bot?start=ref_{user_id}"
-        alert_section = Web3UI.create_web3_alert(neural_link, "quantum")
+        referral_link = f"Referral Link: https://t.me/I3lani_bot?start=ref_{user_id}"
+        alert_section = Web3UI.create_web3_alert(referral_link, "quantum")
         expansion_section = Web3UI.create_quantum_section("RECENT NETWORK EXPANSION", '', "data")
         
         stats_text = f"""
@@ -5673,7 +5673,7 @@ async def referral_stats_handler(callback_query: CallbackQuery):
             stats_text += "\nNo referrals yet. Share your link to start earning!"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Broadcast Neural Link", "quantum"), url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join the I3lani Neural Network and mine TON!")],
+            [InlineKeyboardButton(text="📢 Share Referral Link", url=f"https://t.me/share/url?url=https://t.me/I3lani_bot?start=ref_{user_id}&text=Join I3lani and earn TON rewards!")],
             [InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Quantum Earnings", "crypto"), callback_data="view_earnings")],
             [InlineKeyboardButton(text=Web3UI.create_cyber_keyboard_button("Neural Hub", "back"), callback_data="back_to_main")]
         ])
