@@ -301,7 +301,26 @@ class CleanStarsPayment:
             logger.info(f"✅ Campaign created: Ad ID {ad_id}, Payment ID {payment_id}")
             logger.info(f"   Subscriptions: {len(subscription_ids)} created and activated")
             
-            return f"CAM-{payment_id}"
+            campaign_id = f"CAM-{payment_id}"
+            
+            # CRITICAL: Execute comprehensive publishing workflow
+            try:
+                from comprehensive_publishing_workflow import execute_post_payment_publishing
+                
+                publishing_result = await execute_post_payment_publishing(self.bot, campaign_id)
+                
+                logger.info(f"✅ Stars publishing workflow executed: {publishing_result.get_success_rate():.1f}% success rate")
+                
+                if publishing_result.is_complete_success():
+                    logger.info(f"🎉 Stars campaign {campaign_id} successfully published to all channels")
+                else:
+                    logger.warning(f"⚠️ Stars campaign {campaign_id} had publishing issues: {len(publishing_result.failed_channels)} failed channels")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error executing Stars publishing workflow for campaign {campaign_id}: {e}")
+                # Don't fail the campaign creation if publishing fails
+            
+            return campaign_id
             
         except Exception as e:
             logger.error(f"❌ Error creating campaign from payment: {e}")

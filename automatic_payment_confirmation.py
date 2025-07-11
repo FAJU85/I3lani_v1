@@ -246,7 +246,7 @@ Thank you for choosing I3lani! 🚀"""
             return False
     
     async def activate_campaign(self, user_id: int, memo: str, amount: float, ad_data: dict):
-        """Activate user campaign with unique ID"""
+        """Activate user campaign with unique ID and execute comprehensive publishing workflow"""
         try:
             # Create campaign using the new campaign management system
             from campaign_management import create_campaign_for_payment
@@ -257,6 +257,27 @@ Thank you for choosing I3lani! 🚀"""
             
             if campaign_id:
                 logger.info(f"✅ Campaign {campaign_id} activated for user {user_id}, memo {memo}")
+                
+                # CRITICAL: Execute comprehensive publishing workflow
+                try:
+                    from comprehensive_publishing_workflow import execute_post_payment_publishing
+                    from config import BOT_TOKEN
+                    from aiogram import Bot
+                    
+                    bot = Bot(token=BOT_TOKEN)
+                    publishing_result = await execute_post_payment_publishing(bot, campaign_id)
+                    
+                    logger.info(f"✅ Publishing workflow executed: {publishing_result.get_success_rate():.1f}% success rate")
+                    
+                    if publishing_result.is_complete_success():
+                        logger.info(f"🎉 Campaign {campaign_id} successfully published to all channels")
+                    else:
+                        logger.warning(f"⚠️ Campaign {campaign_id} had publishing issues: {len(publishing_result.failed_channels)} failed channels")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error executing publishing workflow for campaign {campaign_id}: {e}")
+                    # Don't fail the campaign creation if publishing fails
+                    
                 return campaign_id
             else:
                 logger.error(f"❌ Failed to create campaign for user {user_id}, memo {memo}")
