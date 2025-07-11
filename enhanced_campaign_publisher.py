@@ -141,17 +141,21 @@ class EnhancedCampaignPublisher:
                 logger.error(f"❌ Failed to create post identity for campaign {campaign_id}")
                 return False
             
-            # Get verified content from post identity system
-            post_metadata = await get_post_metadata(post_identity_id)
+            # FIXED: Get content directly from current campaign (not from post identity system)
+            # This ensures we publish the exact content from the current campaign
+            content_to_publish = post_data['ad_content']
+            media_url = post_data.get('media_url')
+            content_type = post_data.get('content_type', 'text')
             
-            if not post_metadata:
-                logger.error(f"❌ No metadata found for post identity {post_identity_id}")
+            logger.info(f"🎯 CONTENT VERIFICATION - Using content directly from campaign {campaign_id}")
+            logger.info(f"   Campaign content: {content_to_publish[:100]}...")
+            logger.info(f"   Media URL: {media_url}")
+            logger.info(f"   Content Type: {content_type}")
+            
+            # Verify we have the correct content
+            if not content_to_publish:
+                logger.error(f"❌ No content found for campaign {campaign_id}")
                 return False
-            
-            # Use content from post identity (guarantees original content)
-            content_to_publish = post_metadata.content_text
-            media_url = post_metadata.content_image or post_metadata.content_video
-            content_type = post_metadata.content_type
             
             logger.info(f"📤 Publishing {post_identity_id} to {channel_id}")
             logger.info(f"   Content: {content_to_publish[:50]}...")
@@ -256,7 +260,7 @@ class EnhancedCampaignPublisher:
             # Get campaign details
             campaign_details = await self._get_campaign_details(campaign_id)
             
-            # Prepare content data with exact user submission
+            # FIXED: Use content directly from current campaign data
             content_data = {
                 'content': post_data['ad_content'],
                 'content_type': post_data.get('content_type', 'text'),
@@ -264,19 +268,23 @@ class EnhancedCampaignPublisher:
                 'ad_content': post_data['ad_content']
             }
             
-            # Check if post identity already exists for this campaign (should be only one)
-            from post_identity_system import post_identity_system
-            existing_post = await post_identity_system.get_post_for_campaign(campaign_id)
+            logger.info(f"🎯 CREATING POST IDENTITY with current campaign content:")
+            logger.info(f"   Campaign ID: {campaign_id}")
+            logger.info(f"   Content: {content_data['content'][:100]}...")
+            logger.info(f"   Content Type: {content_data['content_type']}")
+            logger.info(f"   Media URL: {content_data['media_url']}")
             
-            if existing_post:
-                logger.info(f"✅ Using existing post identity for campaign {campaign_id}: {existing_post.post_id}")
-                return existing_post.post_id
-            
-            # Create new post identity
+            # Always create a new post identity for this publishing cycle
+            # This ensures we don't use old/cached content
             post_identity_id = await create_post_identity(
                 campaign_id, user_id, advertiser_username,
                 content_data, campaign_details
             )
+            
+            if post_identity_id:
+                logger.info(f"✅ Created new post identity {post_identity_id} for campaign {campaign_id}")
+            else:
+                logger.error(f"❌ Failed to create post identity for campaign {campaign_id}")
             
             return post_identity_id
             
