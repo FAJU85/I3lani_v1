@@ -226,6 +226,11 @@ class EnhancedCampaignPublisher:
                     content_type, media_url
                 )
                 
+                # Send notification to user about successful publishing
+                await self._send_publishing_notification(
+                    user_id, campaign_id, channel_id, post_identity_id
+                )
+                
                 return True
             else:
                 logger.error(f"❌ Failed to publish {post_identity_id} to {channel_id}")
@@ -451,6 +456,58 @@ class EnhancedCampaignPublisher:
             
         except Exception as e:
             logger.error(f"❌ Error marking post failed: {e}")
+    
+    async def _send_publishing_notification(self, user_id: int, campaign_id: str, channel_id: str, post_identity: str):
+        """Send publishing notification to user"""
+        try:
+            from database import Database
+            from comprehensive_bug_fixes import get_publishing_notification
+            
+            db = Database()
+            user = await db.get_user(user_id)
+            language = user.get('language', 'en') if user else 'en'
+            
+            # Get channel name
+            try:
+                chat = await self.bot.get_chat(channel_id)
+                channel_name = f"@{chat.username}" if chat.username else chat.title
+            except:
+                channel_name = channel_id
+            
+            # Get campaign stats
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published,
+                    COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as remaining,
+                    (julianday(end_date) - julianday('now')) as days_remaining
+                FROM campaign_posts cp
+                JOIN campaigns c ON cp.campaign_id = c.campaign_id
+                WHERE cp.campaign_id = ?
+            """, (campaign_id,))
+            
+            stats = cursor.fetchone()
+            conn.close()
+            
+            if stats:
+                published, remaining, days_remaining = stats
+                post_number = published
+                total_posts = published + remaining
+                days_remaining = int(days_remaining) if days_remaining and days_remaining > 0 else 0
+                
+                # Get notification message
+                notification = get_publishing_notification(
+                    campaign_id, channel_name, post_number, 
+                    total_posts, days_remaining, language
+                )
+                
+                await self.bot.send_message(user_id, notification, parse_mode='Markdown')
+                logger.info(f"✅ Sent publishing notification to user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error sending publishing notification: {e}")
     
     async def _log_channel_publishing_success(self, campaign_id: str, channel_id: str, message_id: int, content_type: str, media_url: str = None):
         """Log successful channel publishing"""

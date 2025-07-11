@@ -179,14 +179,6 @@ Thank you for choosing I3lani! 🚀"""
                 [InlineKeyboardButton(text="📊 My Ads", callback_data="my_ads")]
             ])
             
-            # Send confirmation
-            await bot_instance.send_message(
-                user_id, 
-                confirmation_message,
-                reply_markup=keyboard,
-                parse_mode='Markdown'
-            )
-            
             # Mark as confirmed
             await self.mark_payment_confirmed(memo)
             
@@ -195,7 +187,16 @@ Thank you for choosing I3lani! 🚀"""
             
             # Update confirmation message to include campaign ID
             if campaign_id:
-                confirmation_message += f"\n\n**🎯 Campaign ID:** {campaign_id}"
+                from comprehensive_bug_fixes import get_campaign_confirmation_message
+                confirmation_message = get_campaign_confirmation_message(campaign_id, language)
+            
+            # Send confirmation with campaign ID
+            await bot_instance.send_message(
+                user_id, 
+                confirmation_message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
             
             logger.info(f"✅ Automatic confirmation sent to user {user_id} for memo {memo}")
             return True

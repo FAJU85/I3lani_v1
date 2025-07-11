@@ -13,7 +13,6 @@ from states import WalletStates, AdCreationStates
 from database import db
 from languages import get_text
 from database import get_user_language
-from fix_ui_issues import create_wallet_button_text
 
 
 logger = logging.getLogger(__name__)
