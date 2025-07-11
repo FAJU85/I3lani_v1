@@ -2,6 +2,8 @@
 Message and callback handlers for I3lani Telegram Bot
 """
 from step_title_system import get_step_title, create_titled_message
+from animated_transitions import get_animated_transitions, animate_to_stage, smooth_callback_transition
+from transition_integration import TransitionIntegration
 from aiogram import Router, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -545,17 +547,33 @@ async def show_main_menu(message_or_query, language: str):
     logger.info(f"📝 Main menu text preview: {text[:50]}...")
     
     if isinstance(message_or_query, Message):
-        await message_or_query.answer(titled_text, reply_markup=keyboard, parse_mode='HTML')
+        # Use animated transition for new messages
+        success = await animate_to_stage(
+            message_or_query=message_or_query,
+            to_stage="main_menu",
+            content=text,
+            language=language,
+            user_id=user_id,
+            keyboard=keyboard
+        )
+        if not success:
+            # Fallback to direct message
+            await message_or_query.answer(titled_text, reply_markup=keyboard, parse_mode='HTML')
     else:
-        try:
-            # Use fade transition for smoother UX
-            await ui_effects.fade_transition(message_or_query.message, 
-                                           message_or_query.message.text or "Loading...", 
-                                           titled_text)
-            await message_or_query.message.edit_reply_markup(reply_markup=keyboard)
-        except Exception as e:
-            # If edit fails, send new message
-            await message_or_query.message.answer(titled_text, reply_markup=keyboard, parse_mode='HTML')
+        # Use smooth callback transition
+        success = await smooth_callback_transition(
+            callback_query=message_or_query,
+            new_content=titled_text,
+            keyboard=keyboard,
+            language=language,
+            stage_key="main_menu"
+        )
+        if not success:
+            # Fallback to direct edit
+            try:
+                await message_or_query.message.edit_text(titled_text, reply_markup=keyboard, parse_mode='HTML')
+            except Exception as e:
+                await message_or_query.message.answer(titled_text, reply_markup=keyboard, parse_mode='HTML')
 
 
 @router.callback_query(F.data.startswith("lang_"))
@@ -1188,10 +1206,14 @@ async def show_channel_selection_for_message(message: Message, state: FSMContext
     user_id = message.from_user.id
     language = await get_user_language(user_id)
     
-    # Send typing action for better UX
-    await message.bot.send_chat_action(
+    # Use enhanced typing simulation with animation
+    from animated_transitions import get_animated_transitions
+    transitions = get_animated_transitions()
+    await transitions.typing_simulation(
+        bot=message.bot,
         chat_id=message.chat.id,
-        action="typing"
+        text=get_text(language, 'loading_channels'),
+        duration=1.5
     )
     
     # Get only active channels where bot is admin
@@ -1321,12 +1343,23 @@ async def show_channel_selection_for_message(message: Message, state: FSMContext
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
     
-    # Send new message instead of editing (for message-based flow)
-    await message.answer(
-        channel_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
+    # Use animated transition for channel selection
+    success = await animate_to_stage(
+        message_or_query=message,
+        to_stage="select_channels",
+        content=channel_content,
+        language=language,
+        user_id=user_id,
+        keyboard=keyboard
     )
+    
+    if not success:
+        # Fallback to direct message
+        await message.answer(
+            channel_text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
 
 
 async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery, state: FSMContext):
@@ -1335,10 +1368,14 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Send typing action for better UX
-    await callback_query.bot.send_chat_action(
+    # Use enhanced typing simulation with animation
+    from animated_transitions import get_animated_transitions
+    transitions = get_animated_transitions()
+    await transitions.typing_simulation(
+        bot=callback_query.bot,
         chat_id=callback_query.message.chat.id,
-        action="typing"
+        text=get_text(language, 'loading_channels'),
+        duration=1.5
     )
     
     # Get only active channels where bot is admin
@@ -1561,12 +1598,25 @@ async def show_settings_handler(callback_query: CallbackQuery):
             ]
         ])
         
-        await safe_callback_edit(
-            callback_query,
-            text=settings_text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
+        # Use animated transition for settings
+        integration = TransitionIntegration()
+        success = await integration.apply_callback_transition(
+            callback_query=callback_query,
+            content=settings_text,
+            keyboard=keyboard,
+            language=language,
+            handler_name="show_settings_handler",
+            from_context="main_menu"
         )
+        
+        if not success:
+            # Fallback to safe edit
+            await safe_callback_edit(
+                callback_query,
+                text=settings_text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
         logger.info(f"✅ settings completed successfully for user {user_id}")
         
     except Exception as e:
@@ -1594,17 +1644,33 @@ async def show_help_handler(callback_query: CallbackQuery):
         # Add step title to the help content  
         help_text = get_user_language_and_create_titled_message(user_id, "help", help_content)
         
-        await callback_query.message.edit_text(
-            help_text,
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(
-                    text=get_text(language, 'back_to_main'), 
-                    callback_data="back_to_main"
-                )]
-            ]),
-            parse_mode='Markdown'
+        # Create help keyboard
+        help_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=get_text(language, 'back_to_main'), 
+                callback_data="back_to_main"
+            )]
+        ])
+        
+        # Use animated transition for help
+        integration = TransitionIntegration()
+        success = await integration.apply_callback_transition(
+            callback_query=callback_query,
+            content=help_text,
+            keyboard=help_keyboard,
+            language=language,
+            handler_name="show_help_handler",
+            from_context="main_menu"
         )
-        await safe_callback_answer(callback_query, "")
+        
+        if not success:
+            # Fallback to direct edit
+            await callback_query.message.edit_text(
+                help_text,
+                reply_markup=help_keyboard,
+                parse_mode='Markdown'
+            )
+            await safe_callback_answer(callback_query, "")
         logger.info(f"✅ help completed successfully for user {user_id}")
         
     except Exception as e:
@@ -1664,13 +1730,25 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
             ]
         ])
         
-        # Use safe edit with timeout protection
-        await safe_callback_edit(
-            callback_query,
-            text=text,
-            reply_markup=keyboard,
-            parse_mode='Markdown'
+        # Use animated transition for create ad
+        integration = TransitionIntegration()
+        success = await integration.apply_callback_transition(
+            callback_query=callback_query,
+            content=text,
+            keyboard=keyboard,
+            language=language,
+            handler_name="create_ad_handler",
+            from_context="main_menu"
         )
+        
+        if not success:
+            # Fallback to safe edit
+            await safe_callback_edit(
+                callback_query,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
         
         log_success(StepNames.CREATE_AD_START, user_id, "Ad creation started with modern UI")
         logger.info(f"✅ create_ad completed successfully for user {user_id}")
