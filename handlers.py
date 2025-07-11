@@ -4,6 +4,7 @@ Message and callback handlers for I3lani Telegram Bot
 from step_title_system import get_step_title, create_titled_message
 from animated_transitions import get_animated_transitions, animate_to_stage, smooth_callback_transition
 from transition_integration import TransitionIntegration
+from contextual_help_system import get_contextual_help_system, show_help_bubble, add_help_to_keyboard
 from aiogram import Router, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -538,6 +539,10 @@ async def show_main_menu(message_or_query, language: str):
     titled_text = get_user_language_and_create_titled_message(user_id, "main_menu", text)
     
     keyboard = await create_regular_main_menu_keyboard(language, user_id)
+    
+    # Add contextual help button to main menu
+    keyboard = add_help_to_keyboard(keyboard, "main_menu", language)
+    
     logger.info(f"👤 Regular interface for user {user_id}")
     
     # Keep text simple and clear without dynamic enhancements
@@ -1343,6 +1348,9 @@ async def show_channel_selection_for_message(message: Message, state: FSMContext
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
     
+    # Add contextual help button for channel selection
+    keyboard = add_help_to_keyboard(keyboard, "select_channels", language)
+    
     # Use animated transition for channel selection
     success = await animate_to_stage(
         message_or_query=message,
@@ -1729,6 +1737,9 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
                 )
             ]
         ])
+        
+        # Add contextual help button for ad creation
+        keyboard = add_help_to_keyboard(keyboard, "create_ad_start", language)
         
         # Use animated transition for create ad
         integration = TransitionIntegration()
@@ -7847,3 +7858,69 @@ async def start_viral_game_handler(callback_query: CallbackQuery, state: FSMCont
     except Exception as e:
         logger.error(f"❌ start_viral_game error for user {user_id}: {e}")
         await safe_callback_answer(callback_query, "Error starting viral game. Please try again.", show_alert=True)
+
+
+# Contextual Help Handlers
+@router.callback_query(F.data.startswith("show_help_"))
+async def show_contextual_help_handler(callback_query: CallbackQuery):
+    """Show contextual help bubble for specific steps"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Extract step key from callback data
+    step_key = callback_query.data.replace("show_help_", "")
+    
+    try:
+        # Show contextual help bubble
+        help_system = get_contextual_help_system()
+        success = await help_system.show_contextual_help_bubble(
+            callback_query, step_key, language, "compact"
+        )
+        
+        if not success:
+            await callback_query.answer("Help not available for this step")
+        
+        logger.info(f"✅ Contextual help shown for step: {step_key}, user: {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error showing contextual help: {e}")
+        await callback_query.answer("Help system error")
+
+
+@router.callback_query(F.data.startswith("help_action_"))
+async def help_action_handler(callback_query: CallbackQuery):
+    """Handle quick action buttons in help bubbles"""
+    user_id = callback_query.from_user.id
+    
+    try:
+        help_system = get_contextual_help_system()
+        success = await help_system.handle_help_action(callback_query, callback_query.data)
+        
+        if not success:
+            await callback_query.answer("Action not available")
+        
+        logger.info(f"✅ Help action executed for user: {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error handling help action: {e}")
+        await callback_query.answer("Action error")
+
+
+@router.callback_query(F.data.startswith("help_dismiss_"))
+async def help_dismiss_handler(callback_query: CallbackQuery):
+    """Handle help bubble dismissal"""
+    user_id = callback_query.from_user.id
+    
+    try:
+        step_key = callback_query.data.replace("help_dismiss_", "")
+        help_system = get_contextual_help_system()
+        success = await help_system.handle_help_dismiss(callback_query, step_key)
+        
+        if not success:
+            await callback_query.answer("Error dismissing help")
+        
+        logger.info(f"✅ Help dismissed for step: {step_key}, user: {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error dismissing help: {e}")
+        await callback_query.answer("Dismiss error")
