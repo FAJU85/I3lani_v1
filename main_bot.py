@@ -250,6 +250,21 @@ async def init_bot():
             stars_handler = init_stars_handler(bot)
             logger.info("Fallback Telegram Stars system initialized successfully")
         
+        # Initialize end-to-end tracking system
+        logger.info("Initializing end-to-end tracking system...")
+        try:
+            from end_to_end_tracking_system import get_tracking_system
+            tracking_system = get_tracking_system()
+            await tracking_system.initialize_database()
+            logger.info("✅ End-to-end tracking system initialized")
+            logger.info("   📊 Comprehensive journey tracking from /start to publication")
+            logger.info("   🏷️ Integrated with Global Sequence ID System")
+            logger.info("   🔔 Automatic final confirmation messages")
+            logger.info("   📈 Real-time campaign progress monitoring")
+        except Exception as e:
+            logger.error(f"❌ End-to-end tracking system initialization error: {e}")
+            # Continue without tracking system
+        
         # Setup handlers
         logger.info("Setting up handlers...")
         setup_handlers(dp)

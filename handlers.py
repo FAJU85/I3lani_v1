@@ -44,6 +44,12 @@ from confirmation_system import confirmation_system
 from confirmation_handlers import CONFIRMATION_HANDLERS
 from viral_referral_handlers import has_free_ads, consume_free_ad
 from error_reporting_system import error_reporting, ErrorReport
+from handlers_tracking_integration import (
+    track_bot_start, track_create_ad_start, track_content_upload,
+    track_channel_selection, track_duration_selection, track_frequency_selection,
+    track_campaign_confirmation, track_payment_method_selection,
+    track_payment_processing, track_payment_confirmed, track_publishing_scheduled
+)
 # Flow validator removed for cleanup
 
 logger = logging.getLogger(__name__)
@@ -399,6 +405,12 @@ async def start_command(message: Message, state: FSMContext):
         'username': username,
         'user_id': user_id
     })
+    
+    # Track bot start with end-to-end tracking system
+    try:
+        await track_bot_start(user_id, username, state)
+    except Exception as e:
+        logger.error(f"Error tracking bot start: {e}")
     
     # Initialize anti-fraud system
     from anti_fraud import AntiFraudSystem
@@ -756,6 +768,12 @@ async def upload_content_handler(message: Message, state: FSMContext):
         ad_content=content,
         content_type='text'
     )
+    
+    # Track content upload with end-to-end tracking system
+    try:
+        await track_content_upload(user_id, 'text', state)
+    except Exception as e:
+        logger.error(f"Error tracking content upload: {e}")
     
     # Skip contact info step - go directly to channel selection
     await state.set_state(AdCreationStates.select_channels)
@@ -1699,6 +1717,12 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
     # Log the ad creation step
     log_info(StepNames.CREATE_AD_START, user_id, "User clicked create ad button")
     
+    # Track ad creation start with end-to-end tracking system
+    try:
+        await track_create_ad_start(user_id, state)
+    except Exception as e:
+        logger.error(f"Error tracking ad creation start: {e}")
+    
     try:
         # Use safe callback handler to prevent timeout errors
         await safe_callback_answer(callback_query, "")
@@ -2470,6 +2494,12 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     # Store pricing calculation in state
     await state.update_data(pricing_calculation=calculation)
     
+    # Track duration selection with end-to-end tracking system
+    try:
+        await track_duration_selection(user_id, days, state)
+    except Exception as e:
+        logger.error(f"Error tracking duration selection: {e}")
+    
     # Generate pricing preview text
     total_usd = calculation.get('total_usd', 0)
     total_stars = calculation.get('total_stars', 0)
@@ -2996,6 +3026,12 @@ async def pay_frequency_ton_handler(callback_query: CallbackQuery, state: FSMCon
     if not pricing_data:
         await callback_query.answer("❌ Pricing data not found")
         return
+    
+    # Track payment method selection
+    try:
+        await track_payment_method_selection(user_id, 'TON', state)
+    except Exception as e:
+        logger.error(f"Error tracking payment method selection: {e}")
     
     # Store payment data for wallet manager
     await state.update_data(
@@ -6179,6 +6215,12 @@ async def continue_with_channels_handler(callback_query: CallbackQuery, state: F
         # Store selected channels and proceed to days selection
         await state.update_data(selected_channels=selected_channels)
         await state.set_state(AdCreationStates.payment_selection)
+        
+        # Track channel selection with end-to-end tracking system
+        try:
+            await track_channel_selection(callback_query.from_user.id, selected_channels, state)
+        except Exception as e:
+            logger.error(f"Error tracking channel selection: {e}")
         
         # Show dynamic days selector (this was missing!)
         await show_dynamic_days_selector(callback_query, state, 1)

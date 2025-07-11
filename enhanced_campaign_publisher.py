@@ -15,6 +15,7 @@ from post_identity_system import (
     post_identity_system, create_post_identity, get_post_metadata, 
     log_publication, verify_campaign_integrity
 )
+from handlers_tracking_integration import track_publishing_started, track_publishing_complete
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -68,14 +69,27 @@ class EnhancedCampaignPublisher:
                 
                 for post in due_posts:
                     campaign_id = post['campaign_id']
+                    user_id = post['user_id']
                     
                     # Skip if we already processed this campaign
                     if campaign_id in campaigns_processed:
                         logger.info(f"⏭️ Skipping duplicate post for campaign {campaign_id}")
                         continue
                     
-                    await self._publish_campaign_post(post)
+                    # Track publishing started for this campaign
+                    if campaign_id not in campaigns_processed:
+                        try:
+                            await track_publishing_started(user_id, campaign_id)
+                        except Exception as e:
+                            logger.error(f"Error tracking publishing started: {e}")
+                    
+                    # Publish the post
+                    success = await self._publish_campaign_post(post)
                     campaigns_processed.add(campaign_id)
+                    
+                    # Check if campaign is complete and trigger final confirmation
+                    if success:
+                        await self._check_campaign_completion(campaign_id, user_id)
                     
         except Exception as e:
             logger.error(f"❌ Error processing due posts: {e}")
@@ -251,6 +265,53 @@ class EnhancedCampaignPublisher:
         except Exception as e:
             logger.error(f"❌ Error finding post identity: {e}")
             return None
+    
+    async def _check_campaign_completion(self, campaign_id: str, user_id: int):
+        """Check if campaign is complete and trigger final confirmation"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Get campaign post statistics
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_posts,
+                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published_posts,
+                    COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_posts,
+                    COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as scheduled_posts
+                FROM campaign_posts
+                WHERE campaign_id = ?
+            """, (campaign_id,))
+            
+            stats = cursor.fetchone()
+            
+            if stats:
+                total_posts, published_posts, failed_posts, scheduled_posts = stats
+                
+                # Check if all posts are completed (published or failed)
+                if scheduled_posts == 0 and total_posts > 0:
+                    logger.info(f"✅ Campaign {campaign_id} completed: {published_posts} published, {failed_posts} failed")
+                    
+                    # Track publishing completion
+                    try:
+                        await track_publishing_complete(user_id, campaign_id)
+                    except Exception as e:
+                        logger.error(f"Error tracking publishing complete: {e}")
+                    
+                    # Update campaign status
+                    cursor.execute("""
+                        UPDATE campaigns 
+                        SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+                        WHERE campaign_id = ?
+                    """, (campaign_id,))
+                    conn.commit()
+                    
+                    logger.info(f"🎉 Campaign {campaign_id} marked as completed and final confirmation sent")
+                
+            conn.close()
+            
+        except Exception as e:
+            logger.error(f"❌ Error checking campaign completion: {e}")
     
     async def _get_user_username(self, user_id: int) -> str:
         """Get user username for post identity"""
