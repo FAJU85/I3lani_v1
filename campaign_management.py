@@ -196,6 +196,7 @@ class CampaignManager:
             cursor = conn.cursor()
             
             # Insert campaign
+            ad_content = ad_data.get('ad_content', f'Advertisement campaign for payment {payment_memo}')
             cursor.execute("""
                 INSERT INTO campaigns (
                     campaign_id, user_id, payment_memo, payment_method, payment_amount,
@@ -205,7 +206,7 @@ class CampaignManager:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 campaign_id, user_id, payment_memo, payment_method, payment_amount,
-                f"Campaign {campaign_id}", ad_data.get('ad_content', f'Advertisement campaign for payment {payment_memo}'),
+                f"Campaign {campaign_id}", ad_content,
                 duration_days, posts_per_day, total_posts,
                 ','.join(selected_channels), len(selected_channels), total_reach,
                 start_date, end_date, 'active', json.dumps(campaign_metadata)
@@ -215,6 +216,23 @@ class CampaignManager:
             conn.close()
             
             logger.info(f"✅ Created campaign {campaign_id} for user {user_id}")
+            
+            # ENHANCED: Register content integrity fingerprint for this campaign
+            try:
+                from content_integrity_system import register_campaign_content
+                
+                content_fingerprint = await register_campaign_content(
+                    campaign_id, user_id, sequence_id, ad_content, 
+                    ad_data.get('media_url'), ad_data.get('content_type', 'text')
+                )
+                
+                logger.info(f"✅ Content integrity registered for campaign {campaign_id}")
+                logger.info(f"   Content hash: {content_fingerprint.content_hash}")
+                logger.info(f"   Sequence ID: {sequence_id}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error registering content integrity: {e}")
+                # Don't fail campaign creation, but log the issue for monitoring
             
             # Schedule campaign posts
             await self.schedule_campaign_posts(campaign_id, selected_channels, posts_per_day, duration_days)

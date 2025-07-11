@@ -141,8 +141,7 @@ class EnhancedCampaignPublisher:
                 logger.error(f"❌ Failed to create post identity for campaign {campaign_id}")
                 return False
             
-            # FIXED: Get content directly from current campaign (not from post identity system)
-            # This ensures we publish the exact content from the current campaign
+            # ENHANCED: Get content directly from current campaign with integrity verification
             content_to_publish = post_data['ad_content']
             media_url = post_data.get('media_url')
             content_type = post_data.get('content_type', 'text')
@@ -156,6 +155,18 @@ class EnhancedCampaignPublisher:
             if not content_to_publish:
                 logger.error(f"❌ No content found for campaign {campaign_id}")
                 return False
+            
+            # ENHANCED: Verify content integrity and ownership
+            from content_integrity_system import verify_campaign_content
+            content_verified = await verify_campaign_content(campaign_id, content_to_publish, media_url)
+            
+            if not content_verified:
+                logger.error(f"❌ Content integrity verification failed for campaign {campaign_id}")
+                logger.error(f"   This content may belong to another campaign or be corrupted")
+                return False
+            
+            logger.info(f"✅ Content integrity verified for campaign {campaign_id}")
+            logger.info(f"   Content hash validated and belongs to this campaign")
             
             logger.info(f"📤 Publishing {post_identity_id} to {channel_id}")
             logger.info(f"   Content: {content_to_publish[:50]}...")

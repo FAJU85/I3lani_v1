@@ -387,6 +387,12 @@ async def init_bot():
         init_translation_system()
         logger.info("Translation system initialized")
         
+        # Initialize content integrity system
+        logger.info("Initializing content integrity system...")
+        from content_integrity_system import ContentIntegritySystem
+        content_integrity = ContentIntegritySystem()
+        logger.info("✅ Content integrity system initialized")
+        
         # Initialize comprehensive publishing fix system
         logger.info("Initializing comprehensive publishing and channel integration fixes...")
         try:
