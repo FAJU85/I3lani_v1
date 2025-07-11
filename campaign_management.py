@@ -195,18 +195,21 @@ class CampaignManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # Insert campaign
+            # Insert campaign with media support
             ad_content = ad_data.get('ad_content', f'Advertisement campaign for payment {payment_memo}')
+            content_type = ad_data.get('content_type', 'text')
+            media_url = ad_data.get('media_url', None)
+            
             cursor.execute("""
                 INSERT INTO campaigns (
                     campaign_id, user_id, payment_memo, payment_method, payment_amount,
-                    campaign_name, ad_content, duration_days, posts_per_day, total_posts,
+                    campaign_name, ad_content, content_type, media_url, duration_days, posts_per_day, total_posts,
                     selected_channels, channel_count, total_reach, start_date, end_date,
                     status, campaign_metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 campaign_id, user_id, payment_memo, payment_method, payment_amount,
-                f"Campaign {campaign_id}", ad_content,
+                f"Campaign {campaign_id}", ad_content, content_type, media_url,
                 duration_days, posts_per_day, total_posts,
                 ','.join(selected_channels), len(selected_channels), total_reach,
                 start_date, end_date, 'active', json.dumps(campaign_metadata)

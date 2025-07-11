@@ -144,6 +144,15 @@ class AutomaticPaymentConfirmation:
                 logger.error("❌ Bot instance not available")
                 return False
             
+            # Get actual user ad content with media if exists
+            user_ad_content = await self._get_user_ad_content(user_id)
+            if user_ad_content:
+                # Update ad_data with actual content and media
+                ad_data['ad_content'] = user_ad_content.get('ad_content', ad_data.get('ad_content', ''))
+                ad_data['content_type'] = user_ad_content.get('content_type', 'text')
+                ad_data['media_url'] = user_ad_content.get('media_url')
+                logger.info(f"✅ Retrieved user ad content: type={ad_data['content_type']}, has_media={bool(ad_data['media_url'])}")
+            
             # Create confirmation message
             confirmation_message = f"""✅ **Payment Automatically Confirmed!**
 

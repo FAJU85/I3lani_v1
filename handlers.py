@@ -751,29 +751,151 @@ Tip: Make your ad engaging and clear!
 
 @router.message(AdCreationStates.upload_content)
 async def upload_content_handler(message: Message, state: FSMContext):
-    """Handle text content after photos in streamlined flow"""
+    """Handle content upload with strict input validation based on mode"""
     user_id = message.from_user.id
     language = await get_user_language(user_id)
     
-    # Only accept text at this stage (photos already handled)
-    if message.content_type != "text":
-        await message.answer(get_text(language, 'ad_text_prompt'))
-        return
-    
-    content = message.text
+    # Get current mode from state
     data = await state.get_data()
+    upload_mode = data.get('upload_mode', 'mixed')  # 'text', 'image', 'mixed'
     
-    # Store content and any previously uploaded photos
-    await state.update_data(
-        ad_content=content,
-        content_type='text'
-    )
+    # Define error messages for invalid input types
+    error_messages = {
+        'ar': {
+            'text_only': '⚠️ يرجى إرسال **نص فقط** لإعلانك. الصور أو الملفات الأخرى غير مسموح بها في هذه الخطوة.',
+            'image_only': '⚠️ يرجى إرسال **صورة فقط** في هذه الخطوة. الأنواع الأخرى غير مقبولة.',
+            'invalid_type': '❌ نوع المحتوى غير مدعوم. يرجى إرسال نص أو صورة أو فيديو فقط.'
+        },
+        'ru': {
+            'text_only': '⚠️ Пожалуйста, отправьте **только текст** для вашего объявления. Изображения или другие файлы не разрешены на этом этапе.',
+            'image_only': '⚠️ Пожалуйста, отправьте **только изображение** на этом этапе. Другие типы не принимаются.',
+            'invalid_type': '❌ Тип контента не поддерживается. Пожалуйста, отправьте только текст, изображение или видео.'
+        },
+        'en': {
+            'text_only': '⚠️ Please send **text only** for your ad. Images or other files are not allowed in this step.',
+            'image_only': '⚠️ Please send an **image only** for this step. Other types are not accepted.',
+            'invalid_type': '❌ Content type not supported. Please send text, image, or video only.'
+        }
+    }
+    
+    # Log received content type for debugging
+    logger.info(f"📝 Received content type: {message.content_type} from user {user_id} in mode: {upload_mode}")
+    
+    # Handle based on upload mode
+    if upload_mode == 'text':
+        # Text-only mode - reject all non-text inputs
+        if message.content_type != 'text':
+            error_msg = error_messages.get(language, error_messages['en'])['text_only']
+            await message.answer(error_msg, parse_mode='Markdown')
+            logger.warning(f"⚠️ Rejected {message.content_type} in text-only mode for user {user_id}")
+            return
+        
+        # Process text content
+        content = message.text
+        await state.update_data(
+            ad_content=content,
+            content_type='text',
+            media_url=None
+        )
+        
+        # Send confirmation
+        confirm_msg = {
+            'ar': '✅ تم حفظ نص إعلانك.',
+            'ru': '✅ Текст вашего объявления сохранен.',
+            'en': '✅ Your ad text has been saved.'
+        }
+        await message.answer(confirm_msg.get(language, confirm_msg['en']))
+        
+    elif upload_mode == 'image':
+        # Image-only mode - only accept photos
+        if message.content_type != 'photo':
+            error_msg = error_messages.get(language, error_messages['en'])['image_only']
+            await message.answer(error_msg, parse_mode='Markdown')
+            logger.warning(f"⚠️ Rejected {message.content_type} in image-only mode for user {user_id}")
+            return
+        
+        # Process photo
+        photo_file_id = message.photo[-1].file_id
+        caption = message.caption or ""
+        
+        await state.update_data(
+            ad_content=caption,
+            content_type='photo',
+            media_url=photo_file_id
+        )
+        
+        # Send confirmation
+        confirm_msg = {
+            'ar': '✅ تم حفظ صورتك لهذا الإعلان.',
+            'ru': '✅ Ваше изображение сохранено для этого объявления.',
+            'en': '✅ Your image has been saved for this ad.'
+        }
+        await message.answer(confirm_msg.get(language, confirm_msg['en']))
+        
+    else:
+        # Mixed mode - accept text, photo, or video
+        if message.content_type == 'text':
+            content = message.text
+            await state.update_data(
+                ad_content=content,
+                content_type='text',
+                media_url=None
+            )
+            confirm_msg = {
+                'ar': '✅ تم حفظ نص إعلانك.',
+                'ru': '✅ Текст вашего объявления сохранен.',
+                'en': '✅ Your ad text has been saved.'
+            }
+            
+        elif message.content_type == 'photo':
+            photo_file_id = message.photo[-1].file_id
+            caption = message.caption or ""
+            
+            await state.update_data(
+                ad_content=caption,
+                content_type='photo',
+                media_url=photo_file_id
+            )
+            confirm_msg = {
+                'ar': '✅ تم حفظ صورتك مع النص لهذا الإعلان.',
+                'ru': '✅ Ваше изображение с текстом сохранено для этого объявления.',
+                'en': '✅ Your image with caption has been saved for this ad.'
+            }
+            
+        elif message.content_type == 'video':
+            video_file_id = message.video.file_id
+            caption = message.caption or ""
+            
+            await state.update_data(
+                ad_content=caption,
+                content_type='video',
+                media_url=video_file_id
+            )
+            confirm_msg = {
+                'ar': '✅ تم حفظ الفيديو مع النص لهذا الإعلان.',
+                'ru': '✅ Ваше видео с текстом сохранено для этого объявления.',
+                'en': '✅ Your video with caption has been saved for this ad.'
+            }
+            
+        else:
+            # Reject unsupported content types
+            error_msg = error_messages.get(language, error_messages['en'])['invalid_type']
+            await message.answer(error_msg, parse_mode='Markdown')
+            logger.warning(f"⚠️ Rejected unsupported content type: {message.content_type} from user {user_id}")
+            return
+        
+        await message.answer(confirm_msg.get(language, confirm_msg['en']))
     
     # Track content upload with end-to-end tracking system
     try:
-        await track_content_upload(user_id, 'text', state)
+        content_type = (await state.get_data()).get('content_type', 'text')
+        await track_content_upload(user_id, content_type, state)
     except Exception as e:
         logger.error(f"Error tracking content upload: {e}")
+    
+    # Log successful content save
+    final_data = await state.get_data()
+    logger.info(f"✅ Content saved - Type: {final_data.get('content_type')}, Has media: {bool(final_data.get('media_url'))}")
     
     # Skip contact info step - go directly to channel selection
     await state.set_state(AdCreationStates.select_channels)
@@ -3123,6 +3245,29 @@ async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContex
     
     # Use enhanced memo from the new system
     memo = payment_request['memo']
+    
+    # Track payment for automatic confirmation with complete ad data including media
+    try:
+        from automatic_payment_confirmation import track_payment_for_user
+        
+        # Get full state data including ad content and media
+        full_data = await state.get_data()
+        
+        # Create ad_data with all information including media
+        ad_data = {
+            'duration_days': calculation.get('days', 1),
+            'posts_per_day': calculation.get('posts_per_day', 1),
+            'selected_channels': selected_channels,
+            'total_reach': calculation.get('total_reach', 0),
+            'ad_content': full_data.get('ad_text', ''),
+            'content_type': full_data.get('content_type', 'text'),
+            'media_url': full_data.get('photos', [None])[0] if full_data.get('photos') else full_data.get('video')
+        }
+        
+        await track_payment_for_user(user_id, memo, amount_ton, ad_data)
+        logger.info(f"✅ Tracked payment {memo} for user {user_id} with media: {bool(ad_data.get('media_url'))}")
+    except Exception as e:
+        logger.error(f"❌ Error tracking payment: {e}")
     
     # Create modern enhanced payment interface 
     if language == 'ar':
