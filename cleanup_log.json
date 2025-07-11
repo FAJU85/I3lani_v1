@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-07-11T14:16:27.829420",
+  "deleted_files": [
+    "test_pricing.py",
+    "test_flask.py",
+    "test_token.py",
+    "test_deployment.py",
+    "test_deployment_fixes.py",
+    "test_bot_startup.py",
+    "test_simple_interface.py",
+    "test_enhanced_ton_payment.py",
+    "test_enhanced_stars_system.py",
+    "test_payment_fix.py",
+    "test_payment_security_fix.py",
+    "test_stars_payment_fix.py",
+    "test_stars_payment_database_fix.py",
+    "test_wallet_bug_fixes.py",
+    "test_wallet_critical_bug_fixes.py",
+    "test_ton_payment_bug_fix.py",
+    "test_ton_payment_system_fix.py",
+    "test_flexible_payment_verification.py",
+    "test_payment_memo_format_fix.py",
+    "fix_emojis.py",
+    "fix_bot_conflict.py",
+    "debug_ton_payments.py",
+    "enhanced_stars_payment_system.py",
+    "enhanced_telegram_stars_payment.py",
+    "campaign_publisher.py",
+    "publishing_scheduler.py",
+    "button_fix_validation.py",
+    "button_test_handler.py",
+    "button_status_report.py"
+  ],
+  "fixed_issues": [
+    "Cleaned 5 unused database tables",
+    "Consolidated payment systems to 5 core files",
+    "Campaign publisher needs to be started in main_bot.py",
+    "Consolidated UI system files"
+  ],
+  "errors": []
+}

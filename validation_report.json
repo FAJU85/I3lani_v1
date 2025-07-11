@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-07-11T14:17:10.692092",
+  "results": {
+    "main_bot.py": "\u2705 Working",
+    "handlers.py": "\u2705 Working",
+    "database.py": "\u2705 Working",
+    "languages.py": "\u2705 Working",
+    "campaign_management.py": "\u2705 Working",
+    "enhanced_campaign_publisher.py": "\u2705 Working",
+    "clean_stars_payment_system.py": "\u2705 Working",
+    "enhanced_ton_payment_monitoring.py": "\u2705 Working",
+    "automatic_payment_confirmation.py": "\u2705 Working",
+    "database_schema": "Missing tables: 0",
+    "payment_flow": {
+      "ton": true,
+      "stars": true
+    },
+    "campaign_flow": {
+      "files": true,
+      "schema": true
+    },
+    "publishing_system": {
+      "scheduled_posts": 50,
+      "published_posts": 348
+    }
+  },
+  "total_issues": 0
+}
