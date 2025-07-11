@@ -13,6 +13,8 @@ from states import WalletStates, AdCreationStates
 from database import db
 from languages import get_text
 from database import get_user_language
+from fix_ui_issues import create_wallet_button_text
+
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -104,51 +106,69 @@ class WalletManager:
             if language == 'ar':
                 title = "💰 عنوان محفظة TON للدفع"
                 description = "لديك محفظة TON محفوظة مسبقاً. اختر خيار:"
-                use_existing = f"✅ استخدام المحفظة الحالية\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ استخدام المحفظة الحالية\n`{wallet_display}`"
                 enter_new = "🔄 إدخال محفظة جديدة"
             elif language == 'ru':
                 title = "💰 TON адрес кошелька для оплаты"
                 description = "У вас есть сохраненный TON кошелек. Выберите опцию:"
-                use_existing = f"✅ Использовать текущий кошелек\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ Использовать текущий кошелек\n`{wallet_display}`"
                 enter_new = "🔄 Ввести новый кошелек"
             else:
                 title = "💰 TON Wallet Address for Payment"
                 description = "You have a saved TON wallet. Choose an option:"
-                use_existing = f"✅ Use Current Wallet\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ Use Current Wallet\n`{wallet_display}`"
                 enter_new = "🔄 Enter New Wallet"
         
         elif context == 'affiliate':
             if language == 'ar':
                 title = "🤝 عنوان محفظة TON للبرنامج التابع"
                 description = "لديك محفظة TON محفوظة مسبقاً. اختر خيار:"
-                use_existing = f"✅ استخدام المحفظة الحالية\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ استخدام المحفظة الحالية\n`{wallet_display}`"
                 enter_new = "🔄 إدخال محفظة جديدة"
             elif language == 'ru':
                 title = "🤝 TON адрес кошелька для партнерской программы"
                 description = "У вас есть сохраненный TON кошелек. Выберите опцию:"
-                use_existing = f"✅ Использовать текущий кошелек\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ Использовать текущий кошелек\n`{wallet_display}`"
                 enter_new = "🔄 Ввести новый кошелек"
             else:
                 title = "🤝 TON Wallet Address for Affiliate Program"
                 description = "You have a saved TON wallet. Choose an option:"
-                use_existing = f"✅ Use Current Wallet\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ Use Current Wallet\n`{wallet_display}`"
                 enter_new = "🔄 Enter New Wallet"
         
         elif context == 'channel':
             if language == 'ar':
                 title = "📺 عنوان محفظة TON لإضافة القناة"
                 description = "لديك محفظة TON محفوظة مسبقاً. اختر خيار:"
-                use_existing = f"✅ استخدام المحفظة الحالية\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ استخدام المحفظة الحالية\n`{wallet_display}`"
                 enter_new = "🔄 إدخال محفظة جديدة"
             elif language == 'ru':
                 title = "📺 TON адрес кошелька для добавления канала"
                 description = "У вас есть сохраненный TON кошелек. Выберите опцию:"
-                use_existing = f"✅ Использовать текущий кошелек\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ Использовать текущий кошелек\n`{wallet_display}`"
                 enter_new = "🔄 Ввести новый кошелек"
             else:
                 title = "📺 TON Wallet Address for Channel Addition"
                 description = "You have a saved TON wallet. Choose an option:"
-                use_existing = f"✅ Use Current Wallet\n`{existing_wallet[:20]}...`"
+                # Format wallet address properly
+                wallet_display = existing_wallet[:10] + '...' + existing_wallet[-8:] if len(existing_wallet) > 20 else existing_wallet
+                use_existing = f"✅ Use Current Wallet\n`{wallet_display}`"
                 enter_new = "🔄 Enter New Wallet"
         
         text = f"**{title}**\n\n{description}"

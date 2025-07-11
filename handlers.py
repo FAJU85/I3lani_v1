@@ -2059,8 +2059,14 @@ async def refresh_enhanced_channel_selection_ui(callback_query: CallbackQuery, s
             # Check if channel is selected
             is_selected = channel['channel_id'] in selected_channels
             
-            # Create enhanced button text with modern toggle design
-            button_text = live_stats.create_channel_button_text(channel, is_selected, language)
+            # Create enhanced button text with proper formatting
+            from fix_ui_issues import create_channel_button_text
+            
+            # Get channel details
+            channel_name = channel.get('name', channel.get('channel_name', channel['channel_id']))
+            subscriber_count = channel.get('subscribers', channel.get('active_subscribers', 0))
+            
+            button_text = create_channel_button_text(channel_name, subscriber_count, is_selected)
             
             keyboard_rows.append([InlineKeyboardButton(
                 text=button_text,
