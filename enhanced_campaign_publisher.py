@@ -480,9 +480,9 @@ class EnhancedCampaignPublisher:
             
             cursor.execute("""
                 SELECT 
-                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published,
-                    COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as remaining,
-                    (julianday(end_date) - julianday('now')) as days_remaining
+                    COUNT(CASE WHEN cp.status = 'published' THEN 1 END) as published,
+                    COUNT(CASE WHEN cp.status = 'scheduled' THEN 1 END) as remaining,
+                    (julianday(c.end_date) - julianday('now')) as days_remaining
                 FROM campaign_posts cp
                 JOIN campaigns c ON cp.campaign_id = c.campaign_id
                 WHERE cp.campaign_id = ?
