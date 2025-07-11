@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Clean Telegram Stars Payment System
-Simple, effective, traceable payment system with campaign integration
+Clean Telegram Stars Payment System with Global Sequence Integration
+Simple, effective, traceable payment system using unified sequence tracking
 """
 
 import logging
@@ -19,7 +19,14 @@ from aiogram.types import (
 )
 from aiogram.exceptions import TelegramAPIError
 
-logger = logging.getLogger(__name__)
+# Import global sequence system
+from global_sequence_system import (
+    get_global_sequence_manager, start_user_global_sequence,
+    log_sequence_step, link_to_global_sequence
+)
+from sequence_logger import get_sequence_logger
+
+logger = get_sequence_logger(__name__)
 
 class CleanStarsPayment:
     """Clean, simple Stars payment system with full traceability"""
@@ -35,19 +42,48 @@ class CleanStarsPayment:
         # Payment tracking
         self.pending_payments = {}  # In-memory storage for pending payments
     
-    def generate_payment_id(self) -> str:
-        """Generate unique payment ID: STAR{timestamp}{random}"""
-        timestamp = int(time.time())
-        random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        return f"STAR{timestamp}{random_part}"
+    def generate_payment_id(self, user_id: int) -> str:
+        """Generate unique payment ID using global sequence system"""
+        manager = get_global_sequence_manager()
+        sequence_id = manager.get_user_active_sequence(user_id)
+        
+        if sequence_id:
+            # Use sequence ID as primary payment identifier
+            payment_ref = f"STARS-{sequence_id.split('-')[2]}-{sequence_id.split('-')[3]}"
+            
+            # Log payment generation step
+            log_sequence_step(sequence_id, "Payment_Step_1_GenerateStarsID", "clean_stars_payment", {
+                "payment_type": "telegram_stars",
+                "payment_ref": payment_ref,
+                "user_id": user_id
+            })
+            
+            return payment_ref
+        else:
+            # Fallback to timestamp-based ID if no sequence found
+            timestamp = int(time.time())
+            return f"STARS-FALLBACK-{timestamp}"
     
     async def create_payment_invoice(self, user_id: int, campaign_data: Dict, 
                                    pricing_data: Dict, language: str = 'en') -> Dict:
-        """Create Telegram Stars invoice with campaign integration"""
+        """Create Telegram Stars invoice with global sequence integration"""
         
         try:
-            # Generate unique payment ID
-            payment_id = self.generate_payment_id()
+            # Get user's active sequence
+            manager = get_global_sequence_manager()
+            sequence_id = manager.get_user_active_sequence(user_id)
+            
+            # Generate payment ID using sequence system
+            payment_id = self.generate_payment_id(user_id)
+            
+            # Log invoice creation step
+            if sequence_id:
+                log_sequence_step(sequence_id, "Payment_Step_2_CreateStarsInvoice", "clean_stars_payment", {
+                    "payment_id": payment_id,
+                    "stars_amount": pricing_data.get('total_stars', 0),
+                    "usd_amount": pricing_data.get('total_usd', 0),
+                    "language": language
+                })
             
             # Extract campaign details
             days = campaign_data.get('duration', 1)
@@ -70,9 +106,10 @@ class CleanStarsPayment:
                 title = "I3lani Advertising Campaign"
                 description = f"📢 {days} days campaign, {posts_per_day} posts/day across {len(channels)} channels. Payment ID: {payment_id}"
             
-            # Create minimal payload (Telegram has strict size limits)
+            # Create minimal payload with sequence tracking
             payload = json.dumps({
                 'payment_id': payment_id,
+                'sequence_id': sequence_id,
                 'user_id': user_id,
                 'service': 'i3lani_ads',
                 'amount': stars_amount

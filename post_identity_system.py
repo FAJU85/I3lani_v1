@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Post Identity System
-Implements unique post IDs, campaign linking, and full metadata tracking
-to ensure published content exactly matches user submissions
+Post Identity System with Global Sequence Integration
+Implements unified sequence-based post tracking and metadata management
 """
 
 import sqlite3
@@ -13,8 +12,15 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import asyncio
 
+# Import global sequence system
+from global_sequence_system import (
+    get_global_sequence_manager, start_user_global_sequence,
+    log_sequence_step, link_to_global_sequence
+)
+from sequence_logger import get_sequence_logger
+
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_sequence_logger(__name__)
 
 @dataclass
 class PostMetadata:
@@ -124,50 +130,53 @@ class PostIdentitySystem:
             logger.error(f"❌ Error initializing Post Identity System: {e}")
             return False
     
-    def generate_post_id(self) -> str:
-        """Generate unique post ID in format Ad00, Ad01, etc."""
+    def generate_post_id(self, sequence_id: str) -> str:
+        """Generate unique post ID using global sequence system"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Get the highest post ID number
-            cursor.execute("SELECT post_id FROM post_identity WHERE post_id LIKE 'Ad%' ORDER BY id DESC LIMIT 1")
-            result = cursor.fetchone()
-            
-            if result:
-                last_id = result[0]
-                # Extract number from AdXX format
-                try:
-                    last_num = int(last_id[2:])
-                    next_num = last_num + 1
-                except ValueError:
-                    next_num = 1
+            if sequence_id:
+                # Extract sequence components
+                parts = sequence_id.split('-')
+                if len(parts) >= 4:
+                    # Create post ID from sequence: POST-MM-XXXXX
+                    post_id = f"POST-{parts[2]}-{parts[3]}"
+                    
+                    # Log post ID generation
+                    log_sequence_step(sequence_id, "PostIdentity_Step_1_GeneratePostID", "post_identity_system", {
+                        "post_id": post_id,
+                        "sequence_id": sequence_id,
+                        "generation_method": "sequence_based"
+                    })
+                    
+                    return post_id
+                else:
+                    logger.error(f"❌ Invalid sequence ID format: {sequence_id}")
+                    return f"POST-INVALID-{datetime.now().strftime('%H%M%S')}"
             else:
-                next_num = 1
-            
-            conn.close()
-            
-            # Format as Ad00, Ad01, etc.
-            post_id = f"Ad{next_num:02d}"
-            
-            return post_id
-            
+                # Fallback for legacy data
+                logger.warning("⚠️ No sequence ID provided, using fallback post ID generation")
+                return f"POST-LEGACY-{datetime.now().strftime('%H%M%S')}"
+                
         except Exception as e:
             logger.error(f"❌ Error generating post ID: {e}")
-            return f"Ad{datetime.now().strftime('%H%M%S')}"
+            return f"POST-ERROR-{datetime.now().strftime('%H%M%S')}"
     
     async def create_post_identity(self, campaign_id: str, user_id: int, 
                                  advertiser_username: str, content_data: Dict[str, Any],
                                  campaign_details: Dict[str, Any]) -> str:
         """Create complete post identity with full metadata - ONE POST PER CAMPAIGN"""
         try:
+            # Get user's sequence ID
+            manager = get_global_sequence_manager()
+            sequence_id = manager.get_user_active_sequence(user_id)
+            
             # Check if post identity already exists for this campaign
             existing_post = await self.get_post_for_campaign(campaign_id)
             if existing_post:
                 logger.info(f"✅ Post identity already exists for campaign {campaign_id}: {existing_post.post_id}")
                 return existing_post.post_id
             
-            post_id = self.generate_post_id()
+            # Generate unique post ID using sequence system
+            post_id = self.generate_post_id(sequence_id)
             
             # Extract content information
             content_text = content_data.get('content', content_data.get('ad_content', ''))

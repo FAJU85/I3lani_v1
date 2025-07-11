@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Ad Campaign Identification System
-Generates unique campaign IDs and manages campaign metadata
+Ad Campaign Management System with Global Sequence Integration
+Unified campaign management using sequence-based tracking
 """
 
 import asyncio
@@ -13,8 +13,15 @@ import random
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
+# Import global sequence system
+from global_sequence_system import (
+    get_global_sequence_manager, start_user_global_sequence, 
+    log_sequence_step, link_to_global_sequence
+)
+from sequence_logger import get_sequence_logger
+
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_sequence_logger(__name__)
 
 class CampaignManager:
     """Manages ad campaign creation, tracking, and metadata"""
@@ -118,27 +125,50 @@ class CampaignManager:
             logger.error(f"❌ Error initializing campaign tables: {e}")
             return False
     
-    def generate_campaign_id(self) -> str:
-        """Generate unique campaign ID"""
-        # Format: CAM-YYYY-MM-XXXX (e.g., CAM-2025-07-A1B2)
-        current_year = datetime.now().strftime("%Y")
-        current_month = datetime.now().strftime("%m")
-        
-        # Generate 4-character alphanumeric suffix
-        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        
-        return f"CAM-{current_year}-{current_month}-{suffix}"
+    def generate_campaign_id(self, sequence_id: str) -> str:
+        """Generate unique campaign ID using global sequence system"""
+        try:
+            if sequence_id:
+                # Extract sequence components
+                parts = sequence_id.split('-')
+                if len(parts) >= 4:
+                    # Create campaign ID from sequence: CAM-MM-XXXXX
+                    campaign_id = f"CAM-{parts[2]}-{parts[3]}"
+                    
+                    # Log campaign ID generation
+                    log_sequence_step(sequence_id, "Campaign_Step_1_GenerateCampaignID", "campaign_management", {
+                        "campaign_id": campaign_id,
+                        "sequence_id": sequence_id,
+                        "generation_method": "sequence_based"
+                    })
+                    
+                    return campaign_id
+                else:
+                    logger.error(f"❌ Invalid sequence ID format: {sequence_id}")
+                    return f"CAM-INVALID-{datetime.now().strftime('%H%M%S')}"
+            else:
+                # Fallback for legacy data  
+                logger.warning("⚠️ No sequence ID provided, using fallback campaign ID generation")
+                return f"CAM-LEGACY-{datetime.now().strftime('%H%M%S')}"
+                
+        except Exception as e:
+            logger.error(f"❌ Error generating campaign ID: {e}")
+            return f"CAM-ERROR-{datetime.now().strftime('%H%M%S')}"
     
     async def create_campaign(self, user_id: int, payment_memo: str, payment_amount: float,
                             ad_data: Dict[str, Any], payment_method: str = 'TON') -> str:
-        """Create new campaign with unique ID"""
+        """Create new campaign with sequence-based unique ID"""
         try:
-            # Generate unique campaign ID
-            campaign_id = self.generate_campaign_id()
+            # Get user's sequence ID
+            manager = get_global_sequence_manager()
+            sequence_id = manager.get_user_active_sequence(user_id)
             
-            # Ensure uniqueness
+            # Generate unique campaign ID using sequence system
+            campaign_id = self.generate_campaign_id(sequence_id)
+            
+            # Ensure uniqueness (sequence-based IDs should be unique by design)
             while await self.campaign_exists(campaign_id):
-                campaign_id = self.generate_campaign_id()
+                campaign_id = self.generate_campaign_id(sequence_id)
             
             # Calculate campaign dates
             start_date = datetime.now()
