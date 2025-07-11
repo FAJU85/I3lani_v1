@@ -251,35 +251,93 @@ class EnhancedTONPaymentMonitor:
                     if not tx_amount:
                         continue
                     
-                    # Check amount with tolerance
-                    amount_tolerance = 0.1  # 0.1 TON tolerance
-                    if abs(tx_amount - amount_ton) <= amount_tolerance:
-                        # Extract sender for logging
-                        sender = self.extract_sender_from_transaction(tx)
+                    # CRITICAL: Validate payment amount with protocol enforcement
+                    try:
+                        from payment_amount_validator import validate_payment_amount
+                        from main_bot import bot_instance
                         
-                        # FLEXIBLE VERIFICATION: Focus on memo + amount only
-                        # Sender verification is now optional for better compatibility
-                        sender_matches = False
-                        if sender:
-                            for user_format in user_wallet_formats:
-                                if sender == user_format:
-                                    sender_matches = True
-                                    break
-                        
-                        if sender_matches:
-                            logger.info(f"✅ Payment verified with sender match: {memo} for {amount_ton} TON from {sender}")
+                        if bot_instance:
+                            validation_result = await validate_payment_amount(
+                                bot_instance, user_id, memo, tx_amount, amount_ton
+                            )
+                            
+                            if validation_result['valid']:
+                                # Extract sender for logging
+                                sender = self.extract_sender_from_transaction(tx)
+                                
+                                # FLEXIBLE VERIFICATION: Focus on memo + amount only
+                                # Sender verification is now optional for better compatibility
+                                sender_matches = False
+                                if sender:
+                                    for user_format in user_wallet_formats:
+                                        if sender == user_format:
+                                            sender_matches = True
+                                            break
+                                
+                                if sender_matches:
+                                    logger.info(f"✅ Payment verified with sender match: {memo} for {amount_ton} TON from {sender}")
+                                else:
+                                    logger.warning(f"⚠️ Payment found but sender mismatch: expected {user_wallet_formats}, got {sender}")
+                                    logger.info(f"✅ Payment verified by memo+amount: {memo} for {amount_ton} TON from {sender}")
+                                
+                                logger.info(f"Transaction amount: {tx_amount} TON")
+                                
+                                # Handle successful payment - Accept payment based on memo + amount
+                                from handlers import handle_successful_ton_payment_with_confirmation
+                                await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
+                                return True
+                            else:
+                                # Handle invalid payment amount
+                                logger.warning(f"⚠️ Payment amount validation failed: {validation_result['status']}")
+                                logger.warning(f"   Expected: {amount_ton} TON")
+                                logger.warning(f"   Received: {tx_amount} TON")
+                                logger.warning(f"   Difference: {validation_result['difference']} TON")
+                                
+                                # Send appropriate message to user
+                                try:
+                                    from payment_amount_validator import handle_invalid_payment_amount
+                                    await handle_invalid_payment_amount(
+                                        bot_instance, user_id, memo, validation_result, 
+                                        tx_amount, amount_ton
+                                    )
+                                    logger.info(f"📩 Invalid payment notification sent to user {user_id}")
+                                except Exception as e:
+                                    logger.error(f"❌ Error handling invalid payment: {e}")
+                                
+                                # Return False to stop monitoring (payment found but invalid)
+                                return False
                         else:
-                            logger.warning(f"⚠️ Payment found but sender mismatch: expected {user_wallet_formats}, got {sender}")
-                            logger.info(f"✅ Payment verified by memo+amount: {memo} for {amount_ton} TON from {sender}")
-                        
-                        logger.info(f"Transaction amount: {tx_amount} TON")
-                        
-                        # Handle successful payment - Accept payment based on memo + amount
-                        from handlers import handle_successful_ton_payment_with_confirmation
-                        await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
-                        return True
-                    else:
-                        logger.debug(f"Amount mismatch: expected {amount_ton}, got {tx_amount}")
+                            # Fallback to old validation if bot instance not available
+                            amount_tolerance = 0.01  # 0.01 TON tolerance for fallback
+                            if abs(tx_amount - amount_ton) <= amount_tolerance:
+                                # Extract sender for logging
+                                sender = self.extract_sender_from_transaction(tx)
+                                
+                                logger.info(f"✅ Payment verified (fallback): {memo} for {amount_ton} TON from {sender}")
+                                
+                                # Handle successful payment - Accept payment based on memo + amount
+                                from handlers import handle_successful_ton_payment_with_confirmation
+                                await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
+                                return True
+                            else:
+                                logger.warning(f"⚠️ Amount mismatch (fallback): expected {amount_ton}, got {tx_amount}")
+                                
+                    except Exception as e:
+                        logger.error(f"❌ Error in payment validation: {e}")
+                        # Continue with fallback validation
+                        amount_tolerance = 0.01  # 0.01 TON tolerance for fallback
+                        if abs(tx_amount - amount_ton) <= amount_tolerance:
+                            # Extract sender for logging
+                            sender = self.extract_sender_from_transaction(tx)
+                            
+                            logger.info(f"✅ Payment verified (fallback): {memo} for {amount_ton} TON from {sender}")
+                            
+                            # Handle successful payment - Accept payment based on memo + amount
+                            from handlers import handle_successful_ton_payment_with_confirmation
+                            await handle_successful_ton_payment_with_confirmation(user_id, memo, amount_ton, state)
+                            return True
+                        else:
+                            logger.warning(f"⚠️ Amount mismatch (fallback): expected {amount_ton}, got {tx_amount}")
                 
                 # Wait before next check
                 await asyncio.sleep(check_interval)

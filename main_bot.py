@@ -29,6 +29,7 @@ from troubleshooting_handlers import troubleshooting_router, init_troubleshootin
 from admin_ui_control import router as ui_control_router
 from button_test_handler import router as button_test_router
 from comprehensive_button_tester import router as comprehensive_button_router
+from payment_protocol_handlers import setup_payment_protocol_handlers
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -327,6 +328,10 @@ async def init_bot():
         dp.include_router(ui_control_router)
         dp.include_router(button_test_router)
         dp.include_router(comprehensive_button_router)
+        
+        # Setup payment protocol handlers
+        setup_payment_protocol_handlers(dp)
+        logger.info("✅ Payment protocol handlers initialized")
         
         # Initialize viral referral game system
         logger.info("Initializing viral referral game system...")
