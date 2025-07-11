@@ -185,10 +185,75 @@ Thank you for choosing I3lani! 🚀"""
             # Activate campaign and get campaign ID
             campaign_id = await self.activate_campaign(user_id, memo, amount, ad_data)
             
+            # Get user language
+            db = await Database().get_user(user_id)
+            language = db.get('language', 'en') if db else 'en'
+            
             # Update confirmation message to include campaign ID
             if campaign_id:
-                from comprehensive_bug_fixes import get_campaign_confirmation_message
-                confirmation_message = get_campaign_confirmation_message(campaign_id, language)
+                # Format confirmation message with campaign details
+                duration = ad_data.get('duration_days', 7)
+                channels = ad_data.get('selected_channels', [])
+                posts_per_day = ad_data.get('posts_per_day', 2)
+                total_posts = duration * posts_per_day * len(channels)
+                
+                if language == 'ar':
+                    confirmation_message = f"""✅ تم تأكيد دفع TON!
+
+تم التحقق من دفع TON الخاص بك على البلوك تشين!
+
+💰 المبلغ المستلم: {amount:.3f} TON
+
+📅 مدة الحملة: {duration} أيام
+📊 تكرار النشر: {posts_per_day} مرة يومياً
+📺 القنوات: {len(channels)} قناة
+📈 إجمالي المنشورات: {total_posts} منشور
+
+رقم الحملة الإعلانية: {campaign_id}
+🚀 حملتك الإعلانية تبدأ الآن!
+🟢 الحالة: نشط
+
+📱 ستتلقى إشعارات عند نشر إعلانك في كل قناة
+
+🎯 شكراً لاختيار I3lani!"""
+                elif language == 'ru':
+                    confirmation_message = f"""✅ TON платеж подтвержден!
+
+Ваш TON платеж был проверен в блокчейне!
+
+💰 Получено: {amount:.3f} TON
+
+📅 Длительность кампании: {duration} дней
+📊 Частота публикации: {posts_per_day} раз в день
+📺 Каналы: {len(channels)} канала
+📈 Всего постов: {total_posts} постов
+
+ID кампании: {campaign_id}
+🚀 Ваша рекламная кампания начинается!
+🟢 Статус: Активен
+
+📱 Вы получите уведомления при публикации в каждом канале
+
+🎯 Спасибо за выбор I3lani!"""
+                else:  # English
+                    confirmation_message = f"""✅ TON Payment Confirmed!
+
+Your TON payment has been verified on blockchain!
+
+💰 Amount Received: {amount:.3f} TON
+
+📅 Campaign Duration: {duration} days
+📊 Publishing Frequency: {posts_per_day} times daily
+📺 Channels: {len(channels)} channels
+📈 Total Posts: {total_posts} posts
+
+Campaign ID: {campaign_id}
+🚀 Your advertising campaign starts now!
+🟢 Status: Active
+
+📱 You'll receive notifications when your ad is published in each channel
+
+🎯 Thank you for choosing I3lani!"""
             
             # Send confirmation with campaign ID
             await bot_instance.send_message(

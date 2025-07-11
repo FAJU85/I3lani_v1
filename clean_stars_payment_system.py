@@ -347,68 +347,62 @@ class CleanStarsPayment:
             
             # Create receipt message
             if language == 'ar':
-                receipt_text = f"""🧾 إيصال الدفع
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                receipt_text = f"""✅ تم تأكيد دفع نجوم تيليجرام!
 
-✅ تم استلام الدفع!
+تم التحقق من دفع نجوم تيليجرام الخاص بك!
 
-طريقة الدفع: ⭐ نجوم تيليجرام
-المبلغ المدفوع: {stars_amount} STARS
-تاريخ الدفع: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-رقم الدفع: {payment_id}
+💰 المبلغ المستلم: {stars_amount} STARS
 
-تفاصيل الإعلان:
-• القنوات المختارة: {len(channels)} قنوات
-• مدة الحملة: {days} أيام
-• منشورات يومية: {posts_per_day}
-• إجمالي المنشورات: {days * posts_per_day}
+📅 مدة الحملة: {days} أيام
+📊 تكرار النشر: {posts_per_day} مرة يومياً
+📺 القنوات: {len(channels)} قناة
+📈 إجمالي المنشورات: {days * posts_per_day} منشور
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+رقم الحملة الإعلانية: {campaign_id}
+🚀 حملتك الإعلانية تبدأ الآن!
+🟢 الحالة: نشط
 
-شكراً لاستخدام بوت I3lani!
-للدعم: /support"""
+📱 ستتلقى إشعارات عند نشر إعلانك في كل قناة
+
+🎯 شكراً لاختيار I3lani!"""
             elif language == 'ru':
-                receipt_text = f"""🧾 Квитанция об оплате
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                receipt_text = f"""✅ Оплата Telegram Stars подтверждена!
 
-✅ Платеж получен!
+Ваш платеж Telegram Stars был проверен!
 
-Способ оплаты: ⭐ Telegram Stars
-Сумма платежа: {stars_amount} STARS
-Дата платежа: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-ID платежа: {payment_id}
+💰 Получено: {stars_amount} STARS
 
-Детали объявления:
-• Выбранные каналы: {len(channels)} каналов
-• Длительность кампании: {days} дней
-• Посты в день: {posts_per_day}
-• Всего постов: {days * posts_per_day}
+📅 Длительность кампании: {days} дней
+📊 Частота публикации: {posts_per_day} раз в день
+📺 Каналы: {len(channels)} канала
+📈 Всего постов: {days * posts_per_day} постов
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ID кампании: {campaign_id}
+🚀 Ваша рекламная кампания начинается!
+🟢 Статус: Активен
 
-Спасибо за использование I3lani Bot!
-Поддержка: /support"""
+📱 Вы получите уведомления при публикации в каждом канале
+
+🎯 Спасибо за выбор I3lani!"""
             else:
-                receipt_text = f"""🧾 Payment Receipt
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                receipt_text = f"""✅ Telegram Stars Payment Confirmed!
 
-✅ Payment Received!
+Your Telegram Stars payment has been verified!
 
-Payment Method: ⭐ Telegram Stars
-Amount Paid: {stars_amount} STARS
-Payment Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Payment ID: {payment_id}
+💰 Amount Received: {stars_amount} STARS
 
-Campaign Details:
-• Selected Channels: {len(channels)} channels
-• Campaign Duration: {days} days
-• Daily Posts: {posts_per_day}
-• Total Posts: {days * posts_per_day}
+📅 Campaign Duration: {days} days
+📊 Publishing Frequency: {posts_per_day} times daily
+📺 Channels: {len(channels)} channels
+📈 Total Posts: {days * posts_per_day} posts
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Campaign ID: {campaign_id}
+🚀 Your advertising campaign starts now!
+🟢 Status: Active
 
-Thank you for using I3lani Bot!
-Support: /support"""
+📱 You'll receive notifications when your ad is published in each channel
+
+🎯 Thank you for choosing I3lani!"""
             
             # Create navigation keyboard
             if language == 'ar':
