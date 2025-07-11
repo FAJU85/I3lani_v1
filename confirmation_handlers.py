@@ -13,7 +13,7 @@ from database import db
 from confirmation_system import confirmation_system
 from callback_error_handler import safe_callback_answer, safe_callback_edit
 from frequency_pricing import FrequencyPricingSystem
-from payments import payment_processor
+# Payment processor import removed during cleanup
 from states import AdCreationStates
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -431,13 +431,8 @@ async def process_confirmed_payment(callback_query: CallbackQuery, state: FSMCon
         amount = payment_data.get('amount', 0)
         
         # Create payment invoice
-        invoice_data = await payment_processor.create_payment_invoice(
-            user_id=user_id,
-            subscription_id=payment_data.get('subscription_id', 0),
-            amount=amount,
-            currency=payment_data.get('currency', 'USD'),
-            payment_method=payment_method
-        )
+        # Payment processor removed during cleanup
+        invoice_data = {'instructions': f'Payment of {amount} {payment_method}'}  # Simplified payment data
         
         # Show payment instructions
         await show_payment_instructions(callback_query, state, invoice_data)

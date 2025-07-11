@@ -17,7 +17,7 @@ from config import ADMIN_IDS, CHANNELS
 from database import db
 from dynamic_pricing import get_dynamic_pricing
 from states import AdminStates
-from admin_ui_control import admin_ui_control
+# Admin UI control removed during cleanup
 
 logger = logging.getLogger(__name__)
 

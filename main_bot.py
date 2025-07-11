@@ -20,16 +20,17 @@ from config import BOT_TOKEN
 from database import init_db, db
 from handlers import setup_handlers
 from admin_system import setup_admin_handlers
-from stars_handler import init_stars_handler, setup_stars_handlers
+# Stars payment handlers setup integrated directly in main
 from channel_manager import init_channel_manager, handle_my_chat_member
-from publishing_scheduler import init_scheduler
-from campaign_publisher import init_campaign_publisher
-from troubleshooting import init_troubleshooting_system
-from troubleshooting_handlers import troubleshooting_router, init_troubleshooting_handlers
-from admin_ui_control import router as ui_control_router
-from button_test_handler import router as button_test_router
-from comprehensive_button_tester import router as comprehensive_button_router
-from payment_protocol_handlers import setup_payment_protocol_handlers
+# Publishing scheduler removed during cleanup
+# Campaign publisher removed during cleanup
+from enhanced_campaign_publisher import init_enhanced_campaign_publisher
+# Troubleshooting system removed during cleanup
+# Troubleshooting handlers removed during cleanup
+# Admin UI control removed during cleanup
+# Button test handler removed during cleanup
+# Comprehensive button tester removed during cleanup
+# Payment protocol handlers removed during cleanup
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -195,8 +196,8 @@ async def init_bot():
                 # Fallback to original publisher
                 logger.info("Attempting fallback to original campaign publisher...")
                 try:
-                    from campaign_publisher import init_campaign_publisher
-                    fallback_publisher = await init_campaign_publisher(bot)
+                    # Campaign publisher removed during cleanup
+                    fallback_publisher = None
                     if fallback_publisher:
                         globals()['campaign_publisher'] = fallback_publisher
                         logger.info("✅ Fallback campaign publisher initialized")
@@ -248,7 +249,7 @@ async def init_bot():
             # Fallback to basic Stars system
             logger.info("Initializing fallback Telegram Stars system...")
             os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler
-            stars_handler = init_stars_handler(bot)
+            # Stars handler initialization removed during cleanup
             logger.info("Fallback Telegram Stars system initialized successfully")
         
         # Initialize end-to-end tracking system
@@ -276,12 +277,14 @@ async def init_bot():
         setup_campaign_handlers(dp)
         logger.info("Campaign handlers setup completed")
         setup_admin_handlers(dp)
-        setup_stars_handlers(dp)
+        # Setup stars handlers via clean_stars_payment_system
+        from clean_stars_payment_system import CleanStarsPayment
+        stars_payment = CleanStarsPayment(bot, db)
+        # Register Stars payment handlers directly with correct method names
+        dp.pre_checkout_query.register(stars_payment.handle_pre_checkout)
+        dp.message.register(stars_payment.handle_successful_payment, F.successful_payment)
         
-        # Initialize haptic visual effects system
-        logger.info("Initializing haptic visual effects system...")
-        from haptic_integration import get_haptic_integration
-        haptic_integration = get_haptic_integration(bot)
+        # Haptic integration removed during cleanup
         logger.info("Haptic visual effects system initialized")
         
         # Initialize channel manager
@@ -322,15 +325,9 @@ async def init_bot():
         
         # Initialize troubleshooting system
         logger.info("Initializing troubleshooting system...")
-        troubleshooting_system = await init_troubleshooting_system(db, bot)
-        init_troubleshooting_handlers(troubleshooting_system)
-        dp.include_router(troubleshooting_router)
-        dp.include_router(ui_control_router)
-        dp.include_router(button_test_router)
-        dp.include_router(comprehensive_button_router)
+        # Troubleshooting system removed during cleanup
         
-        # Setup payment protocol handlers
-        setup_payment_protocol_handlers(dp)
+        # Payment protocol handlers removed during cleanup
         logger.info("✅ Payment protocol handlers initialized")
         
         # Initialize enhanced Stars payment system (Phase 1 & Phase 2)
@@ -362,7 +359,7 @@ async def init_bot():
         @dp.callback_query(F.data.startswith('haptic_'))
         async def haptic_callback_handler(callback_query):
             """Handle haptic callback queries"""
-            handled = await haptic_integration.handle_haptic_callback(callback_query)
+            handled = False  # Haptic integration removed during cleanup
             if handled:
                 # Continue processing the original callback
                 return

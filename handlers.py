@@ -24,9 +24,7 @@ logger = logging.getLogger(__name__)
 
 from states import AdCreationStates, UserStates, WalletStates
 from languages import get_text, get_currency_info, LANGUAGES
-from ui_integration import get_mapped_text, get_button_text, get_message_text
 from database import db, ensure_user_exists, get_user_language
-from payments import payment_processor
 from config import ADMIN_IDS
 from wallet_manager import WalletManager
 import os
@@ -39,7 +37,7 @@ from modern_keyboard import (
     create_modern_confirmation
 )
 from frequency_pricing import FrequencyPricingSystem
-from ui_effects import ui_effects
+# ui_effects removed during cleanup
 from confirmation_system import confirmation_system
 from confirmation_handlers import CONFIRMATION_HANDLERS
 from viral_referral_handlers import has_free_ads, consume_free_ad
@@ -541,7 +539,7 @@ async def show_main_menu(message_or_query, language: str):
     logger.info(f"🎯 Showing main menu for user {user_id} in language: {language}")
     
     # Add typing simulation for better UX
-    await ui_effects.typing_simulation(bot, chat_id, "Loading your personalized interface...")
+    # UI effects removed during cleanup
     
     # Always show regular interface for all users (as requested by user)
     # Simple, clear interface for better user experience
@@ -559,7 +557,7 @@ async def show_main_menu(message_or_query, language: str):
     
     # Keep text simple and clear without dynamic enhancements
     # user_stats = await db.get_user_stats(user_id) if db else {}
-    # text = ui_effects.create_dynamic_menu_text(text, user_stats)
+    # UI effects removed during cleanup
     
     logger.info(f"📝 Main menu text preview: {text[:50]}...")
     
@@ -603,23 +601,23 @@ async def language_selection_handler(callback_query: CallbackQuery, state: FSMCo
         logger.info(f"🌍 Language selection: User {user_id} selected {language_code}")
         
         # Show immediate feedback
-        await ui_effects.button_press_feedback(callback_query, "🌍 Updating language...")
+        await callback_query.answer("🌍 Updating language...")
         
         # Show loading animation
         loading_text = "🔄 Configuring your language preferences..."
         temp_message = await callback_query.message.edit_text(loading_text)
-        await ui_effects.show_loading_animation(temp_message, "Setting up interface", 2)
+        # Loading animation removed during cleanup
         
         # Update user language in database
         success = await db.set_user_language(user_id, language_code)
         if success:
             logger.info(f"✅ Language {language_code} saved for user {user_id}")
             # Show success animation
-            await ui_effects.success_animation(temp_message, f"Language updated to {language_code}!")
+            # Success animation removed during cleanup
             await asyncio.sleep(1)
         else:
             logger.error(f"❌ Failed to save language {language_code} for user {user_id}")
-            await ui_effects.error_shake_effect(temp_message, "Failed to update language")
+            # Error animation removed during cleanup
             return
         
         # Clear state and show main menu
