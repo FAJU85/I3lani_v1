@@ -333,6 +333,22 @@ async def init_bot():
         setup_payment_protocol_handlers(dp)
         logger.info("✅ Payment protocol handlers initialized")
         
+        # Initialize enhanced Stars payment system (Phase 1 & Phase 2)
+        logger.info("Initializing enhanced Stars payment system...")
+        try:
+            from enhanced_stars_payment_system import init_enhanced_stars_payment_system
+            from enhanced_stars_handlers import setup_enhanced_stars_handlers
+            
+            enhanced_system = await init_enhanced_stars_payment_system(bot, db)
+            setup_enhanced_stars_handlers(dp)
+            
+            logger.info("✅ Enhanced Stars payment system initialized")
+            logger.info("   🔍 Phase 1: Enhanced validation, fraud detection, error handling")
+            logger.info("   🔗 Phase 2: TON Connect integration, advanced security")
+            logger.info("   💫 Enterprise-grade Stars payments ready")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize enhanced Stars payment system: {e}")
+        
         # Initialize viral referral game system
         logger.info("Initializing viral referral game system...")
         from viral_referral_game import ViralReferralGame
