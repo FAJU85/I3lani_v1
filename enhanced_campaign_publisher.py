@@ -441,6 +441,77 @@ class EnhancedCampaignPublisher:
         except Exception as e:
             logger.error(f"❌ Error marking post failed: {e}")
     
+    async def _log_channel_publishing_success(self, campaign_id: str, channel_id: str, message_id: int, content_type: str, media_url: str = None):
+        """Log successful channel publishing"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS channel_publishing_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id TEXT NOT NULL,
+                    channel_id TEXT NOT NULL,
+                    message_id INTEGER,
+                    content_type TEXT,
+                    media_url TEXT,
+                    status TEXT DEFAULT 'success',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Log the success
+            cursor.execute("""
+                INSERT INTO channel_publishing_logs 
+                (campaign_id, channel_id, message_id, content_type, media_url, status)
+                VALUES (?, ?, ?, ?, ?, 'success')
+            """, (campaign_id, channel_id, message_id, content_type, media_url))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Logged successful publishing to {channel_id} for campaign {campaign_id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error logging channel publishing success: {e}")
+    
+    async def _log_channel_publishing_failure(self, campaign_id: str, channel_id: str, content_type: str, error_message: str):
+        """Log failed channel publishing"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS channel_publishing_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id TEXT NOT NULL,
+                    channel_id TEXT NOT NULL,
+                    message_id INTEGER,
+                    content_type TEXT,
+                    media_url TEXT,
+                    status TEXT DEFAULT 'success',
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Log the failure
+            cursor.execute("""
+                INSERT INTO channel_publishing_logs 
+                (campaign_id, channel_id, content_type, status, error_message)
+                VALUES (?, ?, ?, 'failed', ?)
+            """, (campaign_id, channel_id, content_type, error_message))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"❌ Logged failed publishing to {channel_id} for campaign {campaign_id}: {error_message}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error logging channel publishing failure: {e}")
+    
     async def verify_campaign_content_integrity(self, campaign_id: str) -> Dict[str, Any]:
         """Verify content integrity for a campaign"""
         return await verify_campaign_integrity(campaign_id)

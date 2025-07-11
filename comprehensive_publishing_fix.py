@@ -140,46 +140,55 @@ class ComprehensivePublishingFix:
         """Test the channel addition logic"""
         
         # Get existing channels to verify the system works
-        channels = await self.db.fetchall("SELECT * FROM channels WHERE active = 1")
-        logger.info(f"📊 Found {len(channels)} active channels")
-        
-        # Test subscriber count updates
-        for channel in channels:
-            channel_id = channel[1]  # channel_id column
-            try:
-                chat = await self.bot.get_chat(channel_id)
-                member_count = await self.bot.get_chat_member_count(chat.id)
-                
-                # Update subscriber count
-                await self.db.execute("""
-                    UPDATE channels 
-                    SET subscribers = ?, last_updated = CURRENT_TIMESTAMP
-                    WHERE channel_id = ?
-                """, (member_count, channel_id))
-                
-                logger.info(f"✅ Updated subscriber count for {channel_id}: {member_count}")
-                
-            except Exception as e:
-                logger.warning(f"⚠️ Could not update subscriber count for {channel_id}: {e}")
+        import aiosqlite
+        async with aiosqlite.connect(self.db.db_path) as conn:
+            cursor = await conn.execute("SELECT * FROM channels WHERE active = 1")
+            channels = await cursor.fetchall()
+            await cursor.close()
+            
+            logger.info(f"📊 Found {len(channels)} active channels")
+            
+            # Test subscriber count updates
+            for channel in channels:
+                channel_id = channel[1]  # channel_id column
+                try:
+                    chat = await self.bot.get_chat(channel_id)
+                    member_count = await self.bot.get_chat_member_count(chat.id)
+                    
+                    # Update subscriber count
+                    await conn.execute("""
+                        UPDATE channels 
+                        SET subscribers = ?, last_updated = CURRENT_TIMESTAMP
+                        WHERE channel_id = ?
+                    """, (member_count, channel_id))
+                    await conn.commit()
+                    
+                    logger.info(f"✅ Updated subscriber count for {channel_id}: {member_count}")
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not update subscriber count for {channel_id}: {e}")
     
     async def _implement_admin_notifications(self):
         """Implement admin notifications when bot is added to channels"""
         logger.info("📧 Implementing admin notifications...")
         
         try:
-            # Create table for admin notifications
-            await self.db.execute("""
-                CREATE TABLE IF NOT EXISTS admin_notifications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    notification_type TEXT NOT NULL,
-                    channel_id TEXT,
-                    channel_name TEXT,
-                    added_by_user_id INTEGER,
-                    added_by_username TEXT,
-                    message_sent BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            # Create table for admin notifications using aiosqlite
+            import aiosqlite
+            async with aiosqlite.connect(self.db.db_path) as conn:
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_notifications (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        notification_type TEXT NOT NULL,
+                        channel_id TEXT,
+                        channel_name TEXT,
+                        added_by_user_id INTEGER,
+                        added_by_username TEXT,
+                        message_sent BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await conn.commit()
             
             logger.info("✅ Admin notification system implemented")
             
