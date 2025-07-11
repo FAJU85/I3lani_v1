@@ -4160,39 +4160,6 @@ async def create_successful_ad_from_payment(user_id: int, memo: str, amount_ton:
     except Exception as e:
         logger.error(f"Error creating ad from payment: {e}")
         return None
-                duration_months=0,  # Duration in days, not months
-                total_price=amount_ton,
-                currency='TON',
-                posts_per_day=posts_per_day,
-                total_posts=total_posts
-            )
-            subscription_ids.append(subscription_id)
-        
-        # Create payment record
-        payment_id = await db.create_payment(
-            user_id=user_id,
-            subscription_id=subscription_ids[0] if subscription_ids else None,
-            amount=amount_ton,
-            currency='TON',
-            payment_method='ton_crypto',
-            memo=memo
-        )
-        
-        # Activate all subscriptions
-        for subscription_id in subscription_ids:
-            await db.activate_subscription(subscription_id)
-        
-        # Get channel names for success message
-        channels = await db.get_channels()
-        selected_channel_names = [ch['name'] for ch in channels if ch['channel_id'] in selected_channels]
-        
-        # Create success message
-        if language == 'ar':
-            success_text = f"""✅ **تم تأكيد الدفع بنجاح!**
-
-💎 **المبلغ:** {amount_ton:.3f} TON
-🔗 **كود التحقق:** {memo}
-📺 **القنوات:** {len(selected_channels)} قناة
 📅 **المدة:** {days} أيام
 📊 **المنشورات:** {total_posts} منشور إجمالي
 
