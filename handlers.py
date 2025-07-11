@@ -4131,41 +4131,35 @@ async def create_successful_ad_from_payment(user_id: int, memo: str, amount_ton:
         ad_id = await db.create_ad(
             user_id=user_id,
             content=ad_content,
-            photos=photos,
-            channels=selected_channels,
+            media_url=photos[0]['file_id'] if photos else None,
+            content_type='photo' if photos else 'text'
+        )
+        
+        logger.info(f"Ad created successfully: ID {ad_id} for user {user_id}")
+        
+        # Create campaign after ad creation
+        from campaign_management import CampaignManager
+        campaign_manager = CampaignManager()
+        
+        campaign_id = await campaign_manager.create_campaign_from_payment(
+            user_id=user_id,
+            selected_channels=selected_channels,
             duration_days=days,
             posts_per_day=posts_per_day,
             payment_amount=amount_ton,
             payment_method='TON',
             payment_memo=memo,
-            status='paid'
+            ad_content=ad_content,
+            media_url=photos[0]['file_id'] if photos else None,
+            content_type='photo' if photos else 'text'
         )
         
-        logger.info(f"Ad created successfully: ID {ad_id} for user {user_id}")
+        logger.info(f"Campaign created successfully: ID {campaign_id} for user {user_id}")
         return ad_id
         
     except Exception as e:
         logger.error(f"Error creating ad from payment: {e}")
         return None
-        ad_id = await db.create_ad(
-            user_id=user_id,
-            content=ad_content,
-            media_url=photos[0]['file_id'] if photos else None,
-            content_type='photo' if photos else 'text'
-        )
-        
-        # Get pricing data
-        days = calculation.get('days', 1)
-        posts_per_day = calculation.get('posts_per_day', 1)
-        total_posts = days * posts_per_day
-        
-        # Create subscription for each selected channel
-        subscription_ids = []
-        for channel_id in selected_channels:
-            subscription_id = await db.create_subscription(
-                user_id=user_id,
-                ad_id=ad_id,
-                channel_id=channel_id,
                 duration_months=0,  # Duration in days, not months
                 total_price=amount_ton,
                 currency='TON',
