@@ -285,47 +285,82 @@ Select an option to continue:
         )
 
     async def show_pricing_management(self, callback_query: CallbackQuery):
-        """Show smart day-based pricing management interface"""
-        from frequency_pricing import FrequencyPricingSystem
-        pricing = FrequencyPricingSystem()
-        
-        text = "<b>🧠 Smart Day-Based Pricing Management</b>\n\n"
-        text += "<b>Core Logic:</b> We Sell Days, You Gain Reach™\n\n"
-        
-        text += "<b>Current Pricing Tiers:</b>\n"
-        
-        # Show sample tiers
-        sample_tiers = [1, 3, 7, 15, 30, 60, 90]
-        for days in sample_tiers:
-            tier_info = pricing.frequency_tiers.get(days)
-            if tier_info:
-                pricing_data = pricing.calculate_pricing(days)
-                text += f"• <b>{days} days</b> - {tier_info['posts_per_day']} posts/day\n"
-                text += f"  ${pricing_data['final_cost_usd']:.2f} ({tier_info['discount']}% discount)\n"
-        
-        text += "\n<b>Smart Pricing Features:</b>\n"
-        text += "• Dynamic day-based pricing (1-365 days)\n"
-        text += "• More days = More posts per day + Bigger discounts\n"
-        text += "• Automatic volume discounts (0% to 35% off)\n"
-        text += "• Base rate: $1.00 per post per day\n\n"
-        
-        text += "<b>Management Options:</b>\n"
-        
-        keyboard = [
-            [
-                InlineKeyboardButton(text="🧠 Smart Pricing System", callback_data="admin_smart_pricing"),
-                InlineKeyboardButton(text="📊 Pricing Table", callback_data="admin_pricing_table")
-            ],
-            [
-                InlineKeyboardButton(text="💰 Revenue Analytics", callback_data="admin_revenue_analytics"),
-                InlineKeyboardButton(text="🎯 Usage Statistics", callback_data="admin_usage_stats")
-            ],
-            [
-                InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
-            ]
-        ]
-        
+        """Show comprehensive pricing management interface"""
         try:
+            # Get price management data
+            from price_management_system import get_price_manager
+            manager = get_price_manager()
+            await manager.initialize_database()
+            
+            summary = await manager.get_pricing_summary()
+            tiers = await manager.get_all_price_tiers(active_only=True)
+            
+            text = f"""<b>💰 Pricing Management System</b>
+
+<b>📊 Overview:</b>
+• Total Price Tiers: {summary.get('total_tiers', 0)}
+• Active Tiers: {summary.get('active_tiers', 0)}
+• Base Price: ${summary.get('base_price_usd', 1.00):.2f}/post/day
+
+<b>💸 Price Range:</b>
+• Min Price: ${summary.get('price_range', {}).get('min_price', 0):.2f}
+• Max Price: ${summary.get('price_range', {}).get('max_price', 0):.2f}
+
+<b>🎯 Active Price Tiers:</b>"""
+            
+            # Show first 5 active tiers
+            for tier in tiers[:5]:
+                text += f"\n• <b>{tier['duration_days']} days</b> - {tier['posts_per_day']} posts/day"
+                text += f"\n  ${tier['final_price_usd']:.2f} ({tier['discount_percent']:.0f}% discount)"
+            
+            if len(tiers) > 5:
+                text += f"\n... and {len(tiers) - 5} more tiers"
+            
+            text += f"""
+
+<b>📈 Performance:</b>
+• Total Revenue: ${summary.get('total_revenue', 0):.2f}
+• Total Usage: {summary.get('total_usage', 0)} campaigns
+
+<b>🔧 Management Features:</b>
+• Add new price tiers
+• Edit existing prices
+• Bulk price operations
+• Price analytics & history"""
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton(text="💰 Price Management", callback_data="admin_price_management"),
+                    InlineKeyboardButton(text="📊 Pricing Analytics", callback_data="price_analytics")
+                ],
+                [
+                    InlineKeyboardButton(text="➕ Add New Price", callback_data="price_add_new"),
+                    InlineKeyboardButton(text="✏️ Edit Prices", callback_data="price_edit_list")
+                ],
+                [
+                    InlineKeyboardButton(text="📋 All Price Tiers", callback_data="price_view_all"),
+                    InlineKeyboardButton(text="📈 Price History", callback_data="price_history")
+                ],
+                [
+                    InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
+                ]
+            ]
+            
+            await callback_query.message.edit_text(
+                text, 
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='HTML'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error showing pricing management: {e}")
+            fallback_text = "<b>💰 Pricing Management</b>\n\nError loading pricing data. Please try again."
+            keyboard = [[InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]]
+            await callback_query.message.edit_text(
+                fallback_text,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='HTML'
+            )
             await callback_query.message.edit_text(
                 text, 
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
