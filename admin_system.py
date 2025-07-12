@@ -9,6 +9,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import Command
+from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime, timedelta
 import json
 import os
@@ -20,6 +21,40 @@ from states import AdminStates
 # Admin UI control removed during cleanup
 
 logger = logging.getLogger(__name__)
+
+# Safe callback answer function to handle expired queries
+async def safe_callback_answer(callback_query, text: str = None, show_alert: bool = False):
+    """Safely answer callback queries with error handling for expired queries"""
+    try:
+        await safe_callback_answer(callback_query, text=text, show_alert=show_alert)
+    except TelegramBadRequest as e:
+        if "query is too old" in str(e):
+            logger.warning(f"Callback query expired: {e}")
+            return
+        else:
+            raise e
+    except Exception as e:
+        logger.error(f"Error answering callback query: {e}")
+
+# Safe message edit function
+async def safe_edit_message(message, text: str, reply_markup=None, parse_mode=None):
+    """Safely edit messages with error handling"""
+    try:
+        await message.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+        return True
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            logger.warning("Message content unchanged")
+            return True
+        elif "message to edit not found" in str(e):
+            logger.warning("Message to edit not found")
+            return False
+        else:
+            logger.error(f"Error editing message: {e}")
+            return False
+    except Exception as e:
+        logger.error(f"Error editing message: {e}")
+        return False
 
 # AdminStates is now imported from states.py to avoid duplication
 
@@ -659,7 +694,7 @@ Active Users: {active_users}
             
         except Exception as e:
             logger.error(f"Moderation panel error: {e}")
-            await callback_query.answer("Error loading moderation panel", show_alert=True)
+            await safe_callback_answer(callback_query, "Error loading moderation panel", show_alert=True)
 
     async def show_violation_reports(self, callback_query: CallbackQuery):
         """Show violation reports and statistics"""
@@ -720,7 +755,7 @@ Active Users: {active_users}
             
         except Exception as e:
             logger.error(f"Violation reports error: {e}")
-            await callback_query.answer("Error loading violation reports", show_alert=True)
+            await safe_callback_answer(callback_query, "Error loading violation reports", show_alert=True)
 
 # Initialize admin system
 admin_system = AdminSystem()
@@ -744,12 +779,12 @@ async def admin_main_callback(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.main_menu)
     await admin_system.show_main_menu(callback_query, edit=True)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_channels")
 async def admin_channels_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -757,12 +792,12 @@ async def admin_channels_callback(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.channel_management)
     await admin_system.show_channel_management(callback_query)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 # Package management removed - using dynamic pricing system instead
 
@@ -772,7 +807,7 @@ async def admin_create_price_callback(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied!")
+        await safe_callback_answer(callback_query, "ERROR: Access denied!")
         return
     
     await state.set_state(AdminStates.create_subscription)
@@ -802,7 +837,7 @@ Type your package details:
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_edit_price")
 async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -810,14 +845,14 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied!")
+        await safe_callback_answer(callback_query, "ERROR: Access denied!")
         return
     
     from database import db
     packages = await db.get_packages(active_only=False)
     
     if not packages:
-        await callback_query.answer("ERROR: No packages found!")
+        await safe_callback_answer(callback_query, "ERROR: No packages found!")
         return
     
     text = "<b>Edit Price Package</b>\n\nSelect a package to edit:"
@@ -838,7 +873,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_remove_price")
 async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -846,14 +881,14 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied!")
+        await safe_callback_answer(callback_query, "ERROR: Access denied!")
         return
     
     from database import db
     packages = await db.get_packages(active_only=False)
     
     if not packages:
-        await callback_query.answer("ERROR: No packages found!")
+        await safe_callback_answer(callback_query, "ERROR: No packages found!")
         return
     
     text = "<b>Remove Price Package</b>\n\nWarning: This will permanently delete the package!\n\nSelect a package to remove:"
@@ -874,7 +909,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_price_stats")
 async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -882,7 +917,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied!")
+        await safe_callback_answer(callback_query, "ERROR: Access denied!")
         return
     
     from database import db
@@ -914,7 +949,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_packages")
 async def admin_packages_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -922,12 +957,12 @@ async def admin_packages_callback(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.pricing_management)
     await admin_system.show_pricing_management(callback_query)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 
 # REMOVED: admin_view_all_plans_callback - old progressive monthly plans callback removed
@@ -937,7 +972,7 @@ async def admin_packages_callback(callback_query: CallbackQuery, state: FSMConte
 async def admin_price_analytics_callback(callback_query: CallbackQuery, state: FSMContext):
     """Show pricing analytics and statistics"""
     if not admin_system.is_admin(callback_query.from_user.id):
-        await callback_query.answer("❌ Unauthorized")
+        await safe_callback_answer(callback_query, "❌ Unauthorized")
         return
     
     pricing = get_pricing_system()
@@ -981,7 +1016,7 @@ async def admin_price_analytics_callback(callback_query: CallbackQuery, state: F
     except Exception:
         await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
     
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_schedules")
 async def admin_schedules_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -989,12 +1024,12 @@ async def admin_schedules_callback(callback_query: CallbackQuery, state: FSMCont
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.publishing_schedules)
     await admin_system.show_publishing_schedules(callback_query)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_bot_control")
 async def admin_bot_control_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1002,12 +1037,12 @@ async def admin_bot_control_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.bot_control)
     await admin_system.show_bot_control(callback_query)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_users")
 async def admin_users_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1015,12 +1050,12 @@ async def admin_users_callback(callback_query: CallbackQuery, state: FSMContext)
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.user_management)
     await admin_system.show_user_management(callback_query)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_statistics")
 async def admin_statistics_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1028,12 +1063,12 @@ async def admin_statistics_callback(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.statistics)
     await admin_system.show_statistics(callback_query)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_refresh")
 async def admin_refresh_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1041,17 +1076,17 @@ async def admin_refresh_callback(callback_query: CallbackQuery, state: FSMContex
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
-    await callback_query.answer("🔄 Data refreshed!")
+    await safe_callback_answer(callback_query, "🔄 Data refreshed!")
     await admin_system.show_main_menu(callback_query, edit=True)
 
 # Channel Management Handlers
 @router.callback_query(F.data == "admin_discover_channels")
 async def admin_discover_channels_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle discover existing channels callback"""
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
     
     text = """
 <b>🚀 Comprehensive Channel Discovery</b>
@@ -1137,7 +1172,7 @@ async def admin_bulk_import_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     text = """
@@ -1164,7 +1199,7 @@ Send your channel list now or click Cancel to go back.
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await state.set_state(AdminStates.bulk_import_channels)
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 
 @router.callback_query(F.data == "admin_add_channel")
@@ -1173,7 +1208,7 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.add_channel)
@@ -1203,7 +1238,7 @@ Enter the channel username:
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.message(AdminStates.add_channel)
 async def handle_add_channel_message(message: Message, state: FSMContext):
@@ -1318,7 +1353,7 @@ async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     text = "EDIT: <b>Edit Channel</b>\n\nSelect a channel to edit:"
@@ -1338,7 +1373,7 @@ async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMC
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode='HTML'
     )
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data.startswith("edit_channel_"))
 async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMContext):
@@ -1346,7 +1381,7 @@ async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     channel_id = callback_query.data.replace("edit_channel_", "")
@@ -1354,7 +1389,7 @@ async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMCo
     channel = next((ch for ch in channels if ch.get('channel_id') == channel_id), None)
     
     if not channel:
-        await callback_query.answer("ERROR: Channel not found.")
+        await safe_callback_answer(callback_query, "ERROR: Channel not found.")
         return
     
     text = f"""
@@ -1393,7 +1428,7 @@ What would you like to edit?
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode='HTML'
     )
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data.startswith("toggle_channel_"))
 async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext):
@@ -1401,7 +1436,7 @@ async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     channel_id = callback_query.data.replace("toggle_channel_", "")
@@ -1409,14 +1444,14 @@ async def handle_toggle_channel(callback_query: CallbackQuery, state: FSMContext
     channel = next((ch for ch in channels if ch.get('channel_id') == channel_id), None)
     
     if not channel:
-        await callback_query.answer("ERROR: Channel not found.")
+        await safe_callback_answer(callback_query, "ERROR: Channel not found.")
         return
     
     # Toggle channel status
     channel['active'] = not channel['active']
     status = "activated" if channel['active'] else "deactivated"
     
-    await callback_query.answer(f"Channel {status} successfully!")
+    await safe_callback_answer(callback_query, f"Channel {status} successfully!")
     
     # Return to edit view
     await handle_edit_channel_select(callback_query, state)
@@ -1427,7 +1462,7 @@ async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FS
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     text = "🗑️ <b>Remove Channel</b>\n\n⚠️ Select a channel to remove (this action cannot be undone):"
@@ -1447,7 +1482,7 @@ async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FS
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode='HTML'
     )
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data.startswith("remove_channel_"))
 async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FSMContext):
@@ -1455,7 +1490,7 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     channel_id = callback_query.data.replace("remove_channel_", "")
@@ -1463,7 +1498,7 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
     channel = next((ch for ch in channels if ch.get('channel_id') == channel_id), None)
     
     if not channel:
-        await callback_query.answer("ERROR: Channel not found.")
+        await safe_callback_answer(callback_query, "ERROR: Channel not found.")
         return
     
     # Remove channel permanently
@@ -1478,7 +1513,7 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
             parse_mode='HTML'
         )
     else:
-        await callback_query.answer("ERROR: Failed to remove channel.")
+        await safe_callback_answer(callback_query, "ERROR: Failed to remove channel.")
     
 
 
@@ -1489,14 +1524,14 @@ async def admin_price_callback(callback_query: CallbackQuery, state: FSMContext)
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     package_type = callback_query.data.replace("admin_price_", "")
     package = admin_system.subscription_packages.get(package_type)
     
     if not package:
-        await callback_query.answer("ERROR: Package not found.")
+        await safe_callback_answer(callback_query, "ERROR: Package not found.")
         return
     
     await state.set_state(AdminStates.set_pricing)
@@ -1518,7 +1553,7 @@ Please enter the new price in USD (numbers only):
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.message(AdminStates.set_pricing)
 async def handle_price_update_message(message: Message, state: FSMContext):
@@ -1567,7 +1602,7 @@ async def admin_create_subscription_callback(callback_query: CallbackQuery, stat
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     await state.set_state(AdminStates.create_subscription)
@@ -1600,7 +1635,7 @@ Send the package information now:
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.message(AdminStates.create_subscription)
 async def handle_create_subscription_message(message: Message, state: FSMContext):
@@ -1666,7 +1701,7 @@ async def admin_edit_subscription_callback(callback_query: CallbackQuery, state:
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     text = """
@@ -1700,7 +1735,7 @@ Choose a package to modify:
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode='HTML'
     )
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_remove_subscription")
 async def admin_remove_subscription_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1708,7 +1743,7 @@ async def admin_remove_subscription_callback(callback_query: CallbackQuery, stat
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     text = "🗑️ <b>Remove Subscription Package</b>\n\n⚠️ Select a package to remove (this action cannot be undone):"
@@ -1727,7 +1762,7 @@ async def admin_remove_subscription_callback(callback_query: CallbackQuery, stat
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode='HTML'
     )
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data.startswith("remove_package_"))
 async def handle_remove_package_confirm(callback_query: CallbackQuery, state: FSMContext):
@@ -1735,20 +1770,20 @@ async def handle_remove_package_confirm(callback_query: CallbackQuery, state: FS
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     package_id = callback_query.data.replace("remove_package_", "")
     package = admin_system.subscription_packages.get(package_id)
     
     if not package:
-        await callback_query.answer("ERROR: Package not found.")
+        await safe_callback_answer(callback_query, "ERROR: Package not found.")
         return
     
     # Remove package
     del admin_system.subscription_packages[package_id]
     
-    await callback_query.answer("SUCCESS: Package removed successfully!")
+    await safe_callback_answer(callback_query, "SUCCESS: Package removed successfully!")
     
     # Return to subscription management
     await admin_system.show_subscription_management(callback_query)
@@ -1759,7 +1794,7 @@ async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     # Get real channel data from database
@@ -1796,7 +1831,7 @@ STATS: <b>Channel Statistics</b>
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data == "admin_subscription_stats")
 async def admin_subscription_stats_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -1804,7 +1839,7 @@ async def admin_subscription_stats_callback(callback_query: CallbackQuery, state
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     text = f"""
@@ -1827,7 +1862,7 @@ STATS: <b>Subscription Package Statistics</b>
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
 
 @router.message(AdminStates.create_subscription)
 async def handle_create_price_message(message: Message, state: FSMContext):
@@ -1900,7 +1935,7 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied!")
+        await safe_callback_answer(callback_query, "ERROR: Access denied!")
         return
     
     package_id = callback_query.data.replace("admin_remove_pkg_", "")
@@ -1911,7 +1946,7 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
         package = next((p for p in packages if p['package_id'] == package_id), None)
         
         if not package:
-            await callback_query.answer("ERROR: Package not found!")
+            await safe_callback_answer(callback_query, "ERROR: Package not found!")
             return
         
         # Remove package from database
@@ -1935,10 +1970,10 @@ The package has been permanently deleted and is no longer available in the prici
         ])
         
         await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='HTML')
-        await callback_query.answer(f"SUCCESS: Package '{package['name']}' removed!")
+        await safe_callback_answer(callback_query, f"SUCCESS: Package '{package['name']}' removed!")
         
     except Exception as e:
-        await callback_query.answer(f"ERROR: Error removing package: {str(e)}")
+        await safe_callback_answer(callback_query, f"ERROR: Error removing package: {str(e)}")
 
 @router.callback_query(F.data.startswith("admin_edit_pkg_"))
 async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -1946,7 +1981,7 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied!")
+        await safe_callback_answer(callback_query, "ERROR: Access denied!")
         return
     
     package_id = callback_query.data.replace("admin_edit_pkg_", "")
@@ -1957,7 +1992,7 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
         package = next((p for p in packages if p['package_id'] == package_id), None)
         
         if not package:
-            await callback_query.answer("ERROR: Package not found!")
+            await safe_callback_answer(callback_query, "ERROR: Package not found!")
             return
         
         await state.update_data(edit_package_id=package_id)
@@ -1988,10 +2023,10 @@ Type your updated package details:
         ])
         
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-        await callback_query.answer()
+        await safe_callback_answer(callback_query, "Updated")
         
     except Exception as e:
-        await callback_query.answer(f"ERROR: Error loading package: {str(e)}")
+        await safe_callback_answer(callback_query, f"ERROR: Error loading package: {str(e)}")
 
 @router.message(AdminStates.edit_subscription)
 async def handle_edit_package_message(message: Message, state: FSMContext):
@@ -2119,7 +2154,7 @@ def setup_admin_handlers(dp):
         user_id = callback_query.from_user.id
         
         if not admin_system.is_admin(user_id):
-            await callback_query.answer("Access denied")
+            await safe_callback_answer(callback_query, "Access denied")
             return
         
         try:
@@ -2185,7 +2220,7 @@ def setup_admin_handlers(dp):
             
         except Exception as e:
             logger.error(f"Admin gamification error: {e}")
-            await callback_query.answer("Error loading gamification management")
+            await safe_callback_answer(callback_query, "Error loading gamification management")
 
     @router.callback_query(F.data == "admin_achievements")
     async def admin_achievements_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -2193,7 +2228,7 @@ def setup_admin_handlers(dp):
         user_id = callback_query.from_user.id
         
         if not admin_system.is_admin(user_id):
-            await callback_query.answer("Access denied")
+            await safe_callback_answer(callback_query, "Access denied")
             return
         
         try:
@@ -2257,7 +2292,7 @@ def setup_admin_handlers(dp):
             
         except Exception as e:
             logger.error(f"Achievement analytics error: {e}")
-            await callback_query.answer("Error loading achievement analytics")
+            await safe_callback_answer(callback_query, "Error loading achievement analytics")
     
     logger.info("Admin system handlers setup completed")
 
@@ -2268,7 +2303,7 @@ async def admin_agreement_handler(callback_query: CallbackQuery, state: FSMConte
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied", show_alert=True)
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
         return
     
     try:
@@ -2298,11 +2333,11 @@ You can view the full agreement or edit it below:
         ])
         
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-        await callback_query.answer("Usage agreement management")
+        await safe_callback_answer(callback_query, "Usage agreement management")
         
     except Exception as e:
         logger.error(f"Error showing usage agreement: {e}")
-        await callback_query.answer("Error loading usage agreement", show_alert=True)
+        await safe_callback_answer(callback_query, "Error loading usage agreement", show_alert=True)
 
 @router.callback_query(F.data == "view_agreement")
 async def view_agreement_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -2310,14 +2345,14 @@ async def view_agreement_handler(callback_query: CallbackQuery, state: FSMContex
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied", show_alert=True)
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
         return
     
     try:
         agreement = await db.get_bot_setting('usage_agreement')
         
         if not agreement:
-            await callback_query.answer("No agreement found", show_alert=True)
+            await safe_callback_answer(callback_query, "No agreement found", show_alert=True)
             return
         
         text = f"📄 <b>Usage Agreement</b>\n\n{agreement}"
@@ -2325,11 +2360,11 @@ async def view_agreement_handler(callback_query: CallbackQuery, state: FSMContex
             [InlineKeyboardButton(text="⬅️ Back", callback_data="admin_agreement")]
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-        await callback_query.answer("Viewing full agreement")
+        await safe_callback_answer(callback_query, "Viewing full agreement")
             
     except Exception as e:
         logger.error(f"Error showing full agreement: {e}")
-        await callback_query.answer("Error loading full agreement", show_alert=True)
+        await safe_callback_answer(callback_query, "Error loading full agreement", show_alert=True)
 
 @router.callback_query(F.data == "edit_agreement")
 async def edit_agreement_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -2337,7 +2372,7 @@ async def edit_agreement_handler(callback_query: CallbackQuery, state: FSMContex
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("❌ Access denied", show_alert=True)
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
         return
     
     await state.set_state(AdminStates.edit_agreement)
@@ -2354,7 +2389,7 @@ Send your new agreement text now:
     ])
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
-    await callback_query.answer("Ready to edit agreement")
+    await safe_callback_answer(callback_query, "Ready to edit agreement")
 
 @router.message(AdminStates.edit_agreement)
 async def process_agreement_edit(message: Message, state: FSMContext):
@@ -2510,7 +2545,7 @@ async def show_smart_pricing_system(callback_query: CallbackQuery):
         await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='HTML')
     except Exception as e:
         logger.error(f"Error showing smart pricing system: {e}")
-        await callback_query.answer("Error displaying pricing system", show_alert=True)
+        await safe_callback_answer(callback_query, "Error displaying pricing system", show_alert=True)
 
 
 async def show_pricing_table(callback_query: CallbackQuery):
@@ -2560,7 +2595,7 @@ Days | Posts/Day | Discount | Daily Rate | Final Price
         await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='HTML')
     except Exception as e:
         logger.error(f"Error showing pricing table: {e}")
-        await callback_query.answer("Error displaying pricing table", show_alert=True)
+        await safe_callback_answer(callback_query, "Error displaying pricing table", show_alert=True)
 
 @router.callback_query(F.data == "admin_test_workflow")
 async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -2568,7 +2603,7 @@ async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     # Import here to avoid circular imports
@@ -2585,7 +2620,7 @@ async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMC
             [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
         ])
     )
-    await callback_query.answer()
+    await safe_callback_answer(callback_query, "Updated")
     
     try:
         # Create bot instance
@@ -2647,7 +2682,7 @@ async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMCo
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     # Import here to avoid circular imports
@@ -2685,7 +2720,7 @@ async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMCo
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
             parse_mode='HTML'
         )
-        await callback_query.answer()
+        await safe_callback_answer(callback_query, "Updated")
         
         await bot.session.close()
         
@@ -2697,7 +2732,7 @@ async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMCo
                 [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
             ])
         )
-        await callback_query.answer()
+        await safe_callback_answer(callback_query, "Updated")
 
 @router.callback_query(F.data.startswith("view_test_report_"))
 async def view_test_report_handler(callback_query: CallbackQuery, state: FSMContext):
@@ -2705,7 +2740,7 @@ async def view_test_report_handler(callback_query: CallbackQuery, state: FSMCont
     user_id = callback_query.from_user.id
     
     if not admin_system.is_admin(user_id):
-        await callback_query.answer("ERROR: Access denied.")
+        await safe_callback_answer(callback_query, "ERROR: Access denied.")
         return
     
     suite_id = callback_query.data.replace("view_test_report_", "")
@@ -2725,7 +2760,7 @@ async def view_test_report_handler(callback_query: CallbackQuery, state: FSMCont
         conn.close()
         
         if not result:
-            await callback_query.answer("Test report not found.")
+            await safe_callback_answer(callback_query, "Test report not found.")
             return
         
         report = result[0]
@@ -2744,7 +2779,7 @@ async def view_test_report_handler(callback_query: CallbackQuery, state: FSMCont
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
             parse_mode='HTML'
         )
-        await callback_query.answer()
+        await safe_callback_answer(callback_query, "Updated")
         
     except Exception as e:
         await callback_query.message.edit_text(
@@ -2754,4 +2789,4 @@ async def view_test_report_handler(callback_query: CallbackQuery, state: FSMCont
                 [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
             ])
         )
-        await callback_query.answer()
+        await safe_callback_answer(callback_query, "Updated")
