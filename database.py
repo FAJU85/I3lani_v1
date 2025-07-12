@@ -12,10 +12,26 @@ from config import DATABASE_URL
 class Database:
     def __init__(self, db_path: str = "bot.db"):
         self.db_path = db_path
+        self._connection_pool = None
+        self._lock = asyncio.Lock()
     
     def get_connection(self):
-        """Get database connection for async context manager"""
+        """Get database connection with proper configuration"""
         return aiosqlite.connect(self.db_path)
+    
+    async def execute_with_retry(self, query: str, params: tuple = (), max_retries: int = 3):
+        """Execute database query with retry logic"""
+        for attempt in range(max_retries):
+            try:
+                async with await self.get_connection() as conn:
+                    await conn.execute(query, params)
+                    await conn.commit()
+                return
+            except Exception as e:
+                if "database is locked" in str(e) and attempt < max_retries - 1:
+                    await asyncio.sleep(0.1 * (2 ** attempt))  # Exponential backoff
+                    continue
+                raise e
         
     async def init_db(self):
         """Initialize database tables"""
@@ -1514,23 +1530,28 @@ async def _get_channel_by_id(self, channel_id: str) -> Optional[Dict]:
 # Anti-fraud database methods
 async def log_user_interaction(self, user_id: int, interaction_type: str, details: str = ""):
     """Log user interaction for fraud detection"""
-    async with aiosqlite.connect(self.db_path) as conn:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS user_interactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                interaction_type TEXT NOT NULL,
-                details TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        await conn.execute("""
-            INSERT INTO user_interactions (user_id, interaction_type, details)
-            VALUES (?, ?, ?)
-        """, (user_id, interaction_type, details))
-        
-        await conn.commit()
+    try:
+        async with self.get_connection() as conn:
+            await conn.execute("PRAGMA busy_timeout=30000")
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_interactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    interaction_type TEXT NOT NULL,
+                    details TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            await conn.execute("""
+                INSERT INTO user_interactions (user_id, interaction_type, details)
+                VALUES (?, ?, ?)
+            """, (user_id, interaction_type, details))
+            
+            await conn.commit()
+    except Exception as e:
+        print(f"Error logging user interaction: {e}")
+        # Don't crash the handler if logging fails
 
 async def log_user_action(self, user_id: int, action_type: str, details: str = ""):
     """Log user action for fraud detection"""
