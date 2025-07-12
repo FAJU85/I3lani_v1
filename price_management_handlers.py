@@ -42,47 +42,47 @@ async def show_price_management(callback_query: CallbackQuery, state: FSMContext
         tiers = await manager.get_all_price_tiers()
         
         text = f"""
-💰 <b>Price Management System</b>
+💰 <b>Comprehensive Price Management System</b>
 
-📊 <b>Overview:</b>
-• Total Price Tiers: {summary.get('total_tiers', 0)}
-• Active Tiers: {summary.get('active_tiers', 0)}
-• Inactive Tiers: {summary.get('inactive_tiers', 0)}
+📊 <b>System Overview:</b>
 • Base Price: ${summary.get('base_price_usd', 1.00):.2f}/post/day
 
-💸 <b>Price Range:</b>
-• Minimum: ${summary.get('price_range', {}).get('min_price', 0):.2f}
-• Maximum: ${summary.get('price_range', {}).get('max_price', 0):.2f}
+🎯 <b>Current Pricing:</b>
+• Total Tiers: {summary.get('current_pricing', {}).get('total', 0)}
+• Active Tiers: {summary.get('current_pricing', {}).get('active', 0)}
+• Price Range: ${summary.get('current_pricing', {}).get('min_price', 0):.2f} - ${summary.get('current_pricing', {}).get('max_price', 0):.2f}
 
-📈 <b>Analytics:</b>
-• Total Revenue: ${summary.get('total_revenue', 0):.2f}
-• Total Usage: {summary.get('total_usage', 0)} campaigns
+🆕 <b>New Pricing:</b>
+• Total Plans: {summary.get('new_pricing', {}).get('total', 0)}
+• Active Plans: {summary.get('new_pricing', {}).get('active', 0)}
 
-🎯 <b>Current Price Tiers:</b>
+🎁 <b>Promotional Offers:</b>
+• Total Offers: {summary.get('offers', {}).get('total', 0)}
+• Active Offers: {summary.get('offers', {}).get('active', 0)}
+• Max Discount: {summary.get('offers', {}).get('max_discount', 0):.0f}%
+
+📦 <b>Bundle Packages:</b>
+• Total Bundles: {summary.get('bundles', {}).get('total', 0)}
+• Active Bundles: {summary.get('bundles', {}).get('active', 0)}
+• Featured: {summary.get('bundles', {}).get('featured', 0)}
+• Max Savings: {summary.get('bundles', {}).get('max_savings', 0):.0f}%
+
+🔧 <b>Management Categories:</b>
 """
         
-        # Show first 5 tiers
-        for tier in tiers[:5]:
-            status_icon = "🟢" if tier['is_active'] else "🔴"
-            text += f"• {status_icon} <b>{tier['duration_days']} days</b> - {tier['posts_per_day']} posts/day\n"
-            text += f"  ${tier['final_price_usd']:.2f} ({tier['discount_percent']:.0f}% discount)\n"
-        
-        if len(tiers) > 5:
-            text += f"... and {len(tiers) - 5} more tiers\n"
-        
-        # Create management keyboard
+        # Create management keyboard with all categories
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="➕ Add New Price", callback_data="price_add_new"),
-                InlineKeyboardButton(text="✏️ Edit Prices", callback_data="price_edit_list")
+                InlineKeyboardButton(text="💰 Current Pricing", callback_data="price_manage_current"),
+                InlineKeyboardButton(text="🆕 New Pricing", callback_data="price_manage_new")
             ],
             [
-                InlineKeyboardButton(text="📋 All Price Tiers", callback_data="price_view_all"),
-                InlineKeyboardButton(text="📊 Price Analytics", callback_data="price_analytics")
+                InlineKeyboardButton(text="🎁 Offers", callback_data="price_manage_offers"),
+                InlineKeyboardButton(text="📦 Bundles", callback_data="price_manage_bundles")
             ],
             [
-                InlineKeyboardButton(text="📈 Price History", callback_data="price_history"),
-                InlineKeyboardButton(text="⚡ Bulk Operations", callback_data="price_bulk_ops")
+                InlineKeyboardButton(text="📊 Analytics", callback_data="price_analytics_all"),
+                InlineKeyboardButton(text="📈 History", callback_data="price_history_all")
             ],
             [
                 InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_price_management"),
@@ -102,6 +102,237 @@ async def show_price_management(callback_query: CallbackQuery, state: FSMContext
     except Exception as e:
         logger.error(f"Error showing price management: {e}")
         await safe_callback_answer(callback_query, "❌ Error loading price management", show_alert=True)
+
+# CURRENT PRICING HANDLERS
+@price_management_router.callback_query(F.data == "price_manage_current")
+async def manage_current_pricing(callback_query: CallbackQuery, state: FSMContext):
+    """Manage current pricing tiers"""
+    user_id = callback_query.from_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
+        return
+    
+    try:
+        manager = get_price_manager()
+        tiers = await manager.get_all_price_tiers()
+        
+        text = f"""
+💰 <b>Current Pricing Management</b>
+
+📊 <b>Active Price Tiers ({len([t for t in tiers if t['is_active']])} active):</b>
+"""
+        
+        for tier in tiers[:8]:  # Show up to 8 tiers
+            status_icon = "🟢" if tier['is_active'] else "🔴"
+            text += f"• {status_icon} <b>{tier['duration_days']} days</b> - {tier['posts_per_day']} posts/day\n"
+            text += f"  ${tier['final_price_usd']:.2f} ({tier['discount_percent']:.0f}% discount)\n"
+        
+        if len(tiers) > 8:
+            text += f"... and {len(tiers) - 8} more tiers\n"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Add Price Tier", callback_data="price_add_new"),
+                InlineKeyboardButton(text="✏️ Edit Tier", callback_data="price_edit_list")
+            ],
+            [
+                InlineKeyboardButton(text="📋 All Tiers", callback_data="price_view_all"),
+                InlineKeyboardButton(text="🗑️ Delete Tier", callback_data="price_delete_list")
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back", callback_data="admin_price_management")
+            ]
+        ])
+        
+        await safe_edit_message(
+            callback_query.message,
+            text,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
+        
+        await safe_callback_answer(callback_query, "Current pricing loaded")
+        
+    except Exception as e:
+        logger.error(f"Error managing current pricing: {e}")
+        await safe_callback_answer(callback_query, "❌ Error loading current pricing", show_alert=True)
+
+# NEW PRICING HANDLERS
+@price_management_router.callback_query(F.data == "price_manage_new")
+async def manage_new_pricing(callback_query: CallbackQuery, state: FSMContext):
+    """Manage new/experimental pricing"""
+    user_id = callback_query.from_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
+        return
+    
+    try:
+        manager = get_price_manager()
+        new_pricing = await manager.get_all_new_pricing()
+        
+        text = f"""
+🆕 <b>New Pricing Management</b>
+
+📊 <b>Experimental Price Plans ({len(new_pricing)} total):</b>
+"""
+        
+        if new_pricing:
+            for plan in new_pricing[:6]:  # Show up to 6 plans
+                status_icon = "🟢" if plan['is_active'] else "🔴"
+                text += f"• {status_icon} <b>{plan['name']}</b>\n"
+                text += f"  {plan['duration_days']} days, {plan['posts_per_day']} posts/day\n"
+                text += f"  ${plan['final_price_usd']:.2f} ({plan['discount_percent']:.0f}% discount)\n"
+                if plan['description']:
+                    text += f"  <i>{plan['description'][:50]}...</i>\n"
+                text += "\n"
+        else:
+            text += "No experimental pricing plans created yet.\n"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Add New Plan", callback_data="new_price_add"),
+                InlineKeyboardButton(text="✏️ Edit Plan", callback_data="new_price_edit_list")
+            ],
+            [
+                InlineKeyboardButton(text="📋 All Plans", callback_data="new_price_view_all"),
+                InlineKeyboardButton(text="🗑️ Delete Plan", callback_data="new_price_delete_list")
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back", callback_data="admin_price_management")
+            ]
+        ])
+        
+        await safe_edit_message(
+            callback_query.message,
+            text,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
+        
+        await safe_callback_answer(callback_query, "New pricing loaded")
+        
+    except Exception as e:
+        logger.error(f"Error managing new pricing: {e}")
+        await safe_callback_answer(callback_query, "❌ Error loading new pricing", show_alert=True)
+
+# OFFERS HANDLERS  
+@price_management_router.callback_query(F.data == "price_manage_offers")
+async def manage_offers(callback_query: CallbackQuery, state: FSMContext):
+    """Manage promotional offers"""
+    user_id = callback_query.from_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
+        return
+    
+    try:
+        manager = get_price_manager()
+        offers = await manager.get_all_offers()
+        
+        text = f"""
+🎁 <b>Promotional Offers Management</b>
+
+📊 <b>Current Offers ({len(offers)} total):</b>
+"""
+        
+        if offers:
+            for offer in offers[:6]:  # Show up to 6 offers
+                status_icon = "🟢" if offer['is_active'] else "🔴"
+                text += f"• {status_icon} <b>{offer['offer_name']}</b>\n"
+                text += f"  {offer['duration_days']} days, {offer['discount_percent']:.0f}% off\n"
+                text += f"  ${offer['offer_price']:.2f} (was ${offer['original_price']:.2f})\n"
+                if offer['max_uses'] > 0:
+                    text += f"  Uses: {offer['current_uses']}/{offer['max_uses']}\n"
+                text += "\n"
+        else:
+            text += "No promotional offers created yet.\n"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Add Offer", callback_data="offer_add"),
+                InlineKeyboardButton(text="✏️ Edit Offer", callback_data="offer_edit_list")
+            ],
+            [
+                InlineKeyboardButton(text="📋 All Offers", callback_data="offer_view_all"),
+                InlineKeyboardButton(text="🗑️ Delete Offer", callback_data="offer_delete_list")
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back", callback_data="admin_price_management")
+            ]
+        ])
+        
+        await safe_edit_message(
+            callback_query.message,
+            text,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
+        
+        await safe_callback_answer(callback_query, "Offers loaded")
+        
+    except Exception as e:
+        logger.error(f"Error managing offers: {e}")
+        await safe_callback_answer(callback_query, "❌ Error loading offers", show_alert=True)
+
+# BUNDLES HANDLERS
+@price_management_router.callback_query(F.data == "price_manage_bundles")
+async def manage_bundles(callback_query: CallbackQuery, state: FSMContext):
+    """Manage bundle packages"""
+    user_id = callback_query.from_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await safe_callback_answer(callback_query, "❌ Access denied", show_alert=True)
+        return
+    
+    try:
+        manager = get_price_manager()
+        bundles = await manager.get_all_bundles()
+        
+        text = f"""
+📦 <b>Bundle Packages Management</b>
+
+📊 <b>Available Bundles ({len(bundles)} total):</b>
+"""
+        
+        if bundles:
+            for bundle in bundles[:6]:  # Show up to 6 bundles
+                status_icon = "🟢" if bundle['is_active'] else "🔴"
+                featured_icon = "⭐" if bundle['is_featured'] else ""
+                text += f"• {status_icon}{featured_icon} <b>{bundle['bundle_name']}</b>\n"
+                text += f"  {bundle['total_duration_days']} days, {bundle['total_posts']} posts\n"
+                text += f"  ${bundle['bundle_price']:.2f} (save {bundle['savings_percent']:.0f}%)\n"
+                text += f"  <i>{bundle['bundle_description'][:50]}...</i>\n\n"
+        else:
+            text += "No bundle packages created yet.\n"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Add Bundle", callback_data="bundle_add"),
+                InlineKeyboardButton(text="✏️ Edit Bundle", callback_data="bundle_edit_list")
+            ],
+            [
+                InlineKeyboardButton(text="📋 All Bundles", callback_data="bundle_view_all"),
+                InlineKeyboardButton(text="🗑️ Delete Bundle", callback_data="bundle_delete_list")
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back", callback_data="admin_price_management")
+            ]
+        ])
+        
+        await safe_edit_message(
+            callback_query.message,
+            text,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
+        
+        await safe_callback_answer(callback_query, "Bundles loaded")
+        
+    except Exception as e:
+        logger.error(f"Error managing bundles: {e}")
+        await safe_callback_answer(callback_query, "❌ Error loading bundles", show_alert=True)
 
 @price_management_router.callback_query(F.data == "price_add_new")
 async def add_new_price_prompt(callback_query: CallbackQuery, state: FSMContext):

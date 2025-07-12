@@ -27,7 +27,7 @@ class PriceManager:
         connection = await db.get_connection()
         cursor = await connection.cursor()
         
-        # Price tiers table
+        # Price tiers table (current pricing)
         await cursor.execute('''
             CREATE TABLE IF NOT EXISTS price_tiers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,11 +42,71 @@ class PriceManager:
             )
         ''')
         
-        # Price history table
+        # New pricing table (experimental/future pricing)
+        await cursor.execute('''
+            CREATE TABLE IF NOT EXISTS new_pricing (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                duration_days INTEGER,
+                posts_per_day INTEGER,
+                discount_percent REAL DEFAULT 0.0,
+                base_price_usd REAL DEFAULT 1.00,
+                final_price_usd REAL,
+                description TEXT,
+                is_active BOOLEAN DEFAULT 0,
+                launch_date TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Offers table (promotional offers)
+        await cursor.execute('''
+            CREATE TABLE IF NOT EXISTS offers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                offer_name TEXT NOT NULL,
+                offer_type TEXT DEFAULT 'discount',
+                duration_days INTEGER,
+                posts_per_day INTEGER,
+                original_price REAL,
+                offer_price REAL,
+                discount_percent REAL,
+                offer_description TEXT,
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                max_uses INTEGER DEFAULT -1,
+                current_uses INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Bundles table (package deals)
+        await cursor.execute('''
+            CREATE TABLE IF NOT EXISTS bundles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bundle_name TEXT NOT NULL,
+                bundle_description TEXT,
+                bundle_items TEXT,
+                total_duration_days INTEGER,
+                total_posts INTEGER,
+                individual_price REAL,
+                bundle_price REAL,
+                savings_percent REAL,
+                is_featured BOOLEAN DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Price history table (for all types)
         await cursor.execute('''
             CREATE TABLE IF NOT EXISTS price_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                duration_days INTEGER,
+                item_type TEXT,
+                item_id INTEGER,
                 old_price REAL,
                 new_price REAL,
                 change_reason TEXT,
@@ -55,11 +115,12 @@ class PriceManager:
             )
         ''')
         
-        # Price analytics table
+        # Price analytics table (for all types)
         await cursor.execute('''
             CREATE TABLE IF NOT EXISTS price_analytics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                duration_days INTEGER,
+                item_type TEXT,
+                item_id INTEGER,
                 usage_count INTEGER DEFAULT 0,
                 total_revenue REAL DEFAULT 0.0,
                 last_used TIMESTAMP,
@@ -70,9 +131,11 @@ class PriceManager:
         await connection.commit()
         await connection.close()
         
-        # Initialize default pricing tiers if none exist
+        # Initialize default data if none exist
         await self.initialize_default_prices()
-        logger.info("✅ Price management database initialized")
+        await self.initialize_default_offers()
+        await self.initialize_default_bundles()
+        logger.info("✅ Price management database initialized with all categories")
     
     async def initialize_default_prices(self):
         """Initialize default pricing tiers"""
@@ -434,33 +497,382 @@ class PriceManager:
         logger.info(f"✅ Bulk update completed: {results['updated']} updated, {results['failed']} failed")
         return results
     
-    async def get_pricing_summary(self) -> Dict:
-        """Get comprehensive pricing summary"""
+    async def initialize_default_offers(self):
+        """Initialize default promotional offers"""
+        existing_offers = await self.get_all_offers()
+        if not existing_offers:
+            default_offers = [
+                {
+                    'offer_name': 'Weekend Special',
+                    'offer_type': 'discount',
+                    'duration_days': 3,
+                    'posts_per_day': 2,
+                    'discount_percent': 25.0,
+                    'offer_description': 'Weekend boost with 25% discount',
+                    'max_uses': 100
+                },
+                {
+                    'offer_name': 'New User Promo',
+                    'offer_type': 'discount',
+                    'duration_days': 7,
+                    'posts_per_day': 1,
+                    'discount_percent': 30.0,
+                    'offer_description': 'First-time user discount',
+                    'max_uses': 50
+                },
+                {
+                    'offer_name': 'Flash Sale',
+                    'offer_type': 'discount',
+                    'duration_days': 1,
+                    'posts_per_day': 3,
+                    'discount_percent': 40.0,
+                    'offer_description': '24-hour flash promotion',
+                    'max_uses': 25
+                }
+            ]
+            
+            for offer_data in default_offers:
+                await self.create_offer(**offer_data)
+            logger.info("✅ Default offers initialized")
+    
+    async def initialize_default_bundles(self):
+        """Initialize default bundle packages"""
+        existing_bundles = await self.get_all_bundles()
+        if not existing_bundles:
+            default_bundles = [
+                {
+                    'bundle_name': 'Starter Pack',
+                    'bundle_description': 'Perfect for small businesses',
+                    'bundle_items': '7 days + 15 days + 30 days',
+                    'total_duration_days': 52,
+                    'total_posts': 104,
+                    'bundle_price': 45.0,
+                    'savings_percent': 15.0
+                },
+                {
+                    'bundle_name': 'Growth Package',
+                    'bundle_description': 'Ideal for expanding reach',
+                    'bundle_items': '30 days + 60 days + 90 days',
+                    'total_duration_days': 180,
+                    'total_posts': 540,
+                    'bundle_price': 180.0,
+                    'savings_percent': 25.0
+                },
+                {
+                    'bundle_name': 'Enterprise Suite',
+                    'bundle_description': 'Maximum exposure package',
+                    'bundle_items': '60 days + 90 days + 180 days',
+                    'total_duration_days': 330,
+                    'total_posts': 1320,
+                    'bundle_price': 350.0,
+                    'savings_percent': 30.0
+                }
+            ]
+            
+            for bundle_data in default_bundles:
+                await self.create_bundle(**bundle_data)
+            logger.info("✅ Default bundles initialized")
+    
+    # NEW PRICING METHODS
+    async def create_new_pricing(self, name: str, duration_days: int, posts_per_day: int, 
+                                discount_percent: float = 0.0, description: str = "", 
+                                launch_date: str = None, admin_id: int = None) -> bool:
+        """Create new experimental pricing tier"""
         try:
+            base_cost = self.base_price_usd * posts_per_day * duration_days
+            discount_amount = base_cost * (discount_percent / 100)
+            final_price = base_cost - discount_amount
+            
+            connection = await db.get_connection()
+            cursor = await connection.cursor()
+            
+            await cursor.execute('''
+                INSERT INTO new_pricing 
+                (name, duration_days, posts_per_day, discount_percent, base_price_usd, 
+                 final_price_usd, description, launch_date, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (name, duration_days, posts_per_day, discount_percent, self.base_price_usd, 
+                  final_price, description, launch_date, datetime.now()))
+            
+            new_pricing_id = cursor.lastrowid
+            
+            if admin_id:
+                await cursor.execute('''
+                    INSERT INTO price_history 
+                    (item_type, item_id, old_price, new_price, change_reason, admin_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', ("new_pricing", new_pricing_id, 0.0, final_price, "New pricing created", admin_id))
+            
+            await connection.commit()
+            await connection.close()
+            
+            logger.info(f"✅ Created new pricing: {name} - ${final_price:.2f}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating new pricing: {e}")
+            return False
+    
+    async def get_all_new_pricing(self, active_only: bool = False) -> List[Dict]:
+        """Get all new pricing tiers"""
+        try:
+            connection = await db.get_connection()
+            cursor = await connection.cursor()
+            
+            query = '''
+                SELECT id, name, duration_days, posts_per_day, discount_percent, 
+                       base_price_usd, final_price_usd, description, is_active, 
+                       launch_date, created_at, updated_at
+                FROM new_pricing
+            '''
+            
+            if active_only:
+                query += ' WHERE is_active = 1'
+            
+            query += ' ORDER BY created_at DESC'
+            
+            await cursor.execute(query)
+            rows = await cursor.fetchall()
+            await connection.close()
+            
+            new_pricing = []
+            for row in rows:
+                new_pricing.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'duration_days': row[2],
+                    'posts_per_day': row[3],
+                    'discount_percent': row[4],
+                    'base_price_usd': row[5],
+                    'final_price_usd': row[6],
+                    'description': row[7],
+                    'is_active': bool(row[8]),
+                    'launch_date': row[9],
+                    'created_at': row[10],
+                    'updated_at': row[11]
+                })
+            
+            return new_pricing
+            
+        except Exception as e:
+            logger.error(f"Error getting new pricing: {e}")
+            return []
+    
+    # OFFERS METHODS
+    async def create_offer(self, offer_name: str, duration_days: int, posts_per_day: int,
+                          discount_percent: float, offer_description: str = "",
+                          offer_type: str = "discount", max_uses: int = -1,
+                          start_date: str = None, end_date: str = None, admin_id: int = None) -> bool:
+        """Create promotional offer"""
+        try:
+            original_price = self.base_price_usd * posts_per_day * duration_days
+            offer_price = original_price * (1 - discount_percent / 100)
+            
+            connection = await db.get_connection()
+            cursor = await connection.cursor()
+            
+            await cursor.execute('''
+                INSERT INTO offers 
+                (offer_name, offer_type, duration_days, posts_per_day, original_price,
+                 offer_price, discount_percent, offer_description, start_date, end_date,
+                 max_uses, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (offer_name, offer_type, duration_days, posts_per_day, original_price,
+                  offer_price, discount_percent, offer_description, start_date, end_date,
+                  max_uses, datetime.now()))
+            
+            offer_id = cursor.lastrowid
+            
+            if admin_id:
+                await cursor.execute('''
+                    INSERT INTO price_history 
+                    (item_type, item_id, old_price, new_price, change_reason, admin_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', ("offer", offer_id, original_price, offer_price, "Offer created", admin_id))
+            
+            await connection.commit()
+            await connection.close()
+            
+            logger.info(f"✅ Created offer: {offer_name} - ${offer_price:.2f}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating offer: {e}")
+            return False
+    
+    async def get_all_offers(self, active_only: bool = False) -> List[Dict]:
+        """Get all promotional offers"""
+        try:
+            connection = await db.get_connection()
+            cursor = await connection.cursor()
+            
+            query = '''
+                SELECT id, offer_name, offer_type, duration_days, posts_per_day,
+                       original_price, offer_price, discount_percent, offer_description,
+                       start_date, end_date, max_uses, current_uses, is_active,
+                       created_at, updated_at
+                FROM offers
+            '''
+            
+            if active_only:
+                query += ' WHERE is_active = 1'
+            
+            query += ' ORDER BY created_at DESC'
+            
+            await cursor.execute(query)
+            rows = await cursor.fetchall()
+            await connection.close()
+            
+            offers = []
+            for row in rows:
+                offers.append({
+                    'id': row[0],
+                    'offer_name': row[1],
+                    'offer_type': row[2],
+                    'duration_days': row[3],
+                    'posts_per_day': row[4],
+                    'original_price': row[5],
+                    'offer_price': row[6],
+                    'discount_percent': row[7],
+                    'offer_description': row[8],
+                    'start_date': row[9],
+                    'end_date': row[10],
+                    'max_uses': row[11],
+                    'current_uses': row[12],
+                    'is_active': bool(row[13]),
+                    'created_at': row[14],
+                    'updated_at': row[15]
+                })
+            
+            return offers
+            
+        except Exception as e:
+            logger.error(f"Error getting offers: {e}")
+            return []
+    
+    # BUNDLES METHODS
+    async def create_bundle(self, bundle_name: str, bundle_description: str, bundle_items: str,
+                           total_duration_days: int, total_posts: int, bundle_price: float,
+                           savings_percent: float, is_featured: bool = False, admin_id: int = None) -> bool:
+        """Create bundle package"""
+        try:
+            individual_price = self.base_price_usd * total_posts
+            
+            connection = await db.get_connection()
+            cursor = await connection.cursor()
+            
+            await cursor.execute('''
+                INSERT INTO bundles 
+                (bundle_name, bundle_description, bundle_items, total_duration_days,
+                 total_posts, individual_price, bundle_price, savings_percent,
+                 is_featured, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (bundle_name, bundle_description, bundle_items, total_duration_days,
+                  total_posts, individual_price, bundle_price, savings_percent,
+                  is_featured, datetime.now()))
+            
+            bundle_id = cursor.lastrowid
+            
+            if admin_id:
+                await cursor.execute('''
+                    INSERT INTO price_history 
+                    (item_type, item_id, old_price, new_price, change_reason, admin_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', ("bundle", bundle_id, individual_price, bundle_price, "Bundle created", admin_id))
+            
+            await connection.commit()
+            await connection.close()
+            
+            logger.info(f"✅ Created bundle: {bundle_name} - ${bundle_price:.2f}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating bundle: {e}")
+            return False
+    
+    async def get_all_bundles(self, active_only: bool = False) -> List[Dict]:
+        """Get all bundle packages"""
+        try:
+            connection = await db.get_connection()
+            cursor = await connection.cursor()
+            
+            query = '''
+                SELECT id, bundle_name, bundle_description, bundle_items,
+                       total_duration_days, total_posts, individual_price,
+                       bundle_price, savings_percent, is_featured, is_active,
+                       created_at, updated_at
+                FROM bundles
+            '''
+            
+            if active_only:
+                query += ' WHERE is_active = 1'
+            
+            query += ' ORDER BY is_featured DESC, created_at DESC'
+            
+            await cursor.execute(query)
+            rows = await cursor.fetchall()
+            await connection.close()
+            
+            bundles = []
+            for row in rows:
+                bundles.append({
+                    'id': row[0],
+                    'bundle_name': row[1],
+                    'bundle_description': row[2],
+                    'bundle_items': row[3],
+                    'total_duration_days': row[4],
+                    'total_posts': row[5],
+                    'individual_price': row[6],
+                    'bundle_price': row[7],
+                    'savings_percent': row[8],
+                    'is_featured': bool(row[9]),
+                    'is_active': bool(row[10]),
+                    'created_at': row[11],
+                    'updated_at': row[12]
+                })
+            
+            return bundles
+            
+        except Exception as e:
+            logger.error(f"Error getting bundles: {e}")
+            return []
+    
+    async def get_pricing_summary(self) -> Dict:
+        """Get comprehensive pricing summary for all categories"""
+        try:
+            # Get all data
             tiers = await self.get_all_price_tiers()
+            new_pricing = await self.get_all_new_pricing()
+            offers = await self.get_all_offers()
+            bundles = await self.get_all_bundles()
+            
             active_tiers = [t for t in tiers if t['is_active']]
-            
-            total_revenue = 0.0
-            total_usage = 0
-            
-            # Get analytics totals
-            analytics = await self.get_price_analytics()
-            if 'all_tiers' in analytics:
-                for tier_analytics in analytics['all_tiers']:
-                    total_revenue += tier_analytics['total_revenue']
-                    total_usage += tier_analytics['usage_count']
+            active_offers = [o for o in offers if o['is_active']]
+            active_bundles = [b for b in bundles if b['is_active']]
             
             return {
-                'total_tiers': len(tiers),
-                'active_tiers': len(active_tiers),
-                'inactive_tiers': len(tiers) - len(active_tiers),
-                'base_price_usd': self.base_price_usd,
-                'price_range': {
+                'current_pricing': {
+                    'total': len(tiers),
+                    'active': len(active_tiers),
                     'min_price': min(t['final_price_usd'] for t in active_tiers) if active_tiers else 0,
                     'max_price': max(t['final_price_usd'] for t in active_tiers) if active_tiers else 0
                 },
-                'total_revenue': total_revenue,
-                'total_usage': total_usage,
+                'new_pricing': {
+                    'total': len(new_pricing),
+                    'active': len([p for p in new_pricing if p['is_active']])
+                },
+                'offers': {
+                    'total': len(offers),
+                    'active': len(active_offers),
+                    'max_discount': max(o['discount_percent'] for o in active_offers) if active_offers else 0
+                },
+                'bundles': {
+                    'total': len(bundles),
+                    'active': len(active_bundles),
+                    'featured': len([b for b in active_bundles if b['is_featured']]),
+                    'max_savings': max(b['savings_percent'] for b in active_bundles) if active_bundles else 0
+                },
+                'base_price_usd': self.base_price_usd,
                 'last_updated': datetime.now()
             }
             
