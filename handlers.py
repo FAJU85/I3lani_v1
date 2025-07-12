@@ -180,22 +180,22 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
     ])
     
     my_ads_text = {
-        'en': '📊 My Advertisements',
-        'ar': '📊 إعلاناتي',
-        'ru': '📊 Мои объявления'
+        'en': '📊 My Campaigns',
+        'ar': '📊 حملاتي الإعلانية',
+        'ru': '📊 Мои кампании'
     }
     
     partner_program_text = {
-        'en': '💼 Partner Program',
-        'ar': '💼 برنامج الشراكة',
-        'ru': '💼 Партнерская программа'
+        'en': '🎯 Share & Earn',
+        'ar': '🎯 شارك واربح',
+        'ru': '🎯 Поделись и заработай'
     }
     
-    # My Campaigns button
-    my_campaigns_text = {
-        'en': '📋 My Campaigns',
-        'ar': '📋 حملاتي',
-        'ru': '📋 Мои кампании'
+    # Pricing button
+    pricing_text = {
+        'en': '💰 Pricing',
+        'ar': '💰 الأسعار',
+        'ru': '💰 Цены'
     }
     
     keyboard_rows.append([
@@ -204,15 +204,15 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
             callback_data="my_ads"
         ),
         InlineKeyboardButton(
-            text=my_campaigns_text.get(language, my_campaigns_text['en']), 
-            callback_data="my_campaigns"
+            text=pricing_text.get(language, pricing_text['en']), 
+            callback_data="pricing"
         )
     ])
     
     keyboard_rows.append([
         InlineKeyboardButton(
             text=partner_program_text.get(language, partner_program_text['en']), 
-            callback_data="join_partner_program"
+            callback_data="share_earn"
         )
     ])
     
