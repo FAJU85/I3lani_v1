@@ -427,16 +427,16 @@ async def init_bot():
         
         # Setup bot commands
         await bot.set_my_commands([
-            BotCommand(command="start", description="Start the bot"),
-            BotCommand(command="dashboard", description="My Ads Dashboard"),
-            BotCommand(command="mystats", description="My Statistics"),
-            BotCommand(command="referral", description="Referral System"),
-            BotCommand(command="support", description="Get Support"),
-            BotCommand(command="help", description="Help & Guide"),
-            BotCommand(command="admin", description="Admin Panel"),
-            BotCommand(command="health", description="System Health (Admin)"),
-            BotCommand(command="troubleshoot", description="Troubleshooting (Admin)"),
-            BotCommand(command="report_issue", description="Report Issue")
+            BotCommand(command="start", description="🚀 Start the bot"),
+            BotCommand(command="dashboard", description="📊 My Ads Dashboard"),
+            BotCommand(command="mystats", description="📈 My Statistics"),
+            BotCommand(command="referral", description="🎯 Referral System"),
+            BotCommand(command="support", description="💬 Get Support"),
+            BotCommand(command="help", description="❓ Help & Guide"),
+            BotCommand(command="admin", description="⚙️ Admin Panel"),
+            BotCommand(command="health", description="🏥 System Health (Admin)"),
+            BotCommand(command="troubleshoot", description="🔧 Troubleshooting (Admin)"),
+            BotCommand(command="report_issue", description="🚨 Report Issue")
         ])
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
         logger.info("Bot commands set successfully")
