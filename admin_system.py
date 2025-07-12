@@ -151,24 +151,24 @@ Select an option to continue:
             active_channels = [ch for ch in channels if ch.get('is_active', False)]
             logger.info(f"Channel management: Found {len(channels)} channels, {len(active_channels)} active")
             
-            text = f"""
-📺 Channel Management
+            text = f"""<b>📺 Channel Management</b>
 
-Active Channels: {len(active_channels)}
-Total Channels: {len(channels)}
+<b>Active Channels:</b> {len(active_channels)}
+<b>Total Channels:</b> {len(channels)}
 
-Channels:
+<b>Channels:</b>
             """.strip()
             
             if not channels:
                 text += "\n\nNo channels found. Add channels by making the bot admin in a channel."
             else:
                 for channel in channels:
-                    status = "SUCCESS:" if channel.get('is_active', False) else "ERROR:"
-                    text += f"\n{status} {channel['name']}"
-                    text += f"\n   - ID: {channel['telegram_channel_id']}"
-                    text += f"\n   - Subscribers: {channel['subscribers']:,}"
-                    text += f"\n   - Category: {channel.get('category', 'general')}"
+                    status = "✅" if channel.get('is_active', False) else "❌"
+                    channel_name = channel['name']
+                    text += f"\n{status} <b>{channel_name}</b>"
+                    text += f"\n   • ID: <code>{channel['telegram_channel_id']}</code>"
+                    text += f"\n   • Subscribers: {channel['subscribers']:,}"
+                    text += f"\n   • Category: {channel.get('category', 'general')}"
             
             keyboard = [
                 [
@@ -199,16 +199,17 @@ Channels:
             await callback_query.message.edit_text(
                 text, 
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
             
         except Exception as e:
             logger.error(f"Channel management error: {e}")
-            simple_text = f"📺 Channel Management\n\nError loading channels: {str(e)}"
+            simple_text = f"<b>📺 Channel Management</b>\n\nError loading channels: {str(e)}"
             keyboard = [[InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]]
             await callback_query.message.edit_text(
                 simple_text,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+                parse_mode='HTML'
             )
 
     async def show_subscription_management(self, callback_query: CallbackQuery):
