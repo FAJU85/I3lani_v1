@@ -119,14 +119,14 @@ class AdminSystem:
         active_channels = [ch for ch in channels if ch.get('is_active', False)]
         
         text = f"""
-**I3lani Bot Admin Panel**
+<b>I3lani Bot Admin Panel</b>
 
-**System Status:** SUCCESS: Online
-**Total Users:** {await self.get_total_users()}
-**Active Channels:** {len(active_channels)}
-**Total Channels:** {len(channels)}
+<b>System Status:</b> SUCCESS: Online
+<b>Total Users:</b> {await self.get_total_users()}
+<b>Active Channels:</b> {len(active_channels)}
+<b>Total Channels:</b> {len(channels)}
 
-**Quick Actions:**
+<b>Quick Actions:</b>
 - Manage channels and subscriptions
 - Control packages and schedules
 - Monitor user activity
@@ -139,9 +139,9 @@ Select an option to continue:
         keyboard = self.create_main_menu_keyboard()
         
         if edit and hasattr(message_or_query, 'message'):
-            await message_or_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+            await message_or_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
         else:
-            await message_or_query.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+            await message_or_query.answer(text, reply_markup=keyboard, parse_mode='HTML')
 
     async def show_channel_management(self, callback_query: CallbackQuery):
         """Show channel management interface"""
@@ -215,15 +215,15 @@ Select an option to continue:
     async def show_subscription_management(self, callback_query: CallbackQuery):
         """Show subscription management interface"""
         text = f"""
-**Package Management**
+<b>Package Management</b>
 
-**Available Packages:** {len(self.subscription_packages)}
+<b>Available Packages:</b> {len(self.subscription_packages)}
 
-**Current Packages:**
+<b>Current Packages:</b>
         """.strip()
         
         for package_id, package in self.subscription_packages.items():
-            text += f"\n**{package['name']}**"
+            text += f"\n<b>{package['name']}</b>"
             text += f"\n   - Price: ${package['price_usd']}"
             text += f"\n   - Duration: {package['duration_days']} days"
             text += f"\n   - Posts/Day: {package['posts_per_day']}"
@@ -246,7 +246,7 @@ Select an option to continue:
         await callback_query.message.edit_text(
             text, 
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_pricing_management(self, callback_query: CallbackQuery):
@@ -254,10 +254,10 @@ Select an option to continue:
         from frequency_pricing import FrequencyPricingSystem
         pricing = FrequencyPricingSystem()
         
-        text = "**🧠 Smart Day-Based Pricing Management**\n\n"
-        text += "**Core Logic:** We Sell Days, You Gain Reach™\n\n"
+        text = "<b>🧠 Smart Day-Based Pricing Management</b>\n\n"
+        text += "<b>Core Logic:</b> We Sell Days, You Gain Reach™\n\n"
         
-        text += "**Current Pricing Tiers:**\n"
+        text += "<b>Current Pricing Tiers:</b>\n"
         
         # Show sample tiers
         sample_tiers = [1, 3, 7, 15, 30, 60, 90]
@@ -265,16 +265,16 @@ Select an option to continue:
             tier_info = pricing.frequency_tiers.get(days)
             if tier_info:
                 pricing_data = pricing.calculate_pricing(days)
-                text += f"• **{days} days** - {tier_info['posts_per_day']} posts/day\n"
+                text += f"• <b>{days} days</b> - {tier_info['posts_per_day']} posts/day\n"
                 text += f"  ${pricing_data['final_cost_usd']:.2f} ({tier_info['discount']}% discount)\n"
         
-        text += "\n**Smart Pricing Features:**\n"
+        text += "\n<b>Smart Pricing Features:</b>\n"
         text += "• Dynamic day-based pricing (1-365 days)\n"
         text += "• More days = More posts per day + Bigger discounts\n"
         text += "• Automatic volume discounts (0% to 35% off)\n"
         text += "• Base rate: $1.00 per post per day\n\n"
         
-        text += "**Management Options:**\n"
+        text += "<b>Management Options:</b>\n"
         
         keyboard = [
             [
@@ -294,30 +294,30 @@ Select an option to continue:
             await callback_query.message.edit_text(
                 text, 
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
         except Exception:
             await callback_query.message.answer(
                 text, 
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
 
     async def show_publishing_schedules(self, callback_query: CallbackQuery):
         """Show publishing schedules management"""
         text = f"""
-⏰ **Publishing Schedules**
+⏰ <b>Publishing Schedules</b>
 
-**Current Schedule:**
+<b>Current Schedule:</b>
         """.strip()
         
         for schedule_id, schedule in self.publishing_schedules.items():
             status = "SUCCESS:" if schedule['active'] else "ERROR:"
-            text += f"\n{status} **{schedule_id.title()}:** {schedule['time']}"
+            text += f"\n{status} <b>{schedule_id.title()}:</b> {schedule['time']}"
         
         text += f"""
 
-**Schedule Settings:**
+<b>Schedule Settings:</b>
 - Auto-publish: SUCCESS: Enabled
 - Timezone: UTC
 - Retry failed posts: SUCCESS: Enabled
@@ -341,27 +341,27 @@ Select an option to continue:
         await callback_query.message.edit_text(
             text, 
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_bot_control(self, callback_query: CallbackQuery):
         """Show bot control interface"""
         text = f"""
-🤖 **Bot Control Panel**
+🤖 <b>Bot Control Panel</b>
 
-**Bot Status:** SUCCESS: Online and Running
-**Uptime:** {await self.get_bot_uptime()}
-**Memory Usage:** {await self.get_memory_usage()}
-**Active Sessions:** {await self.get_active_sessions()}
+<b>Bot Status:</b> SUCCESS: Online and Running
+<b>Uptime:</b> {await self.get_bot_uptime()}
+<b>Memory Usage:</b> {await self.get_memory_usage()}
+<b>Active Sessions:</b> {await self.get_active_sessions()}
 
-**Bot Features:**
+<b>Bot Features:</b>
 - Multi-language support (EN/AR/RU) SUCCESS:
 - Payment processing (TON/Stars) SUCCESS:
 - Auto-publishing SUCCESS:
 - Referral system SUCCESS:
 - Debug system SUCCESS:
 
-**Control Options:**
+<b>Control Options:</b>
         """.strip()
         
         keyboard = [
@@ -385,7 +385,7 @@ Select an option to continue:
         await callback_query.message.edit_text(
             text, 
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_user_management(self, callback_query: CallbackQuery):
@@ -394,15 +394,15 @@ Select an option to continue:
         active_users = await self.get_active_users()
         
         text = f"""
-**User Management**
+<b>User Management</b>
 
-**User Statistics:**
+<b>User Statistics:</b>
 Total Users: {total_users}
 Active Users: {active_users}
 - New Users Today: {await self.get_new_users_today()}
 - Paid Users: {await self.get_paid_users()}
 
-**User Actions:**
+<b>User Actions:</b>
         """.strip()
         
         keyboard = [
@@ -426,7 +426,7 @@ Active Users: {active_users}
         await callback_query.message.edit_text(
             text, 
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     async def show_statistics(self, callback_query: CallbackQuery):
@@ -437,29 +437,29 @@ Active Users: {active_users}
         total_subscribers = sum(ch.get('subscribers', 0) for ch in channels)
         
         text = f"""
-**STATS: Channel Statistics**
+<b>STATS: Channel Statistics</b>
 
-**Total Channels:** {len(channels)}
-**Active Channels:** {len(active_channels)}
-**Total Subscribers:** {total_subscribers:,}
-**Average Subscribers:** {total_subscribers // len(channels) if channels else 0:,}
+<b>Total Channels:</b> {len(channels)}
+<b>Active Channels:</b> {len(active_channels)}
+<b>Total Subscribers:</b> {total_subscribers:,}
+<b>Average Subscribers:</b> {total_subscribers // len(channels) if channels else 0:,}
 
-**Channel Details:**
+<b>Channel Details:</b>
         """.strip()
         
         if not channels:
             text += "\n\nNo channels found in database."
-            text += "\n\n**To add channels:**"
+            text += "\n\n<b>To add channels:</b>"
             text += "\n1. Add the bot as administrator to your channel"
             text += "\n2. Give the bot permission to post messages"
             text += "\n3. The bot will automatically detect and add the channel"
         else:
             for channel in channels:
                 status = "SUCCESS:" if channel.get('is_active', False) else "INACTIVE:"
-                text += f"\n{status} **{channel['name']}**"
+                text += f"\n{status} <b>{channel['name']}</b>"
                 text += f"\n   - {channel.get('subscribers', 0):,} subscribers"
                 text += f"\n   - Category: {channel.get('category', 'general').title()}"
-                text += f"\n   - ID: `{channel.get('telegram_channel_id', 'N/A')}`"
+                text += f"\n   - ID: <code>{channel.get('telegram_channel_id', 'N/A')}</code>"
         
         keyboard = [
             [
@@ -474,13 +474,13 @@ Active Users: {active_users}
         await callback_query.message.edit_text(
             text, 
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
     # Helper methods for statistics
     async def get_total_users(self) -> int:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute("SELECT COUNT(*) FROM users")
                 return (await result.fetchone())[0]
         except Exception as e:
@@ -489,7 +489,7 @@ Active Users: {active_users}
 
     async def get_active_users(self) -> int:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT COUNT(*) FROM users WHERE last_activity > datetime('now', '-7 days')"
                 )
@@ -500,7 +500,7 @@ Active Users: {active_users}
 
     async def get_new_users_today(self) -> int:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT COUNT(*) FROM users WHERE created_at > datetime('now', '-1 day')"
                 )
@@ -511,7 +511,7 @@ Active Users: {active_users}
 
     async def get_paid_users(self) -> int:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT COUNT(DISTINCT user_id) FROM payments WHERE status = 'confirmed'"
                 )
@@ -522,7 +522,7 @@ Active Users: {active_users}
 
     async def get_daily_revenue(self) -> float:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT SUM(amount) FROM payments WHERE status = 'confirmed' AND created_at > datetime('now', '-1 day')"
                 )
@@ -533,7 +533,7 @@ Active Users: {active_users}
 
     async def get_weekly_revenue(self) -> float:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT SUM(amount) FROM payments WHERE status = 'confirmed' AND created_at > datetime('now', '-7 days')"
                 )
@@ -544,7 +544,7 @@ Active Users: {active_users}
 
     async def get_monthly_revenue(self) -> float:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT SUM(amount) FROM payments WHERE status = 'confirmed' AND created_at > datetime('now', '-30 days')"
                 )
@@ -555,7 +555,7 @@ Active Users: {active_users}
 
     async def get_active_campaigns(self) -> int:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT COUNT(*) FROM subscriptions WHERE status = 'active'"
                 )
@@ -565,7 +565,7 @@ Active Users: {active_users}
 
     async def get_completed_campaigns(self) -> int:
         try:
-            async with db.connection() as conn:
+            async with db.get_connection() as conn:
                 result = await conn.execute(
                     "SELECT COUNT(*) FROM subscriptions WHERE status = 'completed'"
                 )
@@ -609,22 +609,22 @@ Active Users: {active_users}
             stats = await moderation_system.get_moderation_statistics()
             
             text = f"""
-🛡️ **Content Moderation Panel**
+🛡️ <b>Content Moderation Panel</b>
 
-**Strike System Status:**
+<b>Strike System Status:</b>
 • Total Violations: {stats.get('total_violations', 0)}
 • Banned Users: {stats.get('banned_users', 0)}
 • Active Warnings: {stats.get('active_warnings', 0)}
 • Violations Today: {stats.get('violations_today', 0)}
 
-**Compliance Standards:**
+<b>Compliance Standards:</b>
 ✅ Telegram Community Guidelines
 ✅ International Regulations
 ✅ Ethical Standards
 ✅ Human Rights Compliance
 ✅ Saudi Arabian Regulations
 
-**Six-Strike Policy:**
+<b>Six-Strike Policy:</b>
 • Strikes 1-5: Warning + Edit Opportunity
 • Strike 6: Permanent Ban + No Compensation
             """.strip()
@@ -654,7 +654,7 @@ Active Users: {active_users}
             await callback_query.message.edit_text(
                 text,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
             
         except Exception as e:
@@ -671,15 +671,15 @@ Active Users: {active_users}
             stats = await moderation_system.get_moderation_statistics()
             
             text = f"""
-📋 **Violation Reports Dashboard**
+📋 <b>Violation Reports Dashboard</b>
 
-**Daily Statistics:**
+<b>Daily Statistics:</b>
 • Violations Today: {stats.get('violations_today', 0)}
 • New Warnings: {stats.get('active_warnings', 0)}
 • Content Approved: {stats.get('approved_today', 0)}
 • Rejection Rate: {stats.get('rejection_rate', 0):.1f}%
 
-**Violation Categories:**
+<b>Violation Categories:</b>
 • Hate Speech: {stats.get('hate_speech', 0)}
 • Adult Content: {stats.get('adult_content', 0)}
 • Illegal Content: {stats.get('illegal_content', 0)}
@@ -689,7 +689,7 @@ Active Users: {active_users}
 • Discrimination: {stats.get('discrimination', 0)}
 • Saudi Compliance: {stats.get('saudi_specific', 0)}
 
-**Strike Distribution:**
+<b>Strike Distribution:</b>
 • Strike 1: {stats.get('strike_1', 0)} users
 • Strike 2: {stats.get('strike_2', 0)} users
 • Strike 3: {stats.get('strike_3', 0)} users
@@ -715,7 +715,7 @@ Active Users: {active_users}
             await callback_query.message.edit_text(
                 text,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
             
         except Exception as e:
@@ -778,15 +778,15 @@ async def admin_create_price_callback(callback_query: CallbackQuery, state: FSMC
     await state.set_state(AdminStates.create_subscription)
     
     text = """
-➕ **Create New Price Package**
+➕ <b>Create New Price Package</b>
 
 Please enter the package details in this format:
-`package_id|name|price_usd|duration_days|posts_per_day|channels_included`
+<code>package_id|name|price_usd|duration_days|posts_per_day|channels_included</code>
 
-**Example:**
-`premium|Premium Plan|99|365|10|5`
+<b>Example:</b>
+<code>premium|Premium Plan|99|365|10|5</code>
 
-**Fields:**
+<b>Fields:</b>
 - package_id: Unique identifier (no spaces)
 - name: Display name for the package
 - price_usd: Price in USD
@@ -801,7 +801,7 @@ Type your package details:
         [InlineKeyboardButton(text="ERROR: Cancel", callback_data="admin_packages")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_edit_price")
@@ -820,7 +820,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
         await callback_query.answer("ERROR: No packages found!")
         return
     
-    text = "**Edit Price Package**\n\nSelect a package to edit:"
+    text = "<b>Edit Price Package</b>\n\nSelect a package to edit:"
     
     keyboard_buttons = []
     for package in packages:
@@ -837,7 +837,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_remove_price")
@@ -856,7 +856,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
         await callback_query.answer("ERROR: No packages found!")
         return
     
-    text = "**Remove Price Package**\n\nWarning: This will permanently delete the package!\n\nSelect a package to remove:"
+    text = "<b>Remove Price Package</b>\n\nWarning: This will permanently delete the package!\n\nSelect a package to remove:"
     
     keyboard_buttons = []
     for package in packages:
@@ -873,7 +873,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_price_stats")
@@ -888,7 +888,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
     from database import db
     packages = await db.get_packages(active_only=False)
     
-    text = "**Price Statistics**\n\n"
+    text = "<b>Price Statistics</b>\n\n"
     
     if packages:
         total_packages = len(packages)
@@ -896,24 +896,24 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
         total_revenue = sum(p['price_usd'] for p in packages)
         avg_price = total_revenue / total_packages if total_packages > 0 else 0
         
-        text += f"**Package Overview:**\n"
+        text += f"<b>Package Overview:</b>\n"
         text += f"- Total Packages: {total_packages}\n"
         text += f"- Active Packages: {active_packages}\n"
         text += f"- Average Price: ${avg_price:.2f}\n\n"
         
-        text += "**Package Details:**\n"
+        text += "<b>Package Details:</b>\n"
         for package in packages:
             status = "SUCCESS:" if package.get('active', True) else "ERROR:"
             text += f"{status} {package['name']}: ${package['price_usd']} ({package['duration_days']} days)\n"
     else:
-        text += "**No packages found in database.**\n"
+        text += "<b>No packages found in database.</b>\n"
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 Refresh", callback_data="admin_price_stats")],
         [InlineKeyboardButton(text="⬅️ Back to Packages", callback_data="admin_packages")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_packages")
@@ -943,7 +943,7 @@ async def admin_price_analytics_callback(callback_query: CallbackQuery, state: F
     pricing = get_pricing_system()
     all_plans = pricing.get_all_plans()
     
-    text = "**💰 Pricing Analytics Dashboard**\n\n"
+    text = "<b>💰 Pricing Analytics Dashboard</b>\n\n"
     
     # Calculate analytics
     total_plans = len(all_plans)
@@ -952,18 +952,18 @@ async def admin_price_analytics_callback(callback_query: CallbackQuery, state: F
     min_price = min(plan['discounted_price'] for plan in all_plans)
     max_price = max(plan['discounted_price'] for plan in all_plans)
     
-    text += f"**Overview:**\n"
+    text += f"<b>Overview:</b>\n"
     text += f"• Total plans: {total_plans}\n"
     text += f"• Average discount: {avg_discount:.1f}%\n"
     text += f"• Maximum savings: ${max_savings:.0f}\n"
     text += f"• Price range: ${min_price:.0f} - ${max_price:.0f}\n\n"
     
-    text += f"**Plan Categories:**\n"
+    text += f"<b>Plan Categories:</b>\n"
     text += f"• Short-term (1-3 months): {len([p for p in all_plans if p['duration_months'] <= 3])} plans\n"
     text += f"• Medium-term (4-8 months): {len([p for p in all_plans if 4 <= p['duration_months'] <= 8])} plans\n"
     text += f"• Long-term (9+ months): {len([p for p in all_plans if p['duration_months'] >= 9])} plans\n\n"
     
-    text += f"**Discount Tiers:**\n"
+    text += f"<b>Discount Tiers:</b>\n"
     text += f"• 10-20% discount: {len([p for p in all_plans if 10 <= p['discount_percent'] <= 20])} plans\n"
     text += f"• 21-35% discount: {len([p for p in all_plans if 21 <= p['discount_percent'] <= 35])} plans\n"
     text += f"• 36-45% discount: {len([p for p in all_plans if p['discount_percent'] >= 36])} plans\n"
@@ -977,9 +977,9 @@ async def admin_price_analytics_callback(callback_query: CallbackQuery, state: F
     ])
     
     try:
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     except Exception:
-        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.answer(text, reply_markup=keyboard, parse_mode='HTML')
     
     await callback_query.answer()
 
@@ -1054,7 +1054,7 @@ async def admin_discover_channels_callback(callback_query: CallbackQuery, state:
     await callback_query.answer()
     
     text = """
-**🚀 Comprehensive Channel Discovery**
+<b>🚀 Comprehensive Channel Discovery</b>
 
 Scanning for ALL channels where the bot is administrator...
 This may take a few moments.
@@ -1075,39 +1075,39 @@ This may take a few moments.
         active_channels = [ch for ch in channels if ch.get('is_active', False)]
         
         result_text = f"""
-**🎯 Comprehensive Discovery Results**
+<b>🎯 Comprehensive Discovery Results</b>
 
-**Scan Summary:**
+<b>Scan Summary:</b>
 • Channels Scanned: {discovery_results.get('total_scanned', 0)}
 • Newly Discovered: {discovery_results.get('newly_discovered', 0)}
 • Already Known: {discovery_results.get('already_known', 0)}
 • Failed Attempts: {discovery_results.get('failed_attempts', 0)}
 
-**Current Status:**
+<b>Current Status:</b>
 • Total Channels: {len(channels)}
 • Active Channels: {len(active_channels)}
 
 """
         
         if discovery_results.get('newly_discovered', 0) > 0:
-            result_text += "**🎉 Newly Discovered Channels:**\n"
+            result_text += "<b>🎉 Newly Discovered Channels:</b>\n"
             for channel in discovery_results.get('discovered_channels', []):
-                result_text += f"• **{channel['name']}** ({channel['username']}) - {channel['subscribers']:,} subscribers\n"
+                result_text += f"• <b>{channel['name']}</b> ({channel['username']}) - {channel['subscribers']:,} subscribers\n"
         
         if active_channels:
-            result_text += "\n**✅ All Active Channels:**\n"
+            result_text += "\n<b>✅ All Active Channels:</b>\n"
             for i, channel in enumerate(active_channels, 1):
-                result_text += f"{i}. **{channel['name']}** - {channel['subscribers']:,} subscribers\n"
+                result_text += f"{i}. <b>{channel['name']}</b> - {channel['subscribers']:,} subscribers\n"
         
         if len(channels) > len(active_channels):
             inactive_channels = [ch for ch in channels if not ch.get('is_active', False)]
-            result_text += f"\n**❌ Inactive Channels:** {len(inactive_channels)}\n"
+            result_text += f"\n<b>❌ Inactive Channels:</b> {len(inactive_channels)}\n"
             for channel in inactive_channels[:3]:  # Show first 3
                 result_text += f"• {channel['name']} (not accessible)\n"
         
         if len(channels) == 0:
-            result_text += "\n**No channels found.**\n\n"
-            result_text += "**To add channels:**\n"
+            result_text += "\n<b>No channels found.</b>\n\n"
+            result_text += "<b>To add channels:</b>\n"
             result_text += "1. Add bot as admin to your channel\n"
             result_text += "2. Give bot permission to post messages\n"
             result_text += "3. Use 'Force Discovery' or 'Add Channel'\n"
@@ -1121,7 +1121,7 @@ This may take a few moments.
             [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]
         ])
         
-        await callback_query.message.edit_text(result_text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.edit_text(result_text, reply_markup=keyboard, parse_mode='HTML')
     else:
         await callback_query.message.edit_text(
             "ERROR: Channel manager not initialized. Please restart the bot.",
@@ -1141,19 +1141,19 @@ async def admin_bulk_import_callback(callback_query: CallbackQuery, state: FSMCo
         return
     
     text = """
-**📥 Bulk Import Channels**
+<b>📥 Bulk Import Channels</b>
 
 Send me a list of channel usernames where the bot is administrator.
 
-**Format:** One username per line
-```
+<b>Format:</b> One username per line
+<code></code>`
 @channel1
 @channel2
 @channel3
 channel4
-```
+<code></code>`
 
-**Note:** Only channels where the bot has admin rights will be added.
+<b>Note:</b> Only channels where the bot has admin rights will be added.
 
 Send your channel list now or click Cancel to go back.
     """.strip()
@@ -1162,7 +1162,7 @@ Send your channel list now or click Cancel to go back.
         [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_channels")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await state.set_state(AdminStates.bulk_import_channels)
     await callback_query.answer()
 
@@ -1179,9 +1179,9 @@ async def admin_add_channel_callback(callback_query: CallbackQuery, state: FSMCo
     await state.set_state(AdminStates.add_channel)
     
     text = """
-📺 **Add New Channel**
+📺 <b>Add New Channel</b>
 
-**Auto-Discovery Mode**
+<b>Auto-Discovery Mode</b>
 
 Enter the channel username (e.g., @yourchannel) and the bot will automatically:
 
@@ -1190,7 +1190,7 @@ Enter the channel username (e.g., @yourchannel) and the bot will automatically:
 ✅ Detect category and set pricing
 ✅ Add to the advertising system
 
-**Requirements:**
+<b>Requirements:</b>
 - Bot must be administrator in the channel
 - Bot must have permission to post messages
 - Channel must be public or accessible
@@ -1202,7 +1202,7 @@ Enter the channel username:
         [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_channels")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.message(AdminStates.add_channel)
@@ -1220,13 +1220,13 @@ async def handle_add_channel_message(message: Message, state: FSMContext):
                 username = f"@{username.split('/')[-1]}"
         
         # Show processing message
-        processing_msg = await message.reply(f"🔍 **Processing {username}...**\n\nChecking bot permissions and gathering channel info...")
+        processing_msg = await message.reply(f"🔍 <b>Processing {username}...</b>\n\nChecking bot permissions and gathering channel info...")
         
         # Import channel manager
         from channel_manager import channel_manager
         
         if not channel_manager:
-            await processing_msg.edit_text("❌ **Error**: Channel manager not available. Please restart the bot.")
+            await processing_msg.edit_text("❌ <b>Error</b>: Channel manager not available. Please restart the bot.")
             await state.clear()
             return
         
@@ -1244,11 +1244,11 @@ async def handle_add_channel_message(message: Message, state: FSMContext):
             
             if added_channel:
                 result_text = f"""
-✅ **Channel Added Successfully!**
+✅ <b>Channel Added Successfully!</b>
 
-**{added_channel['name']}**
+<b>{added_channel['name']}</b>
 
-📊 **Details:**
+📊 <b>Details:</b>
 • Username: {username}
 • Subscribers: {added_channel['subscribers']:,}
 • Category: {added_channel['category']}
@@ -1258,18 +1258,18 @@ async def handle_add_channel_message(message: Message, state: FSMContext):
 The channel is now available for advertising!
                 """.strip()
             else:
-                result_text = f"✅ **Channel {username} added successfully!**"
+                result_text = f"✅ <b>Channel {username} added successfully!</b>"
         else:
             result_text = f"""
-❌ **Failed to add {username}**
+❌ <b>Failed to add {username}</b>
 
-**Possible reasons:**
+<b>Possible reasons:</b>
 • Bot is not administrator in the channel
 • Bot doesn't have permission to post messages
 • Channel is private/inaccessible
 • Channel doesn't exist
 
-**To fix:**
+<b>To fix:</b>
 1. Add the bot as administrator to {username}
 2. Grant permission to post messages
 3. Try again
@@ -1284,16 +1284,16 @@ The channel is now available for advertising!
             [InlineKeyboardButton(text="🔙 Back to Channels", callback_data="admin_channels")]
         ])
         
-        await processing_msg.edit_text(result_text, reply_markup=keyboard, parse_mode='Markdown')
+        await processing_msg.edit_text(result_text, reply_markup=keyboard, parse_mode='HTML')
         
         success_text = f"""
-**Channel Added Successfully!**
+<b>Channel Added Successfully!</b>
 
-**Name:** {channel_name}
-**ID:** {telegram_id}
-**Category:** {category}
-**Subscribers:** {subscribers:,}
-**Status:** Active
+<b>Name:</b> {channel_name}
+<b>ID:</b> {telegram_id}
+<b>Category:</b> {category}
+<b>Subscribers:</b> {subscribers:,}
+<b>Status:</b> Active
 
 The channel has been added to the system and is now available for advertising campaigns.
         """.strip()
@@ -1303,7 +1303,7 @@ The channel has been added to the system and is now available for advertising ca
             [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
         ])
         
-        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='HTML')
         await state.clear()
         
     except ValueError:
@@ -1321,7 +1321,7 @@ async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMC
         await callback_query.answer("ERROR: Access denied.")
         return
     
-    text = "EDIT: **Edit Channel**\n\nSelect a channel to edit:"
+    text = "EDIT: <b>Edit Channel</b>\n\nSelect a channel to edit:"
     
     keyboard = []
     channels = await db.get_channels(active_only=False)
@@ -1336,7 +1336,7 @@ async def admin_edit_channel_callback(callback_query: CallbackQuery, state: FSMC
     await callback_query.message.edit_text(
         text, 
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
     await callback_query.answer()
 
@@ -1358,9 +1358,9 @@ async def handle_edit_channel_select(callback_query: CallbackQuery, state: FSMCo
         return
     
     text = f"""
-**Edit Channel: {channel['name']}**
+<b>Edit Channel: {channel['name']}</b>
 
-**Current Information:**
+<b>Current Information:</b>
 Name: {channel['name']}
 Telegram ID: {channel['telegram_id']}
 Category: {channel['category']}
@@ -1391,7 +1391,7 @@ What would you like to edit?
     await callback_query.message.edit_text(
         text, 
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
     await callback_query.answer()
 
@@ -1430,7 +1430,7 @@ async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FS
         await callback_query.answer("ERROR: Access denied.")
         return
     
-    text = "🗑️ **Remove Channel**\n\n⚠️ Select a channel to remove (this action cannot be undone):"
+    text = "🗑️ <b>Remove Channel</b>\n\n⚠️ Select a channel to remove (this action cannot be undone):"
     
     keyboard = []
     channels = await db.get_channels(active_only=False)
@@ -1445,7 +1445,7 @@ async def admin_remove_channel_callback(callback_query: CallbackQuery, state: FS
     await callback_query.message.edit_text(
         text, 
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
     await callback_query.answer()
 
@@ -1471,11 +1471,11 @@ async def handle_remove_channel_confirm(callback_query: CallbackQuery, state: FS
     
     if success:
         await callback_query.message.edit_text(
-            f"✅ **Channel Removed Successfully**\n\n**{channel['name']}** has been permanently deleted from the system.",
+            f"✅ <b>Channel Removed Successfully</b>\n\n<b>{channel['name']}</b> has been permanently deleted from the system.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Back to Channels", callback_data="admin_channels")]
             ]),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
     else:
         await callback_query.answer("ERROR: Failed to remove channel.")
@@ -1503,12 +1503,12 @@ async def admin_price_callback(callback_query: CallbackQuery, state: FSMContext)
     await state.update_data(package_type=package_type)
     
     text = f"""
-$ **Update {package['name']} Price**
+$ <b>Update {package['name']} Price</b>
 
-**Current Price:** ${package['price_usd']} USD
-**Duration:** {package['duration_days']} days
-**Posts per Day:** {package['posts_per_day']}
-**Channels Included:** {package['channels_included']}
+<b>Current Price:</b> ${package['price_usd']} USD
+<b>Duration:</b> {package['duration_days']} days
+<b>Posts per Day:</b> {package['posts_per_day']}
+<b>Channels Included:</b> {package['channels_included']}
 
 Please enter the new price in USD (numbers only):
     """.strip()
@@ -1517,7 +1517,7 @@ Please enter the new price in USD (numbers only):
         [InlineKeyboardButton(text="⬅️ Back to Packages", callback_data="admin_packages")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.message(AdminStates.set_pricing)
@@ -1537,11 +1537,11 @@ async def handle_price_update_message(message: Message, state: FSMContext):
         admin_system.subscription_packages[package_type]['price_usd'] = new_price
         
         success_text = f"""
-SUCCESS: **Price Updated Successfully!**
+SUCCESS: <b>Price Updated Successfully!</b>
 
-**Package:** {admin_system.subscription_packages[package_type]['name']}
-**Old Price:** ${old_price} USD
-**New Price:** ${new_price} USD
+<b>Package:</b> {admin_system.subscription_packages[package_type]['name']}
+<b>Old Price:</b> ${old_price} USD
+<b>New Price:</b> ${new_price} USD
 
 The pricing has been updated and will apply to all new orders.
         """.strip()
@@ -1551,7 +1551,7 @@ The pricing has been updated and will apply to all new orders.
             [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
         ])
         
-        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='HTML')
         await state.clear()
         
     except ValueError:
@@ -1573,24 +1573,24 @@ async def admin_create_subscription_callback(callback_query: CallbackQuery, stat
     await state.set_state(AdminStates.create_subscription)
     
     text = """
-+ **Create New Subscription Package**
++ <b>Create New Subscription Package</b>
 
 Please provide the package information in this format:
 
-**Package Name**
-**Price in USD** (number)
-**Duration in Days** (number)
-**Posts per Day** (number)
-**Channels Included** (number)
+<b>Package Name</b>
+<b>Price in USD</b> (number)
+<b>Duration in Days</b> (number)
+<b>Posts per Day</b> (number)
+<b>Channels Included</b> (number)
 
 Example:
-```
+<code></code>`
 Premium Package
 35.00
 30
 4
 2
-```
+<code></code>`
 
 Send the package information now:
     """.strip()
@@ -1599,7 +1599,7 @@ Send the package information now:
         [InlineKeyboardButton(text="⬅️ Back to Subscriptions", callback_data="admin_subscriptions")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.message(AdminStates.create_subscription)
@@ -1635,13 +1635,13 @@ async def handle_create_subscription_message(message: Message, state: FSMContext
         await db.create_package(package_id, package_name, price_usd, duration_days, posts_per_day, channels_included)
         
         success_text = f"""
-SUCCESS: **Subscription Package Created Successfully!**
+SUCCESS: <b>Subscription Package Created Successfully!</b>
 
-**Name:** {package_name}
-**Price:** ${price_usd} USD
-**Duration:** {duration_days} days
-**Posts per Day:** {posts_per_day}
-**Channels Included:** {channels_included}
+<b>Name:</b> {package_name}
+<b>Price:</b> ${price_usd} USD
+<b>Duration:</b> {duration_days} days
+<b>Posts per Day:</b> {posts_per_day}
+<b>Channels Included:</b> {channels_included}
 
 The package has been added to the system and is now available for users.
         """.strip()
@@ -1651,7 +1651,7 @@ The package has been added to the system and is now available for users.
             [InlineKeyboardButton(text="🏠 Admin Menu", callback_data="admin_main")]
         ])
         
-        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='HTML')
         await state.clear()
         
     except ValueError:
@@ -1670,11 +1670,11 @@ async def admin_edit_subscription_callback(callback_query: CallbackQuery, state:
         return
     
     text = """
-EDIT: **Edit Subscription Package**
+EDIT: <b>Edit Subscription Package</b>
 
 Select a package to edit:
 
-**Available Packages:**
+<b>Available Packages:</b>
 - Free Package: $0 (3 days, 3 ads per month)
 - Bronze Package: $10 (1 month)
 - Silver Package: $29 (3 months)  
@@ -1698,7 +1698,7 @@ Choose a package to modify:
     await callback_query.message.edit_text(
         text, 
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
     await callback_query.answer()
 
@@ -1711,7 +1711,7 @@ async def admin_remove_subscription_callback(callback_query: CallbackQuery, stat
         await callback_query.answer("ERROR: Access denied.")
         return
     
-    text = "🗑️ **Remove Subscription Package**\n\n⚠️ Select a package to remove (this action cannot be undone):"
+    text = "🗑️ <b>Remove Subscription Package</b>\n\n⚠️ Select a package to remove (this action cannot be undone):"
     
     keyboard = []
     for package_id, package in admin_system.subscription_packages.items():
@@ -1725,7 +1725,7 @@ async def admin_remove_subscription_callback(callback_query: CallbackQuery, stat
     await callback_query.message.edit_text(
         text, 
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
     await callback_query.answer()
 
@@ -1768,26 +1768,26 @@ async def admin_channel_stats_callback(callback_query: CallbackQuery, state: FSM
     total_subscribers = sum(ch.get('subscribers', 0) for ch in channels)
     
     text = f"""
-STATS: **Channel Statistics**
+STATS: <b>Channel Statistics</b>
 
-**Total Channels:** {len(channels)}
-**Active Channels:** {len(active_channels)}
-**Total Subscribers:** {total_subscribers:,}
-**Average Subscribers:** {total_subscribers // len(channels) if channels else 0:,}
+<b>Total Channels:</b> {len(channels)}
+<b>Active Channels:</b> {len(active_channels)}
+<b>Total Subscribers:</b> {total_subscribers:,}
+<b>Average Subscribers:</b> {total_subscribers // len(channels) if channels else 0:,}
 
-**Channel Details:**
+<b>Channel Details:</b>
     """.strip()
     
     if not channels:
         text += "\n\nNo channels found in database."
-        text += "\n\n**To add channels:**"
+        text += "\n\n<b>To add channels:</b>"
         text += "\n1. Add the bot as administrator to your channel"
         text += "\n2. Give the bot permission to post messages"
         text += "\n3. The bot will automatically detect and add the channel"
     else:
         for channel in channels:
             status = "SUCCESS:" if channel.get('is_active', False) else "INACTIVE:"
-            text += f"\n{status} **{channel['name']}**"
+            text += f"\n{status} <b>{channel['name']}</b>"
             text += f"\n   - {channel.get('subscribers', 0):,} subscribers"
             text += f"\n   - Category: {channel.get('category', 'general').title()}"
     
@@ -1795,7 +1795,7 @@ STATS: **Channel Statistics**
         [InlineKeyboardButton(text="📺 Back to Channel Management", callback_data="admin_channels")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.callback_query(F.data == "admin_subscription_stats")
@@ -1808,15 +1808,15 @@ async def admin_subscription_stats_callback(callback_query: CallbackQuery, state
         return
     
     text = f"""
-STATS: **Subscription Package Statistics**
+STATS: <b>Subscription Package Statistics</b>
 
-**Total Packages:** {len(admin_system.subscription_packages)}
+<b>Total Packages:</b> {len(admin_system.subscription_packages)}
 
-**Package Performance:**
+<b>Package Performance:</b>
     """.strip()
     
     for package_id, package in admin_system.subscription_packages.items():
-        text += f"\n📦 **{package['name']}**"
+        text += f"\n📦 <b>{package['name']}</b>"
         text += f"\n   - Price: ${package['price_usd']} USD"
         text += f"\n   - Duration: {package['duration_days']} days"
         text += f"\n   - Posts/Day: {package['posts_per_day']}"
@@ -1826,7 +1826,7 @@ STATS: **Subscription Package Statistics**
         [InlineKeyboardButton(text="📦 Back to Subscription Management", callback_data="admin_subscriptions")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer()
 
 @router.message(AdminStates.create_subscription)
@@ -1842,7 +1842,7 @@ async def handle_create_price_message(message: Message, state: FSMContext):
         # Parse package details: package_id|name|price_usd|duration_days|posts_per_day|channels_included
         parts = message.text.strip().split('|')
         if len(parts) != 6:
-            await message.reply("ERROR: Invalid format! Please use: `package_id|name|price_usd|duration_days|posts_per_day|channels_included`")
+            await message.reply("ERROR: Invalid format! Please use: <code>package_id|name|price_usd|duration_days|posts_per_day|channels_included</code>")
             return
         
         package_id, name, price_usd, duration_days, posts_per_day, channels_included = parts
@@ -1866,9 +1866,9 @@ async def handle_create_price_message(message: Message, state: FSMContext):
         
         if success:
             success_text = f"""
-SUCCESS: **Price Package Created Successfully!**
+SUCCESS: <b>Price Package Created Successfully!</b>
 
-**Package Details:**
+<b>Package Details:</b>
 - ID: {package_id}
 - Name: {name}
 - Price: ${price_usd}
@@ -1883,7 +1883,7 @@ The package is now available in the pricing menu!
                 [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_packages")]
             ])
             
-            await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+            await message.reply(success_text, reply_markup=keyboard, parse_mode='HTML')
         else:
             await message.reply("ERROR: Failed to create package. Package ID might already exist.")
         
@@ -1920,9 +1920,9 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
             await conn.commit()
         
         success_text = f"""
-SUCCESS: **Package Removed Successfully!**
+SUCCESS: <b>Package Removed Successfully!</b>
 
-**Removed Package:**
+<b>Removed Package:</b>
 - Name: {package['name']}
 - Price: ${package['price_usd']}
 - ID: {package_id}
@@ -1934,7 +1934,7 @@ The package has been permanently deleted and is no longer available in the prici
             [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_packages")]
         ])
         
-        await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.edit_text(success_text, reply_markup=keyboard, parse_mode='HTML')
         await callback_query.answer(f"SUCCESS: Package '{package['name']}' removed!")
         
     except Exception as e:
@@ -1964,9 +1964,9 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
         await state.set_state(AdminStates.edit_subscription)
         
         text = f"""
-EDIT: **Edit Package: {package['name']}**
+EDIT: <b>Edit Package: {package['name']}</b>
 
-**Current Details:**
+<b>Current Details:</b>
 - ID: {package['package_id']}
 - Name: {package['name']}
 - Price: ${package['price_usd']}
@@ -1975,10 +1975,10 @@ EDIT: **Edit Package: {package['name']}**
 - Channels: {package['channels_included']}
 
 Please enter the new package details in this format:
-`name|price_usd|duration_days|posts_per_day|channels_included`
+<code>name|price_usd|duration_days|posts_per_day|channels_included</code>
 
-**Example:**
-`Premium Plan|99|365|10|5`
+<b>Example:</b>
+<code>Premium Plan|99|365|10|5</code>
 
 Type your updated package details:
         """.strip()
@@ -1987,7 +1987,7 @@ Type your updated package details:
             [InlineKeyboardButton(text="ERROR: Cancel", callback_data="admin_packages")]
         ])
         
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
         await callback_query.answer()
         
     except Exception as e:
@@ -2013,7 +2013,7 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
         # Parse package details: name|price_usd|duration_days|posts_per_day|channels_included
         parts = message.text.strip().split('|')
         if len(parts) != 5:
-            await message.reply("ERROR: Invalid format! Please use: `name|price_usd|duration_days|posts_per_day|channels_included`")
+            await message.reply("ERROR: Invalid format! Please use: <code>name|price_usd|duration_days|posts_per_day|channels_included</code>")
             return
         
         name, price_usd, duration_days, posts_per_day, channels_included = parts
@@ -2035,9 +2035,9 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
             await conn.commit()
         
         success_text = f"""
-SUCCESS: **Package Updated Successfully!**
+SUCCESS: <b>Package Updated Successfully!</b>
 
-**Updated Package Details:**
+<b>Updated Package Details:</b>
 - ID: {package_id}
 - Name: {name}
 - Price: ${price_usd}
@@ -2052,7 +2052,7 @@ The changes are now live in the pricing menu!
             [InlineKeyboardButton(text="⬅️ Back to Price Management", callback_data="admin_packages")]
         ])
         
-        await message.reply(success_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message.reply(success_text, reply_markup=keyboard, parse_mode='HTML')
         
     except ValueError:
         await message.reply("ERROR: Invalid number format! Please check price, duration, posts per day, and channels values.")
@@ -2074,7 +2074,7 @@ async def admin_channel_details_handler(message: Message):
             await message.reply("No channels found in database.")
             return
         
-        response = "STATS: **Detailed Channel Information**\n\n"
+        response = "STATS: <b>Detailed Channel Information</b>\n\n"
         
         for channel in channels:
             status = "SUCCESS: Active" if channel.get('is_active') else "ERROR: Inactive"
@@ -2084,26 +2084,26 @@ async def admin_channel_details_handler(message: Message):
             description = channel.get('description', 'No description')
             last_updated = channel.get('last_updated', 'Never')
             
-            response += f"**{channel['name']}**\n"
-            response += f"- **Channel ID:** `{channel['telegram_channel_id']}`\n"
-            response += f"- **Category:** {category}\n"
-            response += f"- **Total Subscribers:** {channel.get('subscribers', 0):,}\n"
-            response += f"- **Active Subscribers:** {active_subs:,}\n"
-            response += f"- **Total Posts:** {total_posts:,}\n"
-            response += f"- **Base Price:** ${channel.get('base_price_usd', 0):.2f}\n"
-            response += f"- **Status:** {status}\n"
-            response += f"- **Last Updated:** {last_updated}\n"
+            response += f"<b>{channel['name']}</b>\n"
+            response += f"- <b>Channel ID:</b> <code>{channel['telegram_channel_id']}</code>\n"
+            response += f"- <b>Category:</b> {category}\n"
+            response += f"- <b>Total Subscribers:</b> {channel.get('subscribers', 0):,}\n"
+            response += f"- <b>Active Subscribers:</b> {active_subs:,}\n"
+            response += f"- <b>Total Posts:</b> {total_posts:,}\n"
+            response += f"- <b>Base Price:</b> ${channel.get('base_price_usd', 0):.2f}\n"
+            response += f"- <b>Status:</b> {status}\n"
+            response += f"- <b>Last Updated:</b> {last_updated}\n"
             
             if description and len(description) > 50:
                 description = description[:47] + "..."
-            response += f"- **Description:** {description}\n\n"
+            response += f"- <b>Description:</b> {description}\n\n"
             
             # Prevent message from being too long
             if len(response) > 3500:
                 response += "... (truncated for length)"
                 break
         
-        await message.reply(response, parse_mode='Markdown')
+        await message.reply(response, parse_mode='HTML')
         
     except Exception as e:
         logger.error(f"Admin channel details error: {e}")
@@ -2142,21 +2142,21 @@ def setup_admin_handlers(dp):
             avg_achievements = sum(user.get('total_achievements', 0) for user in xp_leaderboard) / len(xp_leaderboard) if xp_leaderboard else 0
             
             stats_text = f"""
-🎮 **GAMIFICATION MANAGEMENT** 🎮
+🎮 <b>GAMIFICATION MANAGEMENT</b> 🎮
 
-**System Statistics:**
+<b>System Statistics:</b>
 👥 Total Users: {total_users:,}
 ⚡ Active Users: {active_users:,}
 🏆 Total Achievements: {total_achievements}
 📊 Avg Achievements per User: {avg_achievements:.1f}
 
-**Level Distribution:**
+<b>Level Distribution:</b>
 {chr(10).join(f"Level {level}: {count} users" for level, count in sorted(level_distribution.items())) if level_distribution else "No data available"}
 
-**Top Performers:**
+<b>Top Performers:</b>
 {chr(10).join(f"{i+1}. {user['display_name']} - Level {user['level']} ({user['xp']:,} XP)" for i, user in enumerate(xp_leaderboard[:5])) if xp_leaderboard else "No users yet"}
 
-**System Health:** ✅ Operational
+<b>System Health:</b> ✅ Operational
             """.strip()
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -2180,7 +2180,7 @@ def setup_admin_handlers(dp):
             await callback_query.message.edit_text(
                 stats_text,
                 reply_markup=keyboard,
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
             
         except Exception as e:
@@ -2225,17 +2225,17 @@ def setup_admin_handlers(dp):
                                        reverse=True)
             
             analytics_text = f"""
-🏆 **ACHIEVEMENT ANALYTICS** 🏆
+🏆 <b>ACHIEVEMENT ANALYTICS</b> 🏆
 
-**Most Popular Achievements:**
+<b>Most Popular Achievements:</b>
 {chr(10).join(f"{i+1}. {data['name']} - {data['unlocked_count']} users" for i, (_, data) in enumerate(sorted_achievements[:10])) if sorted_achievements else "No achievements unlocked yet"}
 
-**Achievement Categories:**
+<b>Achievement Categories:</b>
 {chr(10).join(f"• {category}: {len([a for _, a in achievement_stats.items() if a['type'] == category])} achievements" for category in set(a['type'] for a in achievement_stats.values())) if achievement_stats else "No categories available"}
 
-**Total TON Distributed:** {sum(a['unlocked_count'] * a['reward_ton'] for a in achievement_stats.values()):.2f} TON
+<b>Total TON Distributed:</b> {sum(a['unlocked_count'] * a['reward_ton'] for a in achievement_stats.values()):.2f} TON
 
-**Rarest Achievements:**
+<b>Rarest Achievements:</b>
 {chr(10).join(f"🔥 {data['name']} - {data['unlocked_count']} users" for _, data in sorted(achievement_stats.items(), key=lambda x: x[1]['unlocked_count'])[:5]) if achievement_stats else "No rare achievements yet"}
             """.strip()
             
@@ -2252,7 +2252,7 @@ def setup_admin_handlers(dp):
             await callback_query.message.edit_text(
                 analytics_text,
                 reply_markup=keyboard,
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
             
         except Exception as e:
@@ -2278,17 +2278,17 @@ async def admin_agreement_handler(callback_query: CallbackQuery, state: FSMConte
         if agreement:
             preview = agreement[:200] + "..." if len(agreement) > 200 else agreement
             text = f"""
-📄 **Usage Agreement Management**
+📄 <b>Usage Agreement Management</b>
 
-**Current Agreement Preview:**
+<b>Current Agreement Preview:</b>
 {preview}
 
-**Character Count:** {len(agreement)} chars
+<b>Character Count:</b> {len(agreement)} chars
 
 You can view the full agreement or edit it below:
             """.strip()
         else:
-            text = "📄 **Usage Agreement Management**\n\nNo usage agreement found. Click 'Edit Agreement' to create one."
+            text = "📄 <b>Usage Agreement Management</b>\n\nNo usage agreement found. Click 'Edit Agreement' to create one."
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="👀 View Full Agreement", callback_data="view_agreement")],
@@ -2297,7 +2297,7 @@ You can view the full agreement or edit it below:
             [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
         ])
         
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
         await callback_query.answer("Usage agreement management")
         
     except Exception as e:
@@ -2320,11 +2320,11 @@ async def view_agreement_handler(callback_query: CallbackQuery, state: FSMContex
             await callback_query.answer("No agreement found", show_alert=True)
             return
         
-        text = f"📄 **Usage Agreement**\n\n{agreement}"
+        text = f"📄 <b>Usage Agreement</b>\n\n{agreement}"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Back", callback_data="admin_agreement")]
         ])
-        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
         await callback_query.answer("Viewing full agreement")
             
     except Exception as e:
@@ -2342,7 +2342,7 @@ async def edit_agreement_handler(callback_query: CallbackQuery, state: FSMContex
     
     await state.set_state(AdminStates.edit_agreement)
     text = """
-✏️ **Edit Usage Agreement**
+✏️ <b>Edit Usage Agreement</b>
 
 Please send the new usage agreement text. This will be shown to users when they make payments.
 
@@ -2353,7 +2353,7 @@ Send your new agreement text now:
         [InlineKeyboardButton(text="❌ Cancel", callback_data="admin_agreement")]
     ])
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode='HTML')
     await callback_query.answer("Ready to edit agreement")
 
 @router.message(AdminStates.edit_agreement)
@@ -2374,12 +2374,12 @@ async def process_agreement_edit(message: Message, state: FSMContext):
     await db.set_bot_setting('usage_agreement', new_agreement, 'Terms of service and usage agreement for bot users')
     
     text = f"""
-✅ **Usage Agreement Updated Successfully**
+✅ <b>Usage Agreement Updated Successfully</b>
 
-**New Agreement Preview:**
+<b>New Agreement Preview:</b>
 {new_agreement[:200]}{'...' if len(new_agreement) > 200 else ''}
 
-**Character Count:** {len(new_agreement)} chars
+<b>Character Count:</b> {len(new_agreement)} chars
 
 The new agreement will be shown to users during payment.
     """.strip()
@@ -2388,7 +2388,7 @@ The new agreement will be shown to users during payment.
         [InlineKeyboardButton(text="📄 Back to Agreement", callback_data="admin_agreement")]
     ])
     
-    await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+    await message.answer(text, reply_markup=keyboard, parse_mode='HTML')
     await state.clear()
 
 
@@ -2431,13 +2431,13 @@ async def handle_bulk_import_channels(message: Message, state: FSMContext):
         failed_count = len(results) - success_count
         
         result_text = f"""
-**📥 Bulk Import Results**
+<b>📥 Bulk Import Results</b>
 
 Total processed: {len(results)}
 ✅ Successfully added: {success_count}
 ❌ Failed: {failed_count}
 
-**Details:**
+<b>Details:</b>
 """
         
         for username, success in results.items():
@@ -2451,7 +2451,7 @@ Total processed: {len(results)}
             [InlineKeyboardButton(text="🔙 Back to Admin", callback_data="admin_main")]
         ])
         
-        await message.reply(result_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message.reply(result_text, reply_markup=keyboard, parse_mode='HTML')
         await state.clear()
         
     except Exception as e:
@@ -2474,15 +2474,15 @@ async def show_smart_pricing_system(callback_query: CallbackQuery):
         pricing_table = smart_pricing_display.generate_pricing_table_message('en')
         
         text = f"""
-🧠 **Smart & Scalable Ad Pricing System**
+🧠 <b>Smart & Scalable Ad Pricing System</b>
 
-**System Status:** ✅ Fully Operational
-**Implementation:** 100% Complete
-**Test Results:** All tests passed
+<b>System Status:</b> ✅ Fully Operational
+<b>Implementation:</b> 100% Complete
+<b>Test Results:</b> All tests passed
 
 {pricing_table}
 
-**Features:**
+<b>Features:</b>
 - Dynamic pricing based on duration
 - Automatic discount calculation
 - Multi-currency support (USD, TON, Stars)
@@ -2490,7 +2490,7 @@ async def show_smart_pricing_system(callback_query: CallbackQuery):
 - Real-time price previews
 - Automated calculation flow
 
-**Ready for deployment as default pricing logic!**
+<b>Ready for deployment as default pricing logic!</b>
         """.strip()
         
         keyboard = [
@@ -2507,7 +2507,7 @@ async def show_smart_pricing_system(callback_query: CallbackQuery):
             ]
         ]
         
-        await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown')
+        await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='HTML')
     except Exception as e:
         logger.error(f"Error showing smart pricing system: {e}")
         await callback_query.answer("Error displaying pricing system", show_alert=True)
@@ -2525,10 +2525,10 @@ async def show_pricing_table(callback_query: CallbackQuery):
         tiers = pricing_system.get_available_tiers()
         
         text = """
-📊 **Complete Pricing Table**
+📊 <b>Complete Pricing Table</b>
 
-**Core Tiers (1-30 days):**
-```
+<b>Core Tiers (1-30 days):</b>
+<code></code>`
 Days | Posts/Day | Discount | Daily Rate | Final Price
 -----|-----------|----------|------------|------------"""
         
@@ -2536,14 +2536,14 @@ Days | Posts/Day | Discount | Daily Rate | Final Price
             pricing = pricing_system.calculate_pricing(tier['days'])
             text += f"\n{tier['days']:>4} | {pricing['posts_per_day']:>9} | {pricing['discount_percent']:>7}% | ${pricing['daily_price']:>9.2f} | ${pricing['final_cost_usd']:>10.2f}"
         
-        text += "\n```\n\n**Extended Tiers (45-90 days):**"
+        text += "\n<code></code>`\n\n<b>Extended Tiers (45-90 days):</b>"
         
         extended_tiers = [45, 60, 90]
         for days in extended_tiers:
             pricing = pricing_system.calculate_pricing(days)
             text += f"\n📅 {days} days: {pricing['posts_per_day']} posts/day, {pricing['discount_percent']}% discount, ${pricing['final_cost_usd']:.2f}"
         
-        text += "\n\n**Currency Conversion Rates:**"
+        text += "\n\n<b>Currency Conversion Rates:</b>"
         text += "\n💵 1 USD = 0.36 TON"
         text += "\n🌟 1 USD = 34 Stars"
         
@@ -2557,7 +2557,7 @@ Days | Posts/Day | Discount | Daily Rate | Final Price
             ]
         ]
         
-        await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown')
+        await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='HTML')
     except Exception as e:
         logger.error(f"Error showing pricing table: {e}")
         await callback_query.answer("Error displaying pricing table", show_alert=True)
@@ -2577,7 +2577,7 @@ async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMC
     from config import BOT_TOKEN
     
     await callback_query.message.edit_text(
-        "🧪 **Bot Workflow Test Starting...**\n\n"
+        "🧪 <b>Bot Workflow Test Starting...</b>\n\n"
         "⏳ Running comprehensive bot functionality test\n"
         "📊 Testing all systems including multimedia support\n"
         "🔍 This may take 30-60 seconds...",
@@ -2600,20 +2600,20 @@ async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMC
                       "NEEDS ATTENTION" if test_suite.success_rate >= 60 else 
                       "REQUIRES IMMEDIATE ATTENTION")
         
-        text = f"""🧪 **Bot Workflow Test Complete**
+        text = f"""🧪 <b>Bot Workflow Test Complete</b>
 
-{status_emoji} **System Status:** {status_text}
+{status_emoji} <b>System Status:</b> {status_text}
 
-📊 **Test Results:**
+📊 <b>Test Results:</b>
 • Total Tests: {test_suite.total_tests}
 • Passed: {test_suite.passed_tests} ✅
 • Failed: {test_suite.failed_tests} ❌
 • Warnings: {test_suite.warning_tests} ⚠️
 • Success Rate: {test_suite.success_rate:.1f}%
 
-🕐 **Test Duration:** {(test_suite.completed_at - test_suite.started_at).total_seconds():.1f} seconds
+🕐 <b>Test Duration:</b> {(test_suite.completed_at - test_suite.started_at).total_seconds():.1f} seconds
 
-📋 **Test Suite ID:** {test_suite.suite_id}"""
+📋 <b>Test Suite ID:</b> {test_suite.suite_id}"""
         
         keyboard = [
             [InlineKeyboardButton(text="📋 View Full Report", callback_data=f"view_test_report_{test_suite.suite_id}")],
@@ -2625,14 +2625,14 @@ async def admin_test_workflow_handler(callback_query: CallbackQuery, state: FSMC
         await callback_query.message.edit_text(
             text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
         
         await bot.session.close()
         
     except Exception as e:
         await callback_query.message.edit_text(
-            f"❌ **Test Failed**\n\n"
+            f"❌ <b>Test Failed</b>\n\n"
             f"Error: {str(e)}\n\n"
             f"Please check system status and try again.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -2663,15 +2663,15 @@ async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMCo
         test_history = await test_system.get_test_history(user_id, limit=10)
         
         if not test_history:
-            text = "📋 **Test History**\n\n⚠️ No test records found.\n\nRun your first test to see history here."
+            text = "📋 <b>Test History</b>\n\n⚠️ No test records found.\n\nRun your first test to see history here."
         else:
-            text = f"📋 **Test History** (Last {len(test_history)} tests)\n\n"
+            text = f"📋 <b>Test History</b> (Last {len(test_history)} tests)\n\n"
             
             for i, test in enumerate(test_history, 1):
                 status_emoji = "✅" if test['success_rate'] >= 80 else "⚠️" if test['success_rate'] >= 60 else "❌"
                 started_time = datetime.fromisoformat(test['started_at']).strftime('%m/%d %H:%M')
                 
-                text += f"{i}. {status_emoji} **{test['suite_id']}**\n"
+                text += f"{i}. {status_emoji} <b>{test['suite_id']}</b>\n"
                 text += f"   • {started_time} - {test['success_rate']:.1f}% success\n"
                 text += f"   • {test['passed_tests']}/{test['total_tests']} tests passed\n\n"
         
@@ -2683,7 +2683,7 @@ async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMCo
         await callback_query.message.edit_text(
             text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
         await callback_query.answer()
         
@@ -2691,7 +2691,7 @@ async def admin_test_history_handler(callback_query: CallbackQuery, state: FSMCo
         
     except Exception as e:
         await callback_query.message.edit_text(
-            f"❌ **Error Loading Test History**\n\n"
+            f"❌ <b>Error Loading Test History</b>\n\n"
             f"Error: {str(e)}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
@@ -2742,13 +2742,13 @@ async def view_test_report_handler(callback_query: CallbackQuery, state: FSMCont
         await callback_query.message.edit_text(
             report,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
         await callback_query.answer()
         
     except Exception as e:
         await callback_query.message.edit_text(
-            f"❌ **Error Loading Report**\n\n"
+            f"❌ <b>Error Loading Report</b>\n\n"
             f"Error: {str(e)}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")]
