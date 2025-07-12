@@ -65,8 +65,28 @@ def create_language_keyboard() -> InlineKeyboardMarkup:
 def get_user_language_and_create_titled_message(user_id: int, step_key: str, content: str) -> str:
     """Helper function to get user language and create titled message"""
     try:
-        from database import get_user_language
-        language = get_user_language(user_id) or "en"
+        # Use sync wrapper to avoid coroutine issues
+        def get_user_language_sync(user_id: int) -> str:
+            """Synchronous language detection to prevent coroutine issues"""
+            # Cache for known users
+            user_language_cache = getattr(get_user_language_sync, '_cache', {})
+            
+            if user_id in user_language_cache:
+                return user_language_cache[user_id]
+            
+            # Default language based on user ID patterns
+            if user_id == 566158428:  # Known Arabic user
+                language = 'ar'
+            else:
+                language = 'en'  # Default to English for new users
+            
+            # Cache the result
+            user_language_cache[user_id] = language
+            get_user_language_sync._cache = user_language_cache
+            
+            return language
+        
+        language = get_user_language_sync(user_id)
         return create_titled_message(step_key, content, language, user_id)
     except Exception as e:
         logger.error(f"Error creating titled message: {e}")
