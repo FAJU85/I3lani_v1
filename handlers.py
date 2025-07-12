@@ -95,11 +95,8 @@ async def create_regular_main_menu_text(language: str, user_id: int) -> str:
     except:
         pass  # Fall back to default text if database query fails
     
-    # Use translation system for consistent language experience
-    welcome_text = get_text(language, 'main_menu_welcome')
-    status_text = get_text(language, 'main_menu_status')
-    features_text = get_text(language, 'main_menu_features')
-    ready_text = get_text(language, 'main_menu_ready')
+    # Use the new crypto-focused main menu message
+    main_menu_text = get_text(language, 'main_menu')
     
     # Get account status translations
     your_account_text = get_text(language, 'your_account')
@@ -109,17 +106,13 @@ async def create_regular_main_menu_text(language: str, user_id: int) -> str:
     performance_text = get_text(language, 'performance')
     performance_optimized_text = get_text(language, 'performance_optimized')
     
-    # Build the complete menu text - simple and clear
-    menu_text = f"""<b>{welcome_text}</b>
-
-<b>{status_text}</b>
+    # Build the complete menu text with crypto-focused messaging
+    menu_text = f"""<b>{main_menu_text}</b>
 
 <b>{your_account_text}</b>
 • {total_campaigns_text} <code>{total_ads}</code>
 • {account_status_text} <b>{account_active_text}</b>
-• {performance_text} <b>{performance_optimized_text}</b>
-
-<b>{ready_text}</b>"""
+• {performance_text} <b>{performance_optimized_text}</b>"""
     
     return menu_text.strip()
 
@@ -1850,18 +1843,8 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         # Start with photo upload state
         await state.set_state(AdCreationStates.upload_photos)
         
-        # Modern, psychologically calming text design using get_text
-        content = f"""
-{get_text(language, 'create_ad_header')}
-
-{get_text(language, 'create_ad_step1_title')}
-
-{get_text(language, 'create_ad_photo_prompt')}
-
-{get_text(language, 'create_ad_photo_instructions')}
-
-{get_text(language, 'create_ad_modern_design')}
-        """.strip()
+        # Use crypto-focused ad creation message
+        content = get_text(language, 'send_ad_content')
         
         # Add step title to the create ad content
         text = get_user_language_and_create_titled_message(user_id, "create_ad_start", content)
