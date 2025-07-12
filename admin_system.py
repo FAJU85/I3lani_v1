@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 async def safe_callback_answer(callback_query, text: str = None, show_alert: bool = False):
     """Safely answer callback queries with error handling for expired queries"""
     try:
-        await safe_callback_answer(callback_query, text=text, show_alert=show_alert)
+        await callback_query.answer(text=text, show_alert=show_alert)
     except TelegramBadRequest as e:
         if "query is too old" in str(e):
             logger.warning(f"Callback query expired: {e}")
@@ -207,24 +207,24 @@ Select an option to continue:
             
             keyboard = [
                 [
-                    InlineKeyboardButton(text="🚀 Enhanced Dashboard", callback_data="enhanced_channel_dashboard"),
+                    InlineKeyboardButton(text="🚀 Advanced Channel Management", callback_data="adv_channel_management"),
                     InlineKeyboardButton(text="📊 Channel Analytics", callback_data="admin_channel_stats")
                 ],
                 [
-                    InlineKeyboardButton(text="⚡ Bulk Operations", callback_data="bulk_channel_operations"),
-                    InlineKeyboardButton(text="📈 Advanced Reports", callback_data="detailed_channel_analysis")
+                    InlineKeyboardButton(text="🔍 Auto-Detect Channels", callback_data="adv_auto_scan"),
+                    InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel")
                 ],
                 [
-                    InlineKeyboardButton(text="🔍 Discover Channels", callback_data="admin_discover_channels"),
+                    InlineKeyboardButton(text="✅ Approve Channels", callback_data="adv_approve_pending"),
+                    InlineKeyboardButton(text="❌ Reject Channels", callback_data="adv_reject_pending")
+                ],
+                [
+                    InlineKeyboardButton(text="🗑️ Delete Channels", callback_data="adv_delete_channel"),
+                    InlineKeyboardButton(text="📋 All Channels", callback_data="adv_list_channels")
+                ],
+                [
+                    InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="bulk_update_stats"),
                     InlineKeyboardButton(text="📥 Bulk Import", callback_data="admin_bulk_import")
-                ],
-                [
-                    InlineKeyboardButton(text="➕ Add Channel", callback_data="admin_add_channel"),
-                    InlineKeyboardButton(text="EDIT: Edit Channel", callback_data="admin_edit_channel")
-                ],
-                [
-                    InlineKeyboardButton(text="🗑️ Remove Channel", callback_data="admin_remove_channel"),
-                    InlineKeyboardButton(text="🔄 Refresh Stats", callback_data="bulk_update_stats")
                 ],
                 [
                     InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")

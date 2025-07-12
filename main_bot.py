@@ -277,6 +277,12 @@ async def init_bot():
         setup_campaign_handlers(dp)
         logger.info("Campaign handlers setup completed")
         setup_admin_handlers(dp)
+        
+        # Setup advanced channel management handlers
+        logger.info("Setting up advanced channel management...")
+        from advanced_channel_handlers import setup_advanced_channel_handlers
+        setup_advanced_channel_handlers(dp)
+        logger.info("Advanced channel management handlers setup completed")
         # Setup stars handlers via clean_stars_payment_system
         from clean_stars_payment_system import CleanStarsPayment
         stars_payment = CleanStarsPayment(bot, db)
