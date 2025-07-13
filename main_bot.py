@@ -279,6 +279,20 @@ async def init_bot():
         logger.info("Campaign handlers setup completed")
         setup_admin_handlers(dp)
         
+        # Setup advanced pricing management handlers
+        logger.info("Setting up advanced pricing management system...")
+        from advanced_pricing_management import pricing_manager
+        await pricing_manager.initialize_pricing_database()
+        
+        from pricing_admin_handlers import setup_pricing_admin_handlers
+        setup_pricing_admin_handlers(dp)
+        logger.info("✅ Advanced pricing management system initialized")
+        logger.info("   💰 Complete CRUD operations for pricing tiers")
+        logger.info("   🎁 Promotional offers management")
+        logger.info("   📦 Bundle packages creation")
+        logger.info("   📊 Advanced analytics and reporting")
+        logger.info("   🔧 Full admin interface integration")
+        
         # Setup advanced channel management handlers
         logger.info("Setting up advanced channel management...")
         from advanced_channel_handlers import setup_advanced_channel_handlers

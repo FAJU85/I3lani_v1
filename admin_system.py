@@ -287,31 +287,27 @@ Select an option to continue:
     async def show_pricing_management(self, callback_query: CallbackQuery):
         """Show comprehensive pricing management interface"""
         try:
-            # Get price management data
-            from price_management_system import get_price_manager
-            manager = get_price_manager()
-            await manager.initialize_database()
+            # Get advanced pricing management data
+            from advanced_pricing_management import pricing_manager
+            await pricing_manager.initialize_pricing_database()
             
-            summary = await manager.get_pricing_summary()
-            tiers = await manager.get_all_price_tiers(active_only=True)
+            tiers = await pricing_manager.get_all_pricing_tiers(active_only=True)
+            analytics = await pricing_manager.get_pricing_analytics()
             
-            text = f"""<b>💰 Pricing Management System</b>
+            text = f"""<b>💰 Advanced Pricing Management</b>
 
-<b>📊 Overview:</b>
-• Total Price Tiers: {summary.get('total_tiers', 0)}
-• Active Tiers: {summary.get('active_tiers', 0)}
-• Base Price: ${summary.get('base_price_usd', 1.00):.2f}/post/day
-
-<b>💸 Price Range:</b>
-• Min Price: ${summary.get('price_range', {}).get('min_price', 0):.2f}
-• Max Price: ${summary.get('price_range', {}).get('max_price', 0):.2f}
+<b>📊 Current Status:</b>
+• Active Pricing Tiers: {len(tiers)}
+• Monthly Changes: {analytics.get('monthly_changes', 0)}
+• Categories: Current, Experimental, Offers, Bundles
 
 <b>🎯 Active Price Tiers:</b>"""
             
             # Show first 5 active tiers
             for tier in tiers[:5]:
-                text += f"\n• <b>{tier['duration_days']} days</b> - {tier['posts_per_day']} posts/day"
-                text += f"\n  ${tier['final_price_usd']:.2f} ({tier['discount_percent']:.0f}% discount)"
+                discount_text = f" (-{tier['discount_percent']}%)" if tier['discount_percent'] > 0 else ""
+                text += f"\n• <b>{tier['tier_name']}</b> - {tier['duration_days']} days"
+                text += f"\n  ${tier['final_price_usd']:.2f}{discount_text} ({tier['posts_per_day']} posts/day)"
             
             if len(tiers) > 5:
                 text += f"\n... and {len(tiers) - 5} more tiers"
@@ -319,27 +315,32 @@ Select an option to continue:
             text += f"""
 
 <b>📈 Performance:</b>
-• Total Revenue: ${summary.get('total_revenue', 0):.2f}
-• Total Usage: {summary.get('total_usage', 0)} campaigns
+• Popular Tiers: {len(analytics.get('popular_tiers', []))}
+• Revenue Categories: {len(analytics.get('revenue_by_category', []))}
 
-<b>🔧 Management Features:</b>
-• Add new price tiers
-• Edit existing prices
-• Bulk price operations
-• Price analytics & history"""
+<b>🔧 Full Admin Control:</b>
+• Add, edit, delete pricing tiers
+• Manage promotional offers
+• Create bundle packages
+• Bulk pricing operations
+• Complete analytics & history"""
             
             keyboard = [
                 [
-                    InlineKeyboardButton(text="💰 Price Management", callback_data="admin_price_management"),
-                    InlineKeyboardButton(text="📊 Pricing Analytics", callback_data="price_analytics")
+                    InlineKeyboardButton(text="🚀 Advanced Pricing", callback_data="pricing_management"),
+                    InlineKeyboardButton(text="📊 Pricing Analytics", callback_data="pricing_analytics")
                 ],
                 [
-                    InlineKeyboardButton(text="➕ Add New Price", callback_data="price_add_new"),
-                    InlineKeyboardButton(text="✏️ Edit Prices", callback_data="price_edit_list")
+                    InlineKeyboardButton(text="➕ Add New Tier", callback_data="pricing_add_tier"),
+                    InlineKeyboardButton(text="✏️ Edit Tiers", callback_data="pricing_edit_tier")
                 ],
                 [
-                    InlineKeyboardButton(text="📋 All Price Tiers", callback_data="price_view_all"),
-                    InlineKeyboardButton(text="📈 Price History", callback_data="price_history")
+                    InlineKeyboardButton(text="📋 View All Tiers", callback_data="pricing_view_all"),
+                    InlineKeyboardButton(text="🗑️ Delete Tier", callback_data="pricing_delete_tier")
+                ],
+                [
+                    InlineKeyboardButton(text="🎁 Manage Offers", callback_data="pricing_manage_offers"),
+                    InlineKeyboardButton(text="📦 Manage Bundles", callback_data="pricing_manage_bundles")
                 ],
                 [
                     InlineKeyboardButton(text="⬅️ Back to Admin", callback_data="admin_main")
