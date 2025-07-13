@@ -247,6 +247,121 @@ class CampaignManager:
             logger.error(f"❌ Error creating campaign: {e}")
             return None
     
+    async def create_campaign_from_payment(self, user_id: int, selected_channels: list, 
+                                         duration_days: int, posts_per_day: int, 
+                                         payment_amount: float, payment_method: str,
+                                         payment_memo: str, ad_content: str, 
+                                         media_url: str = None, content_type: str = 'text'):
+        """Create a new campaign from successful payment"""
+        try:
+            # Get user's sequence ID
+            manager = get_global_sequence_manager()
+            sequence_id = manager.get_user_active_sequence(user_id)
+            
+            # Generate unique campaign ID using sequence system
+            campaign_id = self.generate_campaign_id(sequence_id)
+            
+            # Calculate campaign details
+            total_posts = duration_days * posts_per_day
+            end_date = datetime.now() + timedelta(days=duration_days)
+            
+            # Get channel count and reach
+            channel_count = len(selected_channels)
+            total_reach = channel_count * 100  # Estimate 100 subscribers per channel
+            
+            # Store campaign in database
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO campaigns (
+                    campaign_id, user_id, payment_memo, payment_method, payment_amount,
+                    campaign_name, ad_content, content_type, media_url, duration_days,
+                    posts_per_day, total_posts, selected_channels, channel_count,
+                    total_reach, end_date, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                campaign_id, user_id, payment_memo, payment_method, payment_amount,
+                f"Campaign {campaign_id}", ad_content, content_type, media_url,
+                duration_days, posts_per_day, total_posts, 
+                ','.join(map(str, selected_channels)), channel_count, total_reach, end_date, 'active'
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            # Create campaign posts for publishing
+            await self.create_campaign_posts(campaign_id, user_id, selected_channels, 
+                                           duration_days, posts_per_day, ad_content, 
+                                           media_url, content_type)
+            
+            logger.info(f"✅ Campaign created successfully: {campaign_id} for user {user_id}")
+            return campaign_id
+            
+        except Exception as e:
+            logger.error(f"❌ Error creating campaign from payment: {e}")
+            return None
+            
+    async def create_campaign_posts(self, campaign_id: str, user_id: int, 
+                                  selected_channels: list, duration_days: int, 
+                                  posts_per_day: int, ad_content: str, 
+                                  media_url: str = None, content_type: str = 'text'):
+        """Create scheduled posts for the campaign"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create campaign_posts table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS campaign_posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    content_type TEXT DEFAULT 'text',
+                    media_url TEXT,
+                    scheduled_time TIMESTAMP NOT NULL,
+                    status TEXT DEFAULT 'scheduled',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    published_at TIMESTAMP,
+                    message_id INTEGER
+                )
+            """)
+            
+            # Create posts for each day and channel
+            start_time = datetime.now()
+            post_count = 0
+            
+            for day in range(duration_days):
+                for post_num in range(posts_per_day):
+                    # Calculate posting time (spread throughout the day)
+                    hours_offset = (24 // posts_per_day) * post_num
+                    post_time = start_time + timedelta(days=day, hours=hours_offset)
+                    
+                    # Create post for each selected channel
+                    for channel_id in selected_channels:
+                        cursor.execute("""
+                            INSERT INTO campaign_posts (
+                                campaign_id, user_id, channel_id, content, 
+                                content_type, media_url, scheduled_time, status
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            campaign_id, user_id, channel_id, ad_content,
+                            content_type, media_url, post_time, 'scheduled'
+                        ))
+                        post_count += 1
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Created {post_count} scheduled posts for campaign {campaign_id}")
+            return post_count
+            
+        except Exception as e:
+            logger.error(f"❌ Error creating campaign posts: {e}")
+            return 0
+    
     async def campaign_exists(self, campaign_id: str) -> bool:
         """Check if campaign ID already exists"""
         try:

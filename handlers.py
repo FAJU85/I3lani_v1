@@ -3851,14 +3851,14 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
         return
     
     data = await state.get_data()
-    pricing_calculation = data.get('pricing_calculation', {})
+    pricing_data = data.get('pricing_data', {})
     
-    if not pricing_calculation:
+    if not pricing_data:
         await callback_query.answer("❌ Pricing data not found")
         return
     
-    # Get Stars amount from calculation  
-    stars_amount = pricing_calculation.get('total_stars', 0)
+    # Get Stars amount from pricing data
+    stars_amount = pricing_data.get('cost_stars', 0)
     
     if stars_amount <= 0:
         await callback_query.answer("❌ Invalid payment amount")
@@ -4468,14 +4468,14 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
         return
     
     data = await state.get_data()
-    pricing_calculation = data.get('pricing_calculation', {})
+    pricing_data = data.get('pricing_data', {})
     
-    if not pricing_calculation:
+    if not pricing_data:
         await callback_query.answer("❌ Pricing data not found")
         return
     
-    # Get Stars amount from calculation  
-    stars_amount = pricing_calculation.get('total_stars', 0)
+    # Get Stars amount from pricing data
+    stars_amount = pricing_data.get('cost_stars', 0)
     
     if stars_amount <= 0:
         await callback_query.answer("❌ Invalid payment amount")
