@@ -48,6 +48,8 @@ class CreateAd(StatesGroup):
     channel_selection = State()
     duration_selection = State()
     payment_method = State()
+    ton_payment = State()
+    stars_payment = State()
     payment_confirmation = State()
 
 

@@ -1743,7 +1743,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     
     # Send message
     await message.edit_text(content, reply_markup=keyboard, parse_mode='Markdown')
-    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days, {posts_per_day} posts/day")
+    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days, {pricing['posts_per_day']} posts/day")
 
 
 # Back to channels callback handler
@@ -1923,6 +1923,81 @@ async def back_to_duration_callback(callback_query: CallbackQuery, state: FSMCon
     
     await callback_query.answer()
     logger.info(f"✅ User {user_id} returned to duration selection")
+
+
+# Payment handlers
+@router.callback_query(F.data == "pay_ton")
+async def pay_ton_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle TON payment selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get pricing data
+    data = await state.get_data()
+    pricing = data.get('final_pricing', {})
+    
+    if not pricing:
+        await callback_query.answer("Pricing data not found. Please try again.", show_alert=True)
+        return
+    
+    # Import wallet manager
+    from wallet_manager import WalletManager
+    wallet_manager = WalletManager()
+    
+    # Set payment state
+    await state.set_state(CreateAd.ton_payment)
+    
+    # Request wallet address
+    await wallet_manager.request_wallet_address(callback_query.message, state)
+    
+    await callback_query.answer()
+    logger.info(f"✅ User {user_id} selected TON payment - ${pricing.get('final_price', 0):.2f}")
+
+
+@router.callback_query(F.data == "pay_stars")
+async def pay_stars_handler(callback_query: CallbackQuery, state: FSMContext):
+    """Handle Telegram Stars payment selection"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get pricing data
+    data = await state.get_data()
+    pricing = data.get('final_pricing', {})
+    
+    if not pricing:
+        await callback_query.answer("Pricing data not found. Please try again.", show_alert=True)
+        return
+    
+    # Import Stars payment system
+    from clean_stars_payment_system import CleanStarsPayment
+    
+    # Create Stars payment
+    stars_payment = CleanStarsPayment(callback_query.bot, db)
+    
+    # Set payment state
+    await state.set_state(CreateAd.stars_payment)
+    
+    # Get campaign data
+    data = await state.get_data()
+    campaign_data = {
+        'selected_channels': data.get('selected_channels', []),
+        'duration': data.get('duration', 1),
+        'ad_content': data.get('ad_text', '') or data.get('ad_content', ''),
+        'photos': data.get('photos', [])
+    }
+    
+    # Create Stars invoice
+    result = await stars_payment.create_payment_invoice(user_id, campaign_data, pricing, language)
+    
+    await callback_query.answer()
+    
+    if result.get('success'):
+        logger.info(f"✅ User {user_id} selected Stars payment - {result.get('stars_amount', 0)} Stars")
+        logger.info(f"   Payment ID: {result.get('payment_id')}")
+    else:
+        logger.error(f"❌ Failed to create Stars invoice for user {user_id}: {result.get('error')}")
+        await callback_query.message.answer("Failed to create payment invoice. Please try again.")
+        await state.set_state(CreateAd.payment_method)
 
 
 async def show_channel_selection_for_message(message: Message, state: FSMContext):
