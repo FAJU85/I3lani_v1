@@ -3865,7 +3865,36 @@ async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMC
         return
     
     # Process Stars payment with correct amount
-    await process_stars_payment(callback_query, state, stars_amount)
+    from clean_stars_payment_system import CleanStarsPayment
+    from main_bot import bot
+    stars_system = CleanStarsPayment(bot)
+    
+    # Get campaign data from state
+    campaign_data = {
+        'duration': data.get('duration_days', 1),
+        'selected_channels': data.get('selected_channels', []),
+        'posts_per_day': data.get('posts_per_day', 1),
+        'ad_content': data.get('ad_content', '') or data.get('ad_text', ''),
+        'photos': data.get('photos', []) or data.get('uploaded_photos', [])
+    }
+    
+    # Create invoice
+    result = await stars_system.create_payment_invoice(
+        user_id=callback_query.from_user.id,
+        campaign_data=campaign_data,
+        pricing_data=pricing_data,
+        language=await get_user_language(callback_query.from_user.id)
+    )
+    
+    if result['success']:
+        await callback_query.message.edit_text(
+            result['invoice_message'],
+            reply_markup=result['invoice_keyboard'],
+            parse_mode='Markdown'
+        )
+        await callback_query.answer("Stars payment invoice created")
+    else:
+        await callback_query.answer(f"❌ {result['error']}", show_alert=True)
 
 
 async def continue_ton_payment_with_wallet(message_or_callback, state: FSMContext, amount_ton: float, wallet_address: str):
@@ -4453,36 +4482,6 @@ async def monitor_ton_payment_with_user_wallet(user_id: int, memo: str, amount_t
 
 
 
-
-
-@router.callback_query(F.data == "pay_freq_stars")
-async def pay_frequency_stars_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle Stars payment for frequency pricing"""
-    user_id = callback_query.from_user.id
-    
-    # Check if user is admin for free posting privilege
-    from config import ADMIN_IDS
-    if user_id in ADMIN_IDS:
-        # Admin gets free posting!
-        await process_admin_free_posting(callback_query, state)
-        return
-    
-    data = await state.get_data()
-    pricing_data = data.get('pricing_data', {})
-    
-    if not pricing_data:
-        await callback_query.answer("❌ Pricing data not found")
-        return
-    
-    # Get Stars amount from pricing data
-    stars_amount = pricing_data.get('cost_stars', 0)
-    
-    if stars_amount <= 0:
-        await callback_query.answer("❌ Invalid payment amount")
-        return
-    
-    # Process Stars payment with correct amount
-    await process_stars_payment(callback_query, state, stars_amount)
 
 async def show_frequency_posts_per_day_selection(callback_query: CallbackQuery, state: FSMContext, days: int):
     """Show posts per day selection with the selected days"""
