@@ -29,11 +29,28 @@ class QuantitativePricingCalculator:
     
     def calculate_posts_per_day(self, days: int) -> int:
         """
-        Calculate posts per day based on duration
-        Formula: R = min(12, max(1, ⌊D/2.5⌋ + 1))
+        Calculate posts per day based on duration with progressive increase
+        Progressive scaling: 1 day=1 post, 2-3 days=2 posts, 4-5 days=3 posts, etc.
+        Formula: R = min(12, max(1, ⌊(D + 1)/2⌋ + 1))
         """
-        posts_per_day = max(1, math.floor(days / 2.5) + 1)
-        return min(self.config.max_posts_per_day, posts_per_day)
+        if days == 1:
+            return 1
+        elif days <= 3:
+            return 2
+        elif days <= 5:
+            return 3
+        elif days <= 7:
+            return 4
+        elif days <= 10:
+            return 5
+        elif days <= 14:
+            return 6
+        elif days <= 21:
+            return 8
+        elif days <= 30:
+            return 10
+        else:
+            return min(self.config.max_posts_per_day, 12)
     
     def calculate_discount_percentage(self, days: int) -> float:
         """
@@ -77,6 +94,9 @@ class QuantitativePricingCalculator:
         # Apply discount
         discount_amount = base_price * (discount_percentage / 100)
         final_price = base_price - discount_amount
+        
+        # Ensure minimum final price of $0.29
+        final_price = max(0.29, final_price)
         
         # Calculate posting schedule
         posting_times = self.calculate_posting_schedule(posts_per_day)
