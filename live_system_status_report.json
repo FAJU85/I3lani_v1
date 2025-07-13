@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-07-13T07:43:40.147007",
+  "database": {
+    "status": "healthy",
+    "total_channels": 4,
+    "valid_channels": 4,
+    "connectivity": true
+  },
+  "channels": {
+    "status": "healthy",
+    "active_channels": 4,
+    "total_reach": 346,
+    "id_issues": 0
+  },
+  "live_stats": {
+    "status": "healthy",
+    "fallback_working": true,
+    "cache_working": true,
+    "enhancement_working": true
+  },
+  "ui_components": {
+    "status": "healthy",
+    "button_creation": true,
+    "edge_cases": true
+  },
+  "integration": {
+    "status": "healthy",
+    "channel_selection": 4,
+    "total_reach": 346,
+    "multilingual": true,
+    "data_flow": true
+  },
+  "performance": {
+    "status": "excellent",
+    "database_time": 0.014980792999267578,
+    "enhancement_time": 0.06344819068908691,
+    "ui_time": 2.5510787963867188e-05,
+    "acceptable": true
+  },
+  "overall_health": {
+    "score": 100.0,
+    "grade": "A+"
+  }
+}
