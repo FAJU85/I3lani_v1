@@ -1431,6 +1431,150 @@ async def show_simple_channel_selection(message: Message, state: FSMContext):
         logger.error(f"Error showing channel selection: {e}")
         await message.answer("Error showing channels. Please try again.")
 
+
+# Channel toggle callback handler
+@router.callback_query(F.data.startswith("toggle_channel_"))
+async def toggle_channel_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle channel selection toggle"""
+    user_id = callback_query.from_user.id
+    channel_id = callback_query.data.replace("toggle_channel_", "")
+    
+    # Get current state data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Toggle channel selection
+    if channel_id in selected_channels:
+        selected_channels.remove(channel_id)
+        logger.info(f"🔴 Channel {channel_id} deselected by user {user_id}")
+    else:
+        selected_channels.append(channel_id)
+        logger.info(f"🟢 Channel {channel_id} selected by user {user_id}")
+    
+    # Update state
+    await state.update_data(selected_channels=selected_channels)
+    
+    # Get updated channel list and regenerate keyboard
+    channels = await db.get_active_channels()
+    keyboard_rows = []
+    
+    for channel in channels:
+        is_selected = channel['channel_id'] in selected_channels
+        channel_name = channel.get('name', channel.get('telegram_channel_id', 'Unknown'))
+        subscribers = channel.get('subscribers', 0)
+        
+        # Create button text with selection indicator
+        if is_selected:
+            button_text = f"✅ {channel_name} ({subscribers} subs)"
+        else:
+            button_text = f"⚪ {channel_name} ({subscribers} subs)"
+        
+        keyboard_rows.append([InlineKeyboardButton(
+            text=button_text,
+            callback_data=f"toggle_channel_{channel['channel_id']}"
+        )])
+    
+    # Add control buttons
+    language = await get_user_language(user_id)
+    if language == 'ar':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="✅ متابعة", callback_data="proceed_to_duration"),
+            InlineKeyboardButton(text="🔄 تحديث", callback_data="refresh_channels")
+        ])
+    elif language == 'ru':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="✅ Продолжить", callback_data="proceed_to_duration"),
+            InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh_channels")
+        ])
+    else:
+        keyboard_rows.append([
+            InlineKeyboardButton(text="✅ Continue", callback_data="proceed_to_duration"),
+            InlineKeyboardButton(text="🔄 Refresh", callback_data="refresh_channels")
+        ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    # Create updated message
+    if language == 'ar':
+        channel_content = f"""📺 **اختر القنوات لإعلانك**
+
+📊 **المحدد:** {len(selected_channels)}/{len(channels)} قناة
+
+💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
+    elif language == 'ru':
+        channel_content = f"""📺 **Выберите каналы для рекламы**
+
+📊 **Выбрано:** {len(selected_channels)}/{len(channels)} каналов
+
+💡 Нажмите на каналы для выбора/отмены:"""
+    else:
+        channel_content = f"""📺 **Select Channels for Your Ad**
+
+📊 **Selected:** {len(selected_channels)}/{len(channels)} channels
+
+💡 Click channels to select/deselect:"""
+    
+    # Update the message
+    await callback_query.message.edit_text(
+        channel_content,
+        reply_markup=keyboard,
+        parse_mode='Markdown'
+    )
+    
+    await callback_query.answer()
+    logger.info(f"✅ Channel selection updated for user {user_id} - {len(selected_channels)} channels selected")
+
+
+# Proceed to duration callback handler
+@router.callback_query(F.data == "proceed_to_duration")
+async def proceed_to_duration_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle proceed to duration selection"""
+    user_id = callback_query.from_user.id
+    
+    # Get current state data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Check if at least one channel is selected
+    if not selected_channels:
+        language = await get_user_language(user_id)
+        if language == 'ar':
+            await callback_query.answer("⚠️ يرجى اختيار قناة واحدة على الأقل", show_alert=True)
+        elif language == 'ru':
+            await callback_query.answer("⚠️ Пожалуйста, выберите хотя бы один канал", show_alert=True)
+        else:
+            await callback_query.answer("⚠️ Please select at least one channel", show_alert=True)
+        return
+    
+    # Set state to duration selection
+    await state.set_state(CreateAd.duration_selection)
+    
+    # Show duration selection
+    await show_duration_selection(callback_query.message, state)
+    
+    await callback_query.answer()
+    logger.info(f"✅ User {user_id} proceeding to duration selection with {len(selected_channels)} channels selected")
+
+
+# Refresh channels callback handler
+@router.callback_query(F.data == "refresh_channels")
+async def refresh_channels_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle refresh channels request"""
+    user_id = callback_query.from_user.id
+    
+    # Simply regenerate the channel selection message
+    await toggle_channel_callback(callback_query, state)
+    
+    language = await get_user_language(user_id)
+    if language == 'ar':
+        await callback_query.answer("🔄 تم تحديث القنوات")
+    elif language == 'ru':
+        await callback_query.answer("🔄 Каналы обновлены")
+    else:
+        await callback_query.answer("🔄 Channels refreshed")
+    
+    logger.info(f"✅ Channels refreshed for user {user_id}")
+
 async def show_channel_selection_for_message(message: Message, state: FSMContext):
     """Show channel selection for message-based flow"""
     user_id = message.from_user.id
