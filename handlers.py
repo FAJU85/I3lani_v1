@@ -1346,7 +1346,12 @@ async def show_simple_channel_selection(message: Message, state: FSMContext):
     language = await get_user_language(user_id)
     
     # Get active channels from database
-    channels = await db.get_active_channels()
+    try:
+        channels = await db.get_active_channels()
+        logger.info(f"Retrieved {len(channels)} channels from database")
+    except Exception as e:
+        logger.error(f"Error getting channels: {e}")
+        channels = []
     
     if not channels:
         no_channels_text = {
@@ -1386,8 +1391,8 @@ async def show_simple_channel_selection(message: Message, state: FSMContext):
     keyboard_rows = []
     for channel in channels:
         is_selected = channel['channel_id'] in selected_channels
-        channel_name = channel.get('title', channel.get('username', 'Unknown'))
-        subscribers = channel.get('subscriber_count', 0)
+        channel_name = channel.get('name', channel.get('telegram_channel_id', 'Unknown'))
+        subscribers = channel.get('subscribers', 0)
         
         # Create button text with selection indicator
         if is_selected:
