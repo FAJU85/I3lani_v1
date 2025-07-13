@@ -1,0 +1,86 @@
+{
+  "database_check": {
+    "status": "healthy",
+    "existing_tables": [
+      "campaign_posts",
+      "campaigns",
+      "channel_publishing_logs",
+      "publishing_status"
+    ],
+    "missing_tables": []
+  },
+  "post_status_check": {
+    "status": "healthy",
+    "total_posts": 408,
+    "status_counts": {
+      "published": 366,
+      "failed": 42
+    },
+    "stuck_posts": 0,
+    "due_soon": 0
+  },
+  "campaign_status_check": {
+    "status": "healthy",
+    "total_campaigns": 15,
+    "status_counts": {
+      "active": 15
+    },
+    "campaigns_without_posts": 0
+  },
+  "publisher_process_check": {
+    "status": "healthy",
+    "recent_publishes": 0,
+    "overdue_posts": 0
+  },
+  "scheduling_check": {
+    "status": "healthy",
+    "daily_schedule": [
+      [
+        "2025-07-11",
+        342
+      ],
+      [
+        "2025-07-10",
+        24
+      ]
+    ],
+    "far_future_posts": 0,
+    "multi_post_campaigns": 5
+  },
+  "error_analysis": {
+    "status": "issues",
+    "failed_posts": 42,
+    "recent_failures": [
+      [
+        "CAM-TEST-20250711034721",
+        "@test_channel",
+        "2025-07-11 15:06:31",
+        "Telegram server says - Bad Request: chat not found"
+      ],
+      [
+        "CAM-TEST-20250711034649",
+        "@test_channel",
+        "2025-07-11 15:05:31",
+        "Telegram server says - Bad Request: chat not found"
+      ],
+      [
+        "CAM-TEST-20250711034258",
+        "@test_channel",
+        "2025-07-11 15:04:31",
+        "Telegram server says - Bad Request: chat not found"
+      ],
+      [
+        "CAM-TEST-20250711034721",
+        "@test_channel",
+        "2025-07-11 15:01:31",
+        "Telegram server says - Bad Request: chat not found"
+      ],
+      [
+        "CAM-TEST-20250711034649",
+        "@test_channel",
+        "2025-07-11 15:00:31",
+        "Telegram server says - Bad Request: chat not found"
+      ]
+    ]
+  }
+}
