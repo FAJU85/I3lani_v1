@@ -130,11 +130,17 @@ class EnhancedChannelDetector:
             
             logger.info(f"✅ Successfully added channel {chat.title} to database")
             
+            # Clear channel cache to ensure new channel appears immediately
+            await self._refresh_channel_cache()
+            
             # Send welcome message to channel
             await self._send_welcome_message(chat, member_count)
             
             # Notify admins
             await self._notify_admin_new_channel(chat, member_count, category)
+            
+            # Notify all active users about new channel availability
+            await self._notify_users_new_channel(chat, member_count, category)
             
             return True
             
@@ -357,6 +363,55 @@ The channel is no longer available for advertising campaigns.
     def get_detection_stats(self) -> Dict:
         """Get detection statistics"""
         return self.detection_stats.copy()
+    
+    async def _refresh_channel_cache(self):
+        """Refresh channel cache to ensure new channels appear immediately"""
+        try:
+            # Force refresh of channel data in database
+            await db.refresh_channel_cache()
+            logger.info("✅ Channel cache refreshed - new channels now available")
+        except Exception as e:
+            logger.error(f"❌ Error refreshing channel cache: {e}")
+    
+    async def _notify_users_new_channel(self, chat, member_count: int, category: str):
+        """Notify active users about new channel availability"""
+        try:
+            # Get users who are currently creating ads (in channel selection state)
+            active_users = await db.get_active_ad_creators()
+            
+            if not active_users:
+                logger.info("ℹ️ No active ad creators to notify about new channel")
+                return
+            
+            new_channel_message = f"""
+🆕 **New Channel Available!**
+
+A new channel has been added to our advertising network:
+
+📺 **{chat.title}**
+👥 **Subscribers:** {member_count:,}
+📂 **Category:** {category.title()}
+💰 **Price:** $2.00
+
+This channel is now available for your advertising campaigns!
+            """.strip()
+            
+            notifications_sent = 0
+            for user_id in active_users:
+                try:
+                    await self.bot.send_message(
+                        user_id, 
+                        new_channel_message, 
+                        parse_mode='Markdown'
+                    )
+                    notifications_sent += 1
+                except Exception as e:
+                    logger.debug(f"Could not notify user {user_id}: {e}")
+            
+            logger.info(f"✅ Notified {notifications_sent} active users about new channel")
+            
+        except Exception as e:
+            logger.error(f"❌ Error notifying users about new channel: {e}")
 
 # Global instance
 enhanced_detector = EnhancedChannelDetector()

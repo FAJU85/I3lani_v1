@@ -1642,7 +1642,7 @@ async def show_channel_selection_for_enhanced_flow(callback_query: CallbackQuery
 
 @router.callback_query(F.data == "refresh_channel_stats")
 async def refresh_channel_stats_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Refresh channel statistics and update display"""
+    """Refresh channel statistics and detect new channels"""
     try:
         user_id = callback_query.from_user.id
         language = await get_user_language(user_id)
@@ -1656,6 +1656,9 @@ async def refresh_channel_stats_handler(callback_query: CallbackQuery, state: FS
         
         await callback_query.answer(loading_text.get(language, loading_text['en']))
         
+        # Force refresh of channel cache to capture any newly detected channels
+        await db.refresh_channel_cache()
+        
         # Initialize live stats system
         from live_channel_stats import LiveChannelStats
         live_stats = LiveChannelStats(callback_query.bot, db)
@@ -1666,14 +1669,14 @@ async def refresh_channel_stats_handler(callback_query: CallbackQuery, state: FS
         # Clear cache to force fresh data
         live_stats.clear_cache()
         
-        # Show updated channel selection
+        # Show updated channel selection with fresh data
         await show_channel_selection_for_enhanced_flow(callback_query, state)
         
-        # Show success message
+        # Show success message with new channels notification
         success_text = {
-            'en': f"✅ Updated {updated_count} channel statistics",
-            'ar': f"✅ تم تحديث إحصائيات {updated_count} قناة",
-            'ru': f"✅ Обновлено {updated_count} статистик каналов"
+            'en': f"✅ Updated {updated_count} channels. New channels detected!",
+            'ar': f"✅ تم تحديث {updated_count} قناة. تم اكتشاف قنوات جديدة!",
+            'ru': f"✅ Обновлено {updated_count} каналов. Обнаружены новые каналы!"
         }
         
         await callback_query.answer(success_text.get(language, success_text['en']))

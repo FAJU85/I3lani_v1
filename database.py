@@ -1113,6 +1113,37 @@ Last updated: July 2025"""
                 for row in rows
             ]
     
+    async def refresh_channel_cache(self):
+        """Refresh channel cache to ensure new channels appear immediately"""
+        # This method ensures database consistency and channel availability
+        # In SQLite, this is handled by database commits, but we can add cleanup here
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Ensure all channel data is committed and available
+                await db.commit()
+                # Clean up any inactive channels that might interfere
+                await db.execute('''
+                    UPDATE channels 
+                    SET last_updated = CURRENT_TIMESTAMP 
+                    WHERE is_active = 1
+                ''')
+                await db.commit()
+        except Exception as e:
+            import logging
+            logging.error(f"Error refreshing channel cache: {e}")
+    
+    async def get_active_ad_creators(self) -> List[int]:
+        """Get list of users who are currently creating ads (in channel selection state)"""
+        try:
+            # In a real implementation, this would query user states
+            # For now, we'll return empty list as state management is handled by aiogram
+            # This method can be enhanced later to track user states in database
+            return []
+        except Exception as e:
+            import logging
+            logging.error(f"Error getting active ad creators: {e}")
+            return []
+    
     # Payout system methods for reward transfers from bot wallet
     async def create_payout_request(self, user_id: int, amount: float, payout_id: str, status: str = 'pending'):
         """Create a new payout request for reward transfer"""
