@@ -1,0 +1,50 @@
+{
+  "handler_validation": {
+    "status": "healthy",
+    "handlers_found": {
+      "handle_photo_upload": true,
+      "photo_state_handler": true,
+      "done_photos_handler": true,
+      "skip_photos_handler": true,
+      "continue_from_photos": true
+    },
+    "router_registrations": 3,
+    "total_patterns": 3
+  },
+  "state_management": {
+    "status": "healthy",
+    "upload_photos_defined": true,
+    "related_states_found": 3,
+    "state_transitions_found": 3
+  },
+  "database_integration": {
+    "status": "healthy",
+    "missing_columns": [],
+    "ads_with_media": 32,
+    "content_types": 3,
+    "campaigns_media_ready": true
+  },
+  "media_storage": {
+    "status": "healthy",
+    "media_dir_exists": false,
+    "media_samples": 5,
+    "telegram_file_ids": 5,
+    "file_id_pattern_valid": true
+  },
+  "content_type_handling": {
+    "status": "issues",
+    "handler_patterns_found": 2,
+    "publisher_patterns_found": 2,
+    "content_type_stats": 3
+  },
+  "error_handling": {
+    "status": "healthy",
+    "error_handling_found": 4,
+    "upload_error_handling": 3
+  },
+  "workflow_integration": {
+    "status": "healthy",
+    "workflow_integration": 5,
+    "state_integration": 3
+  }
+}

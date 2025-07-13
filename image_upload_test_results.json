@@ -1,0 +1,36 @@
+{
+  "Database Schema": {
+    "status": "passed",
+    "ads_with_media": 5,
+    "campaigns_with_media": 5,
+    "content_types": 3,
+    "valid_file_ids": 5
+  },
+  "Media Storage": {
+    "status": "passed",
+    "total_media": 32,
+    "valid_patterns": 32,
+    "invalid_patterns": 0,
+    "valid_lengths": 32
+  },
+  "Content Type Processing": {
+    "status": "passed",
+    "content_types": 3,
+    "photo_without_media": 0,
+    "text_with_media": 0
+  },
+  "Upload Workflow": {
+    "status": "passed",
+    "states_found": 2,
+    "required_states": 2
+  },
+  "Error Handling": {
+    "status": "passed",
+    "max_photos": 5,
+    "error_handlers": 4
+  },
+  "Integration Flow": {
+    "status": "failed",
+    "error": "no such column: id"
+  }
+}
