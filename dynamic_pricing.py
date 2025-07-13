@@ -95,8 +95,10 @@ class DynamicPricing:
             'discount_percent': discount_percent,
             'channel_cost': channel_cost,
             'total_usd': total_usd,
+            'final_cost_usd': total_usd,  # Add required key
             'total_ton': round(total_ton, 2),
             'total_stars': total_stars,
+            'total_posts': days * posts_per_day,  # Add required key
             'channels_count': len(channels) if channels else 0
         }
     

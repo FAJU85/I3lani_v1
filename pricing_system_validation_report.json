@@ -1,0 +1,31 @@
+{
+  "frequency_pricing": {
+    "status": "healthy",
+    "valid_calculations": 5,
+    "total_tests": 5,
+    "available_tiers": 11
+  },
+  "dynamic_pricing": {
+    "status": "issues",
+    "valid_calculations": 0,
+    "total_tests": 3
+  },
+  "price_management": {
+    "status": "healthy",
+    "database_initialized": true
+  },
+  "admin_integration": {
+    "status": "healthy",
+    "functions_found": 4
+  },
+  "currency_conversion": {
+    "status": "healthy",
+    "stars_rate": 34,
+    "ton_rate": 0.36
+  },
+  "pricing_display": {
+    "status": "healthy",
+    "display_files": 2,
+    "handlers_found": 2
+  }
+}
