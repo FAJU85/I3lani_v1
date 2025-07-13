@@ -20,6 +20,7 @@ from config import BOT_TOKEN
 from database import init_db, db
 from handlers import setup_handlers
 from admin_system import setup_admin_handlers
+from enhanced_channel_detection import get_detection_router, get_enhanced_detector
 # Stars payment handlers setup integrated directly in main
 from channel_manager import init_channel_manager, handle_my_chat_member
 # Publishing scheduler removed during cleanup
@@ -302,6 +303,26 @@ async def init_bot():
         # Initialize channel manager
         logger.info("Initializing channel manager...")
         channel_manager = init_channel_manager(bot, db)
+        
+        # Initialize enhanced channel detection system
+        logger.info("Initializing enhanced channel detection system...")
+        try:
+            enhanced_detector = get_enhanced_detector()
+            enhanced_detector.set_bot(bot)  # Set bot instance after initialization
+            detection_router = get_detection_router()
+            dp.include_router(detection_router)
+            
+            logger.info("✅ Enhanced channel detection system initialized")
+            logger.info("   🔍 Automatic detection of new channels when bot becomes admin")
+            logger.info("   📊 Comprehensive channel analysis and categorization")
+            logger.info("   🔔 Real-time admin notifications for new channels")
+            logger.info("   💾 Automatic database integration with full metadata")
+            logger.info("   🚀 Welcome messages sent to new channels")
+            logger.info("   ⚙️ Channel removal handling when bot loses admin rights")
+            
+        except Exception as e:
+            logger.error(f"❌ Enhanced channel detection initialization error: {e}")
+            logger.info("Continuing with basic channel management...")
         
         # Initialize enhanced channel admin system
         logger.info("Initializing enhanced channel admin system...")
