@@ -1588,12 +1588,10 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     
     # Initialize default values if not set
     current_days = data.get('current_days', 7)
-    current_posts_per_day = data.get('current_posts_per_day', 1)
     
     # Save current values to state
     await state.update_data(
-        current_days=current_days,
-        current_posts_per_day=current_posts_per_day
+        current_days=current_days
     )
     
     # Import and use dynamic pricing
@@ -1701,25 +1699,8 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
             InlineKeyboardButton(text="🔼", callback_data="days_increase")
         ])
     
-    # Posts per day control row
-    if language == 'ar':
-        keyboard_rows.append([
-            InlineKeyboardButton(text="🔽", callback_data="posts_decrease"),
-            InlineKeyboardButton(text=f"{current_posts_per_day} نشر/يوم", callback_data="posts_info"),
-            InlineKeyboardButton(text="🔼", callback_data="posts_increase")
-        ])
-    elif language == 'ru':
-        keyboard_rows.append([
-            InlineKeyboardButton(text="🔽", callback_data="posts_decrease"),
-            InlineKeyboardButton(text=f"{current_posts_per_day} публ./день", callback_data="posts_info"),
-            InlineKeyboardButton(text="🔼", callback_data="posts_increase")
-        ])
-    else:
-        keyboard_rows.append([
-            InlineKeyboardButton(text="🔽", callback_data="posts_decrease"),
-            InlineKeyboardButton(text=f"{current_posts_per_day} posts/day", callback_data="posts_info"),
-            InlineKeyboardButton(text="🔼", callback_data="posts_increase")
-        ])
+    # Posts per day is automatically calculated by quantitative pricing system
+    # No manual selection needed
     
     # Quick selection buttons
     quick_days = [1, 3, 7, 14, 30]
@@ -1816,38 +1797,7 @@ async def days_decrease_callback(callback_query: CallbackQuery, state: FSMContex
     logger.info(f"✅ User {user_id} decreased days to {new_days}")
 
 
-@router.callback_query(F.data == "posts_increase")
-async def posts_increase_callback(callback_query: CallbackQuery, state: FSMContext):
-    """Handle posts per day increase button"""
-    user_id = callback_query.from_user.id
-    data = await state.get_data()
-    current_posts = data.get('current_posts_per_day', 1)
-    
-    # Increase posts per day (max 10)
-    new_posts = min(current_posts + 1, 10)
-    await state.update_data(current_posts_per_day=new_posts)
-    
-    # Refresh the interface
-    await show_duration_selection_simple(callback_query.message, state)
-    await callback_query.answer(f"📅 {new_posts} posts/day")
-    logger.info(f"✅ User {user_id} increased posts per day to {new_posts}")
-
-
-@router.callback_query(F.data == "posts_decrease")
-async def posts_decrease_callback(callback_query: CallbackQuery, state: FSMContext):
-    """Handle posts per day decrease button"""
-    user_id = callback_query.from_user.id
-    data = await state.get_data()
-    current_posts = data.get('current_posts_per_day', 1)
-    
-    # Decrease posts per day (min 1)
-    new_posts = max(current_posts - 1, 1)
-    await state.update_data(current_posts_per_day=new_posts)
-    
-    # Refresh the interface
-    await show_duration_selection_simple(callback_query.message, state)
-    await callback_query.answer(f"📅 {new_posts} posts/day")
-    logger.info(f"✅ User {user_id} decreased posts per day to {new_posts}")
+# Posts per day handlers removed - quantitative pricing system calculates this automatically
 
 
 @router.callback_query(F.data.startswith("set_days_"))
@@ -1875,18 +1825,17 @@ async def proceed_to_payment_callback(callback_query: CallbackQuery, state: FSMC
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     current_days = data.get('current_days', 7)
-    current_posts_per_day = data.get('current_posts_per_day', 1)
     
-    # Calculate final pricing
-    from quantitative_pricing_system import QuantitativePricingCalculator
-    calculator = QuantitativePricingCalculator()
-    pricing = calculator.calculate_price(current_days, len(selected_channels), current_posts_per_day)
+    # Calculate final pricing using quantitative pricing system
+    from quantitative_pricing_system import calculate_quantitative_price
+    
+    pricing = calculate_quantitative_price(current_days, len(selected_channels))
     
     # Save pricing to state
     await state.update_data(
         final_pricing=pricing,
         duration=current_days,
-        posts_per_day=current_posts_per_day
+        posts_per_day=pricing['posts_per_day']  # Use calculated posts per day
     )
     
     # Set state to payment method
