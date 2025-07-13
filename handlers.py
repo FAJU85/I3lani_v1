@@ -1577,78 +1577,128 @@ async def refresh_channels_callback(callback_query: CallbackQuery, state: FSMCon
 
 
 async def show_duration_selection_simple(message: Message, state: FSMContext):
-    """Show simplified duration selection"""
+    """Show dynamic duration selection with interactive controls"""
     user_id = message.from_user.id
     language = await get_user_language(user_id)
     
-    # Duration options (in days)
-    duration_options = [1, 3, 7, 14, 30]
+    # Get state data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    channels_count = len(selected_channels)
     
-    # Create keyboard
+    # Initialize default values if not set
+    current_days = data.get('current_days', 7)
+    current_posts_per_day = data.get('current_posts_per_day', 1)
+    
+    # Save current values to state
+    await state.update_data(
+        current_days=current_days,
+        current_posts_per_day=current_posts_per_day
+    )
+    
+    # Import and use dynamic pricing
+    from dynamic_pricing_system import format_dynamic_pricing_display, get_days_selector
+    
+    # Get pricing display content
+    content = format_dynamic_pricing_display(
+        current_days, 
+        channels_count, 
+        current_posts_per_day, 
+        language
+    )
+    
+    # Create interactive keyboard
     keyboard_rows = []
-    for days in duration_options:
-        if language == 'ar':
-            if days == 1:
-                button_text = f"📅 يوم واحد - ${days * 2:.2f}"
-            else:
-                button_text = f"📅 {days} أيام - ${days * 2:.2f}"
-        elif language == 'ru':
-            if days == 1:
-                button_text = f"📅 1 день - ${days * 2:.2f}"
-            elif days < 5:
-                button_text = f"📅 {days} дня - ${days * 2:.2f}"
-            else:
-                button_text = f"📅 {days} дней - ${days * 2:.2f}"
-        else:
-            if days == 1:
-                button_text = f"📅 1 day - ${days * 2:.2f}"
-            else:
-                button_text = f"📅 {days} days - ${days * 2:.2f}"
-        
-        keyboard_rows.append([InlineKeyboardButton(
-            text=button_text,
-            callback_data=f"select_duration_{days}"
-        )])
     
-    # Add back button
+    # Days control row
     if language == 'ar':
-        keyboard_rows.append([InlineKeyboardButton(text="🔙 رجوع", callback_data="back_to_channels")])
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔽", callback_data="days_decrease"),
+            InlineKeyboardButton(text=f"{current_days} يوم", callback_data="days_info"),
+            InlineKeyboardButton(text="🔼", callback_data="days_increase")
+        ])
     elif language == 'ru':
-        keyboard_rows.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_channels")])
+        if current_days == 1:
+            day_text = f"{current_days} день"
+        elif current_days < 5:
+            day_text = f"{current_days} дня"
+        else:
+            day_text = f"{current_days} дней"
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔽", callback_data="days_decrease"),
+            InlineKeyboardButton(text=day_text, callback_data="days_info"),
+            InlineKeyboardButton(text="🔼", callback_data="days_increase")
+        ])
     else:
-        keyboard_rows.append([InlineKeyboardButton(text="🔙 Back", callback_data="back_to_channels")])
+        day_text = f"{current_days} day{'s' if current_days != 1 else ''}"
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔽", callback_data="days_decrease"),
+            InlineKeyboardButton(text=day_text, callback_data="days_info"),
+            InlineKeyboardButton(text="🔼", callback_data="days_increase")
+        ])
+    
+    # Posts per day control row
+    if language == 'ar':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔽", callback_data="posts_decrease"),
+            InlineKeyboardButton(text=f"{current_posts_per_day} نشر/يوم", callback_data="posts_info"),
+            InlineKeyboardButton(text="🔼", callback_data="posts_increase")
+        ])
+    elif language == 'ru':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔽", callback_data="posts_decrease"),
+            InlineKeyboardButton(text=f"{current_posts_per_day} публ./день", callback_data="posts_info"),
+            InlineKeyboardButton(text="🔼", callback_data="posts_increase")
+        ])
+    else:
+        keyboard_rows.append([
+            InlineKeyboardButton(text="🔽", callback_data="posts_decrease"),
+            InlineKeyboardButton(text=f"{current_posts_per_day} posts/day", callback_data="posts_info"),
+            InlineKeyboardButton(text="🔼", callback_data="posts_increase")
+        ])
+    
+    # Quick selection buttons
+    quick_days = [1, 3, 7, 14, 30]
+    quick_row = []
+    for days in quick_days:
+        if days == current_days:
+            continue  # Skip current selection
+        if language == 'ar':
+            button_text = f"{days}د"
+        elif language == 'ru':
+            button_text = f"{days}д"
+        else:
+            button_text = f"{days}d"
+        quick_row.append(InlineKeyboardButton(
+            text=button_text,
+            callback_data=f"set_days_{days}"
+        ))
+    
+    if quick_row:
+        keyboard_rows.append(quick_row)
+    
+    # Action buttons
+    if language == 'ar':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="💳 متابعة للدفع", callback_data="proceed_to_payment"),
+            InlineKeyboardButton(text="🔙 رجوع", callback_data="back_to_channels")
+        ])
+    elif language == 'ru':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="💳 Перейти к оплате", callback_data="proceed_to_payment"),
+            InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_channels")
+        ])
+    else:
+        keyboard_rows.append([
+            InlineKeyboardButton(text="💳 Proceed to Payment", callback_data="proceed_to_payment"),
+            InlineKeyboardButton(text="🔙 Back", callback_data="back_to_channels")
+        ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
     
-    # Create message content
-    if language == 'ar':
-        content = """⏰ **اختر مدة الإعلان**
-
-💰 **التسعير:** $2.00 لكل يوم لكل قناة
-⚡ **التنشيط:** فوري بعد الدفع
-📊 **الوصول:** جميع المشتركين
-
-اختر المدة المناسبة لحملتك:"""
-    elif language == 'ru':
-        content = """⏰ **Выберите длительность рекламы**
-
-💰 **Цены:** $2.00 за день за канал
-⚡ **Активация:** Сразу после оплаты
-📊 **Охват:** Все подписчики
-
-Выберите подходящую длительность:"""
-    else:
-        content = """⏰ **Select Ad Duration**
-
-💰 **Pricing:** $2.00 per day per channel
-⚡ **Activation:** Immediate after payment
-📊 **Reach:** All subscribers
-
-Choose your campaign duration:"""
-    
     # Send message
     await message.edit_text(content, reply_markup=keyboard, parse_mode='Markdown')
-    logger.info(f"✅ Duration selection shown to user {user_id}")
+    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days, {current_posts_per_day} posts/day")
 
 
 # Back to channels callback handler
@@ -1665,6 +1715,201 @@ async def back_to_channels_callback(callback_query: CallbackQuery, state: FSMCon
     
     await callback_query.answer()
     logger.info(f"✅ User {user_id} returned to channel selection")
+
+
+# Dynamic days control handlers
+@router.callback_query(F.data == "days_increase")
+async def days_increase_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle days increase button"""
+    user_id = callback_query.from_user.id
+    data = await state.get_data()
+    current_days = data.get('current_days', 7)
+    
+    # Increase days (max 365)
+    new_days = min(current_days + 1, 365)
+    await state.update_data(current_days=new_days)
+    
+    # Refresh the interface
+    await show_duration_selection_simple(callback_query.message, state)
+    await callback_query.answer(f"📅 {new_days} days")
+    logger.info(f"✅ User {user_id} increased days to {new_days}")
+
+
+@router.callback_query(F.data == "days_decrease")
+async def days_decrease_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle days decrease button"""
+    user_id = callback_query.from_user.id
+    data = await state.get_data()
+    current_days = data.get('current_days', 7)
+    
+    # Decrease days (min 1)
+    new_days = max(current_days - 1, 1)
+    await state.update_data(current_days=new_days)
+    
+    # Refresh the interface
+    await show_duration_selection_simple(callback_query.message, state)
+    await callback_query.answer(f"📅 {new_days} days")
+    logger.info(f"✅ User {user_id} decreased days to {new_days}")
+
+
+@router.callback_query(F.data == "posts_increase")
+async def posts_increase_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle posts per day increase button"""
+    user_id = callback_query.from_user.id
+    data = await state.get_data()
+    current_posts = data.get('current_posts_per_day', 1)
+    
+    # Increase posts per day (max 10)
+    new_posts = min(current_posts + 1, 10)
+    await state.update_data(current_posts_per_day=new_posts)
+    
+    # Refresh the interface
+    await show_duration_selection_simple(callback_query.message, state)
+    await callback_query.answer(f"📅 {new_posts} posts/day")
+    logger.info(f"✅ User {user_id} increased posts per day to {new_posts}")
+
+
+@router.callback_query(F.data == "posts_decrease")
+async def posts_decrease_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle posts per day decrease button"""
+    user_id = callback_query.from_user.id
+    data = await state.get_data()
+    current_posts = data.get('current_posts_per_day', 1)
+    
+    # Decrease posts per day (min 1)
+    new_posts = max(current_posts - 1, 1)
+    await state.update_data(current_posts_per_day=new_posts)
+    
+    # Refresh the interface
+    await show_duration_selection_simple(callback_query.message, state)
+    await callback_query.answer(f"📅 {new_posts} posts/day")
+    logger.info(f"✅ User {user_id} decreased posts per day to {new_posts}")
+
+
+@router.callback_query(F.data.startswith("set_days_"))
+async def set_days_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle quick days selection buttons"""
+    user_id = callback_query.from_user.id
+    days = int(callback_query.data.split("_")[2])
+    
+    # Update days
+    await state.update_data(current_days=days)
+    
+    # Refresh the interface
+    await show_duration_selection_simple(callback_query.message, state)
+    await callback_query.answer(f"📅 {days} days selected")
+    logger.info(f"✅ User {user_id} set days to {days}")
+
+
+@router.callback_query(F.data == "proceed_to_payment")
+async def proceed_to_payment_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle proceed to payment button"""
+    user_id = callback_query.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get final pricing data
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    current_days = data.get('current_days', 7)
+    current_posts_per_day = data.get('current_posts_per_day', 1)
+    
+    # Calculate final pricing
+    from dynamic_pricing_system import get_pricing_calculator
+    calculator = get_pricing_calculator()
+    pricing = calculator.calculate_price(current_days, len(selected_channels), current_posts_per_day)
+    
+    # Save pricing to state
+    await state.update_data(
+        final_pricing=pricing,
+        duration=current_days,
+        posts_per_day=current_posts_per_day
+    )
+    
+    # Set state to payment method
+    await state.set_state(CreateAd.payment_method)
+    
+    # Show payment method selection
+    await show_payment_method_selection(callback_query.message, state)
+    
+    await callback_query.answer()
+    logger.info(f"✅ User {user_id} proceeding to payment - ${pricing['final_price']:.2f} for {current_days} days")
+
+
+async def show_payment_method_selection(message: Message, state: FSMContext):
+    """Show payment method selection with final pricing"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get pricing data
+    data = await state.get_data()
+    pricing = data.get('final_pricing', {})
+    
+    # Create payment method keyboard
+    keyboard_rows = []
+    
+    if language == 'ar':
+        content = f"""💳 **اختر طريقة الدفع**
+
+💰 **المبلغ النهائي:** ${pricing.get('final_price', 0):.2f}
+🎁 **التوفير:** ${pricing.get('savings', 0):.2f}
+📊 **الخصم:** {pricing.get('discount_percentage', 0)}%
+
+اختر طريقة الدفع المفضلة:"""
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(text="💎 TON Cryptocurrency", callback_data="pay_ton"),
+            InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="pay_stars")
+        ])
+        keyboard_rows.append([InlineKeyboardButton(text="🔙 رجوع", callback_data="back_to_duration")])
+        
+    elif language == 'ru':
+        content = f"""💳 **Выберите способ оплаты**
+
+💰 **Итоговая сумма:** ${pricing.get('final_price', 0):.2f}
+🎁 **Экономия:** ${pricing.get('savings', 0):.2f}
+📊 **Скидка:** {pricing.get('discount_percentage', 0)}%
+
+Выберите удобный способ оплаты:"""
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(text="💎 TON Cryptocurrency", callback_data="pay_ton"),
+            InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="pay_stars")
+        ])
+        keyboard_rows.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_duration")])
+        
+    else:
+        content = f"""💳 **Select Payment Method**
+
+💰 **Final Amount:** ${pricing.get('final_price', 0):.2f}
+🎁 **You Save:** ${pricing.get('savings', 0):.2f}
+📊 **Discount:** {pricing.get('discount_percentage', 0)}%
+
+Choose your preferred payment method:"""
+        
+        keyboard_rows.append([
+            InlineKeyboardButton(text="💎 TON Cryptocurrency", callback_data="pay_ton"),
+            InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="pay_stars")
+        ])
+        keyboard_rows.append([InlineKeyboardButton(text="🔙 Back", callback_data="back_to_duration")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    await message.edit_text(content, reply_markup=keyboard, parse_mode='Markdown')
+    logger.info(f"✅ Payment method selection shown to user {user_id}")
+
+
+@router.callback_query(F.data == "back_to_duration")
+async def back_to_duration_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle back to duration selection"""
+    user_id = callback_query.from_user.id
+    
+    # Set state back to duration selection
+    await state.set_state(CreateAd.duration_selection)
+    
+    # Show duration selection again
+    await show_duration_selection_simple(callback_query.message, state)
+    
+    await callback_query.answer()
+    logger.info(f"✅ User {user_id} returned to duration selection")
 
 
 async def show_channel_selection_for_message(message: Message, state: FSMContext):
