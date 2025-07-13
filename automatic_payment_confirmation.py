@@ -6,6 +6,7 @@ Sends automatic confirmations to users when payments are detected
 
 import asyncio
 import logging
+from automatic_language_system import get_user_language_auto
 import sqlite3
 import json
 from datetime import datetime

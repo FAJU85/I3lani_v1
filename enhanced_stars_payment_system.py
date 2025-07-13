@@ -6,6 +6,7 @@ Core Stars payment processing system
 
 import asyncio
 import logging
+from automatic_language_system import get_user_language_auto
 from typing import Dict, Optional, Any
 from datetime import datetime
 

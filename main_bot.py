@@ -443,6 +443,28 @@ async def init_bot():
         init_translation_system()
         logger.info("Translation system initialized")
         
+        # Initialize automatic language system
+        logger.info("Initializing automatic language system...")
+        try:
+            from automatic_language_system import automatic_language_system
+            from auto_language_integration import apply_automatic_language_to_all_systems
+            
+            # Apply automatic language to all systems
+            success = await apply_automatic_language_to_all_systems()
+            
+            if success:
+                logger.info("✅ Automatic language system initialized")
+                logger.info("   🌍 All systems now use user language automatically")
+                logger.info("   🔄 Language detection integrated into all handlers")
+                logger.info("   💬 Localized messages for all user interactions")
+                logger.info("   🎯 Supports EN/AR/RU with automatic detection")
+            else:
+                logger.warning("⚠️ Automatic language system partially initialized")
+                
+        except Exception as e:
+            logger.error(f"❌ Automatic language system initialization error: {e}")
+            logger.info("Automatic language system skipped")
+        
         # Initialize content integrity system
         logger.info("Initializing content integrity system...")
         from content_integrity_system import ContentIntegritySystem

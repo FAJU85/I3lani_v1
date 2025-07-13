@@ -7,6 +7,7 @@ Ensures published content exactly matches user submissions
 import asyncio
 import sqlite3
 import logging
+from automatic_language_system import get_user_language_auto
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import json

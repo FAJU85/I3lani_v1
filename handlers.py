@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from states import AdCreationStates, UserStates, WalletStates
 from languages import get_text, get_currency_info, LANGUAGES
 from database import db, ensure_user_exists, get_user_language
+from automatic_language_system import get_user_language_auto
 from config import ADMIN_IDS
 from wallet_manager import WalletManager
 import os

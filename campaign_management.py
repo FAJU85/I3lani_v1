@@ -6,6 +6,7 @@ Unified campaign management using sequence-based tracking
 
 import asyncio
 import logging
+from automatic_language_system import get_user_language_auto
 import sqlite3
 import json
 import string

@@ -5,6 +5,7 @@ Simple, effective, traceable payment system using unified sequence tracking
 """
 
 import logging
+from automatic_language_system import get_user_language_auto
 import json
 import time
 import random

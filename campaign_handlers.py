@@ -5,6 +5,7 @@ User interface for viewing and managing campaigns
 """
 
 import logging
+from automatic_language_system import get_user_language_auto
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
