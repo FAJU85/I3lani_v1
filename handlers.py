@@ -206,38 +206,25 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
             callback_data="my_ads"
         ),
         InlineKeyboardButton(
-            text=pricing_text.get(language, pricing_text['en']), 
+            text=pricing_text, 
             callback_data="pricing"
         )
     ])
     
     keyboard_rows.append([
         InlineKeyboardButton(
-            text=partner_program_text.get(language, partner_program_text['en']), 
-            callback_data="share_earn"
+            text=share_earn_text, 
+            callback_data="partner_program"
         )
     ])
     
-    # System Controls Row
-    settings_text = {
-        'en': '⚙️ Settings',
-        'ar': '⚙️ الإعدادات',
-        'ru': '⚙️ Настройки'
-    }
-    
-    help_text = {
-        'en': '❓ Help & Support',
-        'ar': '❓ المساعدة والدعم',
-        'ru': '❓ Помощь и поддержка'
-    }
-    
     keyboard_rows.append([
         InlineKeyboardButton(
-            text=settings_text.get(language, settings_text['en']), 
+            text=settings_text, 
             callback_data="settings"
         ),
         InlineKeyboardButton(
-            text=help_text.get(language, help_text['en']), 
+            text=help_text, 
             callback_data="help"
         )
     ])
