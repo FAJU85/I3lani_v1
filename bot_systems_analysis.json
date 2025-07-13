@@ -1,0 +1,209 @@
+{
+  "core_main_bot": {
+    "status": "active",
+    "description": "Main bot initialization and configuration"
+  },
+  "core_handlers": {
+    "status": "active",
+    "description": "Message and callback handlers"
+  },
+  "core_states": {
+    "status": "active",
+    "description": "FSM state management"
+  },
+  "core_languages": {
+    "status": "active",
+    "description": "Multilingual text support (EN/AR/RU)"
+  },
+  "core_database": {
+    "status": "active",
+    "description": "Database operations and connections"
+  },
+  "core_deployment_server": {
+    "status": "active",
+    "description": "Cloud deployment server"
+  },
+  "payment_automatic_payment_confirmation": {
+    "status": "active",
+    "description": "TON payment confirmation system"
+  },
+  "payment_clean_stars_payment_system": {
+    "status": "active",
+    "description": "Telegram Stars payment processing"
+  },
+  "payment_enhanced_ton_payment_monitoring": {
+    "status": "active",
+    "description": "Advanced TON payment monitoring"
+  },
+  "payment_continuous_payment_scanner": {
+    "status": "active",
+    "description": "Real-time payment scanning"
+  },
+  "payment_payment_memo_tracker": {
+    "status": "active",
+    "description": "Payment memo tracking system"
+  },
+  "payment_wallet_manager": {
+    "status": "active",
+    "description": "Wallet management and validation"
+  },
+  "pricing_frequency_pricing": {
+    "status": "active",
+    "description": "Day-based pricing with frequency tiers"
+  },
+  "pricing_dynamic_pricing": {
+    "status": "active",
+    "description": "Posts-per-day calculation system"
+  },
+  "pricing_price_management_system": {
+    "status": "active",
+    "description": "Admin-configurable pricing management"
+  },
+  "pricing_smart_pricing_display": {
+    "status": "active",
+    "description": "Pricing display and formatting"
+  },
+  "channel_channel_manager": {
+    "status": "active",
+    "description": "Channel operations and verification"
+  },
+  "channel_enhanced_channel_detection": {
+    "status": "active",
+    "description": "Automatic channel detection"
+  },
+  "channel_advanced_channel_management": {
+    "status": "active",
+    "description": "Advanced channel features"
+  },
+  "channel_channel_incentives": {
+    "status": "active",
+    "description": "Channel owner incentive system"
+  },
+  "content_enhanced_campaign_publisher": {
+    "status": "active",
+    "description": "Campaign publishing system"
+  },
+  "content_content_integrity_system": {
+    "status": "active",
+    "description": "Content verification and security"
+  },
+  "content_content_moderation": {
+    "status": "active",
+    "description": "Content moderation system"
+  },
+  "content_content_storage_system": {
+    "status": "active",
+    "description": "Content storage management"
+  },
+  "admin_admin_system": {
+    "status": "active",
+    "description": "Complete admin panel and controls"
+  },
+  "admin_admin_bot_test_system": {
+    "status": "missing",
+    "description": "Bot testing and validation"
+  },
+  "admin_campaign_management": {
+    "status": "active",
+    "description": "Campaign creation and management"
+  },
+  "admin_user_management": {
+    "status": "missing",
+    "description": "User account management"
+  },
+  "ux_multilingual_menu_system": {
+    "status": "active",
+    "description": "Multilingual interface system"
+  },
+  "ux_animated_transitions": {
+    "status": "active",
+    "description": "UI animations and transitions"
+  },
+  "ux_step_title_system": {
+    "status": "active",
+    "description": "Navigation step titles"
+  },
+  "ux_contextual_help_system": {
+    "status": "active",
+    "description": "Context-aware help system"
+  },
+  "ux_gamification": {
+    "status": "active",
+    "description": "User engagement and rewards"
+  },
+  "ux_viral_referral_game": {
+    "status": "active",
+    "description": "Referral system and rewards"
+  },
+  "monitoring_system_health_monitor": {
+    "status": "missing",
+    "description": "System health monitoring"
+  },
+  "monitoring_global_sequence_system": {
+    "status": "active",
+    "description": "Global sequence tracking"
+  },
+  "monitoring_end_to_end_tracking_system": {
+    "status": "active",
+    "description": "User journey tracking"
+  },
+  "monitoring_post_identity_system": {
+    "status": "active",
+    "description": "Post identity and verification"
+  },
+  "monitoring_logger": {
+    "status": "active",
+    "description": "Comprehensive logging system"
+  },
+  "security_anti_fraud": {
+    "status": "active",
+    "description": "Fraud detection and prevention"
+  },
+  "security_payment_amount_validator": {
+    "status": "active",
+    "description": "Payment amount validation"
+  },
+  "security_confirmation_system": {
+    "status": "active",
+    "description": "Transaction confirmation system"
+  },
+  "security_atomic_rewards": {
+    "status": "active",
+    "description": "Atomic reward distribution"
+  },
+  "db_users": {
+    "status": "active",
+    "description": "User accounts and profiles",
+    "records": 26
+  },
+  "db_ads": {
+    "status": "active",
+    "description": "Advertisement content storage",
+    "records": 105
+  },
+  "db_campaigns": {
+    "status": "active",
+    "description": "Campaign management",
+    "records": 15
+  },
+  "db_channels": {
+    "status": "active",
+    "description": "Channel information",
+    "records": 4
+  },
+  "db_orders": {
+    "status": "active",
+    "description": "Order tracking",
+    "records": 2
+  },
+  "db_payments": {
+    "status": "active",
+    "description": "Payment records",
+    "records": 33
+  },
+  "db_subscriptions": {
+    "status": "active",
+    "description": "User subscriptions",
+    "records": 47
+  }
+}
