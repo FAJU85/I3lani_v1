@@ -178,10 +178,13 @@ class WalletManager:
             [InlineKeyboardButton(text="❌ Cancel" if language == 'en' else "❌ إلغاء" if language == 'ar' else "❌ Отмена", callback_data="cancel_wallet_input")]
         ])
         
-        # Store context and existing wallet for later use
+        # Store context and existing wallet for later use - PRESERVE existing state data
+        current_data = await state.get_data()
         await state.update_data(
             wallet_context=context,
-            existing_wallet=existing_wallet
+            existing_wallet=existing_wallet,
+            # Preserve payment data if it exists
+            **{k: v for k, v in current_data.items() if k.startswith(('pending_payment', 'payment_', 'amount_', 'final_pricing'))}
         )
         
         if hasattr(message_or_callback, 'message'):
@@ -288,8 +291,13 @@ class WalletManager:
         elif context == 'channel':
             await state.set_state(WalletStates.channel_wallet_input)
         
-        # Store context for later use
-        await state.update_data(wallet_context=context)
+        # Store context for later use - PRESERVE existing state data
+        current_data = await state.get_data()
+        await state.update_data(
+            wallet_context=context,
+            # Preserve payment data if it exists
+            **{k: v for k, v in current_data.items() if k.startswith(('pending_payment', 'payment_', 'amount_', 'final_pricing'))}
+        )
         
         if hasattr(message_or_callback, 'message'):
             await message_or_callback.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -428,17 +436,34 @@ async def process_wallet_input(message: Message, state: FSMContext, context: str
 
 async def continue_payment_with_wallet(message_or_callback, state: FSMContext, wallet_address: str):
     """Continue payment process with wallet address"""
-    # Get payment amount from state - try multiple keys
+    # Get payment amount from state - try multiple keys with extensive debugging
     data = await state.get_data()
-    amount_ton = data.get('pending_payment_amount') or data.get('payment_amount')
+    logger.info(f"🔍 Available state data keys: {list(data.keys())}")
+    
+    # Try all possible payment amount keys
+    amount_ton = (data.get('pending_payment_amount') or 
+                  data.get('payment_amount') or 
+                  data.get('amount_ton'))
     
     # Try to get from pricing data if not found
     if not amount_ton:
         pricing = data.get('final_pricing', {})
         if pricing and 'ton_amount' in pricing:
             amount_ton = pricing['ton_amount']
+            logger.info(f"✅ Found amount in pricing data: {amount_ton} TON")
+    
+    # If still not found, try to calculate from pricing
+    if not amount_ton and 'final_pricing' in data:
+        pricing = data['final_pricing']
+        if 'final_price' in pricing:
+            # Convert USD to TON (approximately 1 USD = 0.36 TON)
+            amount_ton = pricing['final_price'] * 0.36
+            logger.info(f"✅ Calculated amount from USD price: {amount_ton} TON")
     
     if not amount_ton:
+        # Log all available data for debugging
+        logger.error(f"❌ No payment amount found in state data: {data}")
+        
         # Handle both Message and CallbackQuery objects
         error_msg = "❌ Payment session expired. Please start over."
         if hasattr(message_or_callback, 'message'):
@@ -448,6 +473,8 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
             # Message
             await message_or_callback.reply(error_msg)
         return
+    
+    logger.info(f"✅ Using payment amount: {amount_ton} TON")
     
     # Store wallet address in state
     await state.update_data(user_wallet_address=wallet_address)
