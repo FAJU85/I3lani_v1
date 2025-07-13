@@ -1597,7 +1597,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     )
     
     # Import and use dynamic pricing
-    from dynamic_pricing_system import format_dynamic_pricing_display, get_days_selector
+    from quantitative_pricing_system import calculate_quantitative_price, get_posting_schedule
     
     # Get pricing display content
     content = format_dynamic_pricing_display(
@@ -1814,8 +1814,8 @@ async def proceed_to_payment_callback(callback_query: CallbackQuery, state: FSMC
     current_posts_per_day = data.get('current_posts_per_day', 1)
     
     # Calculate final pricing
-    from dynamic_pricing_system import get_pricing_calculator
-    calculator = get_pricing_calculator()
+    from quantitative_pricing_system import QuantitativePricingCalculator
+    calculator = QuantitativePricingCalculator()
     pricing = calculator.calculate_price(current_days, len(selected_channels), current_posts_per_day)
     
     # Save pricing to state
