@@ -10,7 +10,7 @@ from dataclasses import dataclass
 @dataclass
 class QuantitativePricingConfig:
     """Configuration for quantitative pricing"""
-    base_price_per_post: float = 0.29  # P₀ = $0.29 per post per day
+    base_price_per_post: float = 0.29  # P₀ = $0.29 per day
     max_discount: float = 25.0  # Maximum discount percentage
     discount_rate: float = 0.8  # Discount rate per day (0.8%)
     max_posts_per_day: int = 12  # Maximum posts per day
@@ -72,9 +72,8 @@ class QuantitativePricingCalculator:
         discount_percentage = self.calculate_discount_percentage(days)
         
         # Calculate base price
-        # Base price is per post per day, total posts = days * posts_per_day * channels
-        total_posts = days * posts_per_day * channels
-        base_price = total_posts * self.config.base_price_per_post
+        # Base price is $0.29 per day regardless of channels or posts per day
+        base_price = days * self.config.base_price_per_post
         
         # Apply discount
         discount_amount = base_price * (discount_percentage / 100)
@@ -105,7 +104,7 @@ class QuantitativePricingCalculator:
             'stars_price': stars_price,
             'posting_times': posting_times,
             'posting_interval': posting_interval,
-            'total_posts': days * posts_per_day * channels
+            'total_posts': days * posts_per_day
         }
     
     def get_pricing_matrix(self, channels: int = 1, max_days: int = 30) -> List[Dict]:
