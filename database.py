@@ -380,6 +380,11 @@ Last updated: July 2025"""
             print(f"Error updating user language: {e}")
             return False
     
+    async def get_user_language(self, user_id: int) -> str:
+        """Get user language, default to English"""
+        user = await self.get_user(user_id)
+        return user['language'] if user else 'en'
+    
     async def create_ad(self, user_id: int, content: str, 
                        media_url: Optional[str] = None, content_type: str = 'text') -> int:
         """Create new ad"""

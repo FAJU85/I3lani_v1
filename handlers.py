@@ -3260,14 +3260,10 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     data = await state.get_data()
     selected_channels = data.get('selected_channels', [])
     
-    # Calculate pricing using dynamic pricing system
-    # Dynamic pricing removed during cleanup
+    # Calculate pricing using quantitative pricing system
+    from quantitative_pricing_system import calculate_quantitative_price
     
-    calculation = DynamicPricing.calculate_total_cost(
-        days=days,
-        posts_per_day=1,  # Default to 1 post per day
-        channels=selected_channels
-    )
+    calculation = calculate_quantitative_price(days, len(selected_channels))
     
     # Store pricing calculation in state
     await state.update_data(pricing_calculation=calculation)
@@ -3279,15 +3275,17 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
         logger.error(f"Error tracking duration selection: {e}")
     
     # Generate pricing preview text
-    total_usd = calculation.get('total_usd', 0)
+    final_price = calculation.get('final_price', 0)
     total_stars = calculation.get('total_stars', 0)
+    posts_per_day = calculation.get('posts_per_day', 1)
+    discount_percentage = calculation.get('discount_percentage', 0)
     
     if language == 'ar':
-        pricing_preview = f"💰 السعر: ${total_usd:.2f} أو {total_stars} نجمة"
+        pricing_preview = f"💰 السعر: ${final_price:.2f} أو {total_stars} نجمة\n📊 المنشورات يومياً: {posts_per_day} | خصم: {discount_percentage:.1f}%"
     elif language == 'ru':
-        pricing_preview = f"💰 Цена: ${total_usd:.2f} или {total_stars} звезд"
+        pricing_preview = f"💰 Цена: ${final_price:.2f} или {total_stars} звезд\n📊 Постов в день: {posts_per_day} | Скидка: {discount_percentage:.1f}%"
     else:
-        pricing_preview = f"💰 Price: ${total_usd:.2f} or {total_stars} Stars"
+        pricing_preview = f"💰 Price: ${final_price:.2f} or {total_stars} Stars\n📊 Posts per day: {posts_per_day} | Discount: {discount_percentage:.1f}%"
     
     # Create header with direct language handling
     if language == 'ar':
@@ -3431,17 +3429,14 @@ async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext)
         selected_days = data.get('selected_days', 1)
         selected_channels = data.get('selected_channels', [])
         
-        # Calculate pricing with default 1 post per day
-        # Dynamic pricing removed during cleanup
-        calculation = DynamicPricing.calculate_total_cost(
-            days=selected_days,
-            posts_per_day=1,  # Default to 1 post per day
-            channels=selected_channels
-        )
+        # Calculate pricing with quantitative pricing system
+        from quantitative_pricing_system import calculate_quantitative_price
         
-        # Store pricing calculation
+        calculation = calculate_quantitative_price(selected_days, len(selected_channels))
+        
+        # Store pricing calculation using calculated posts per day
         await state.update_data(
-            selected_posts_per_day=1,
+            selected_posts_per_day=calculation.get('posts_per_day', 1),
             pricing_calculation=calculation
         )
         
@@ -3561,17 +3556,14 @@ async def select_posts_handler(callback_query: CallbackQuery, state: FSMContext)
         selected_days = data.get('selected_days', 1)
         selected_channels = data.get('selected_channels', [])
         
-        # Calculate final pricing
-        # Dynamic pricing removed during cleanup
-        calculation = DynamicPricing.calculate_total_cost(
-            days=selected_days,
-            posts_per_day=posts_per_day,
-            channels=selected_channels
-        )
+        # Calculate final pricing using quantitative pricing system
+        from quantitative_pricing_system import calculate_quantitative_price
         
-        # Store pricing calculation
+        calculation = calculate_quantitative_price(selected_days, len(selected_channels))
+        
+        # Store pricing calculation using calculated posts per day
         await state.update_data(
-            selected_posts_per_day=posts_per_day,
+            selected_posts_per_day=calculation.get('posts_per_day', 1),
             pricing_calculation=calculation
         )
         
