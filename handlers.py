@@ -1743,7 +1743,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     
     # Send message
     await message.edit_text(content, reply_markup=keyboard, parse_mode='Markdown')
-    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days, {pricing['posts_per_day']} posts/day")
+    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days")
 
 
 # Back to channels callback handler
@@ -4151,15 +4151,15 @@ Send your wallet address now:"""
     logger.info(f"💳 Storing payment data for user {user_id}: amount={amount_ton} TON")
     logger.info(f"💳 Final pricing data: {pricing}")
     
-    # Set state to wait for wallet address
-    await state.set_state(AdCreationStates.waiting_wallet_address)
+    # Set state to TON payment
+    await state.set_state(CreateAd.ton_payment)
     
-    await callback_query.message.edit_text(
-        wallet_text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
+    # Answer the callback first
     await callback_query.answer()
+    
+    # Use WalletManager to handle wallet address request
+    from wallet_manager import WalletManager
+    await WalletManager.request_wallet_address(callback_query, state, 'payment')
 
 @router.message(AdCreationStates.waiting_wallet_address)
 async def handle_wallet_address_input(message: Message, state: FSMContext):

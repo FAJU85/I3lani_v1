@@ -408,7 +408,15 @@ async def process_wallet_input(message: Message, state: FSMContext, context: str
         return
     
     # Store wallet address
-    await WalletManager.set_user_wallet_address(user_id, wallet_address)
+    wallet_saved = await WalletManager.set_user_wallet_address(user_id, wallet_address)
+    logger.info(f"💾 Wallet address storage result for user {user_id}: {wallet_saved}")
+    
+    # Verify the wallet was saved
+    try:
+        saved_wallet = await WalletManager.get_user_wallet_address(user_id)
+        logger.info(f"✅ Verified saved wallet for user {user_id}: {saved_wallet[:10]}...{saved_wallet[-8:] if saved_wallet else 'None'}")
+    except Exception as e:
+        logger.error(f"❌ Error verifying wallet save: {e}")
     
     # Continue with appropriate flow based on context
     if context == 'payment':

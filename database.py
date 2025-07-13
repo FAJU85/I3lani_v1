@@ -834,13 +834,16 @@ Last updated: July 2025"""
                 ''', (user_id, None, 'en', datetime.now().isoformat(), wallet_address))
                 
                 # Then update the wallet address
-                await db.execute('''
+                result = await db.execute('''
                     UPDATE users SET ton_wallet_address = ? WHERE user_id = ?
                 ''', (wallet_address, user_id))
                 await db.commit()
+                
+                # Log the operation
+                print(f"✅ Successfully saved wallet address for user {user_id}: {wallet_address[:10]}...{wallet_address[-8:]}")
                 return True
         except Exception as e:
-            print(f"Error setting user wallet: {e}")
+            print(f"❌ Error setting user wallet for {user_id}: {e}")
             return False
     
     async def set_user_wallet_address(self, user_id: int, wallet_address: str) -> bool:

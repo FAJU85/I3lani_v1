@@ -51,6 +51,7 @@ class CreateAd(StatesGroup):
     ton_payment = State()
     stars_payment = State()
     payment_confirmation = State()
+    waiting_payment_confirmation = State()
 
 
 class WalletStates(StatesGroup):
