@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from states import WalletStates, AdCreationStates
+from states import WalletStates, AdCreationStates, CreateAd
 from database import db
 from languages import get_text
 from database import get_user_language
@@ -420,9 +420,15 @@ async def process_wallet_input(message: Message, state: FSMContext, context: str
 
 async def continue_payment_with_wallet(message_or_callback, state: FSMContext, wallet_address: str):
     """Continue payment process with wallet address"""
-    # Get payment amount from state
+    # Get payment amount from state - try multiple keys
     data = await state.get_data()
-    amount_ton = data.get('pending_payment_amount')
+    amount_ton = data.get('pending_payment_amount') or data.get('payment_amount')
+    
+    # Try to get from pricing data if not found
+    if not amount_ton:
+        pricing = data.get('final_pricing', {})
+        if pricing and 'ton_amount' in pricing:
+            amount_ton = pricing['ton_amount']
     
     if not amount_ton:
         # Handle both Message and CallbackQuery objects
@@ -474,16 +480,14 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
 **العنوان:** `{bot_wallet}`
 **المذكرة:** `{memo}`
 
-**خطوات:**
+**خطوات الدفع:**
 1. افتح محفظة TON
-2. أرسل {amount_ton:.3f} TON للعنوان
-3. أضف المذكرة `{memo}`
-4. أكد الدفع
+2. أرسل {amount_ton:.3f} TON للعنوان أعلاه
+3. أضف المذكرة `{memo}` بالضبط
+4. أكد المعاملة
 
-⏰ 20 دقيقة
-✅ تحقق تلقائي
-
-🔒 بدفعك، تتفق على الشروط"""
+⏰ ينتهي في: 20 دقيقة
+✅ التحقق التلقائي كل 30 ثانية"""
     elif language == 'ru':
         payment_text = f"""💰 **Оплата TON**
 
@@ -491,16 +495,14 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
 **Адрес:** `{bot_wallet}`
 **Заметка:** `{memo}`
 
-**Шаги:**
-1. Откройте TON кошелек
-2. Отправьте {amount_ton:.3f} TON
-3. Добавьте заметку `{memo}`
-4. Подтвердите
+**Шаги оплаты:**
+1. Откройте ваш TON кошелек
+2. Отправьте {amount_ton:.3f} TON на адрес выше
+3. Добавьте заметку `{memo}` точно
+4. Подтвердите транзакцию
 
-⏰ 20 минут
-✅ Автопроверка
-
-🔒 Оплачивая, соглашаетесь"""
+⏰ Истекает через: 20 минут
+✅ Автопроверка каждые 30 секунд"""
     else:
         payment_text = f"""💰 **TON Payment**
 
@@ -508,37 +510,40 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
 **Address:** `{bot_wallet}`
 **Memo:** `{memo}`
 
-**Steps:**
-1. Open TON wallet
-2. Send {amount_ton:.3f} TON
-3. Add memo `{memo}`
-4. Confirm payment
+**Payment Steps:**
+1. Open your TON wallet
+2. Send {amount_ton:.3f} TON to address above
+3. Add memo `{memo}` exactly
+4. Confirm transaction
 
-⏰ 20 minutes
-✅ Auto-verification
-
-🔒 By paying, you agree"""
+⏰ Expires in: 20 minutes
+✅ Auto-verification every 30 seconds"""
     
-    # Create cancel keyboard
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
-    cancel_text = "❌ إلغاء" if language == 'ar' else "❌ Отмена" if language == 'ru' else "❌ Cancel"
+    # Create keyboard with cancel option
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=cancel_text, callback_data="cancel_payment")]
+        [InlineKeyboardButton(text="❌ Cancel Payment", callback_data="cancel_payment")]
     ])
     
     # Send payment message
     if hasattr(message_or_callback, 'message'):
         # CallbackQuery
-        await message_or_callback.message.answer(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message_or_callback.message.edit_text(payment_text, reply_markup=keyboard, parse_mode='Markdown')
     else:
         # Message
-        await message_or_callback.answer(payment_text, reply_markup=keyboard, parse_mode='Markdown')
+        await message_or_callback.reply(payment_text, reply_markup=keyboard, parse_mode='Markdown')
     
-    # Start enhanced payment monitoring
+    # Start payment monitoring using enhanced TON payment monitoring
     import asyncio
     from enhanced_ton_payment_monitoring import monitor_ton_payment_enhanced
+    
+    # Log the payment initiation
+    logger.info(f"💰 Starting payment monitoring for user {user_id}: {amount_ton:.3f} TON, memo: {memo}")
+    
+    # Start monitoring in background
     asyncio.create_task(monitor_ton_payment_enhanced(user_id, memo, amount_ton, expiration_time, wallet_address, state, bot_wallet))
+    
+    # Set state to wait for payment
+    await state.set_state(CreateAd.waiting_payment_confirmation)
 
 async def continue_affiliate_with_wallet(message_or_callback, state: FSMContext, wallet_address: str):
     """Continue affiliate program enrollment with wallet address"""

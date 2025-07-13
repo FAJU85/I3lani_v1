@@ -4141,9 +4141,15 @@ Send your wallet address now:"""
     # Store payment amount for later use
     await state.update_data(
         pending_payment_amount=amount_ton,
+        payment_amount=amount_ton,  # Store in multiple keys for reliability
+        amount_ton=amount_ton,
         payment_method='ton',
         waiting_for_wallet_address=True
     )
+    
+    # Debug log for state storage
+    logger.info(f"💳 Storing payment data for user {user_id}: amount={amount_ton} TON")
+    logger.info(f"💳 Final pricing data: {pricing}")
     
     # Set state to wait for wallet address
     await state.set_state(AdCreationStates.waiting_wallet_address)
@@ -4179,8 +4185,23 @@ async def handle_wallet_address_input(message: Message, state: FSMContext):
     amount_ton = data.get('pending_payment_amount')
     
     if not amount_ton:
-        await message.reply("❌ Payment session expired. Please start over.")
-        return
+        # Try to get amount from other possible keys
+        amount_ton = data.get('payment_amount') or data.get('cost_ton') or data.get('amount_ton')
+        
+        if not amount_ton:
+            # Log the state data for debugging
+            logger.error(f"Payment session expired for user {user_id}. State data: {data}")
+            
+            # Provide better error message with recovery options
+            if language == 'ar':
+                error_text = "❌ انتهت صلاحية جلسة الدفع. يرجى العودة إلى القائمة الرئيسية والمحاولة مرة أخرى."
+            elif language == 'ru':
+                error_text = "❌ Сессия оплаты истекла. Пожалуйста, вернитесь в главное меню и попробуйте еще раз."
+            else:
+                error_text = "❌ Payment session expired. Please return to main menu and try again."
+            
+            await message.reply(error_text)
+            return
     
     # Store user wallet address
     await state.update_data(
