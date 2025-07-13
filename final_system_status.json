@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-07-13T08:15:01.410680",
+  "total_systems": 47,
+  "healthy_systems": 40,
+  "created_systems": 7,
+  "health_percentage": 100.0,
+  "status_report": {
+    "Core Systems": {
+      "main_bot.py": "healthy",
+      "handlers.py": "healthy",
+      "states.py": "healthy",
+      "languages.py": "healthy",
+      "database.py": "healthy",
+      "deployment_server.py": "healthy"
+    },
+    "Payment Systems": {
+      "automatic_payment_confirmation.py": "healthy",
+      "clean_stars_payment_system.py": "healthy",
+      "enhanced_ton_payment_monitoring.py": "healthy",
+      "continuous_payment_scanner.py": "healthy",
+      "payment_memo_tracker.py": "healthy",
+      "wallet_manager.py": "healthy"
+    },
+    "Pricing Systems": {
+      "frequency_pricing.py": "healthy",
+      "dynamic_pricing.py": "healthy",
+      "price_management_system.py": "healthy",
+      "smart_pricing_display.py": "healthy"
+    },
+    "Channel Systems": {
+      "channel_manager.py": "healthy",
+      "enhanced_channel_detection.py": "healthy",
+      "advanced_channel_management.py": "healthy",
+      "channel_incentives.py": "healthy"
+    },
+    "Content Systems": {
+      "enhanced_campaign_publisher.py": "healthy",
+      "content_integrity_system.py": "healthy",
+      "content_moderation.py": "healthy",
+      "content_storage_system.py": "healthy"
+    },
+    "Admin Systems": {
+      "admin_system.py": "healthy",
+      "admin_bot_test_system.py": "created",
+      "campaign_management.py": "healthy",
+      "user_management.py": "created"
+    },
+    "UX Systems": {
+      "multilingual_menu_system.py": "healthy",
+      "animated_transitions.py": "healthy",
+      "step_title_system.py": "healthy",
+      "contextual_help_system.py": "healthy",
+      "gamification.py": "healthy",
+      "viral_referral_game.py": "healthy"
+    },
+    "Monitoring Systems": {
+      "system_health_monitor.py": "created",
+      "global_sequence_system.py": "healthy",
+      "end_to_end_tracking_system.py": "healthy",
+      "post_identity_system.py": "healthy",
+      "logger.py": "healthy"
+    },
+    "Security Systems": {
+      "anti_fraud.py": "healthy",
+      "payment_amount_validator.py": "healthy",
+      "confirmation_system.py": "healthy",
+      "atomic_rewards.py": "healthy"
+    },
+    "Integration Systems": {
+      "campaign_publisher_integration.py": "created",
+      "channel_manager_integration.py": "created",
+      "multilingual_menu_integration.py": "created",
+      "integration_fixes.py": "created"
+    }
+  }
+}

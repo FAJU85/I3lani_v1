@@ -362,3 +362,7 @@ async def monitor_ton_payment_enhanced(user_id: int, memo: str, amount_ton: floa
     return await ton_monitor.monitor_payment_enhanced(
         user_id, memo, amount_ton, expiration_time, user_wallet, state, bot_wallet
     )
+
+# Additional exports for integration compatibility
+enhanced_ton_payment_monitoring = ton_monitor
+check_payment_status = monitor_ton_payment_enhanced

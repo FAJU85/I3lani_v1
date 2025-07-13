@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-07-13T08:12:50.045416",
+  "total_tests": 9,
+  "passed_tests": 5,
+  "failed_tests": 4,
+  "integration_health": 55.55555555555556,
+  "test_results": {
+    "core_database": {
+      "status": "pass",
+      "users": 26
+    },
+    "core_language": {
+      "status": "pass",
+      "text_length": 2
+    },
+    "core_states": {
+      "status": "pass",
+      "states_count": 36
+    },
+    "payment_pricing": {
+      "status": "pass",
+      "test_price": 25.2
+    },
+    "payment_integration": {
+      "status": "fail",
+      "error": "cannot import name 'enhanced_ton_payment_monitoring' from 'enhanced_ton_payment_monitoring' (/home/runner/workspace/enhanced_ton_payment_monitoring.py)"
+    },
+    "campaign_management": {
+      "status": "pass",
+      "message": "System ready"
+    },
+    "campaign_integration": {
+      "status": "fail",
+      "error": "EnhancedCampaignPublisher.__init__() missing 1 required positional argument: 'bot_instance'"
+    },
+    "channel_integration": {
+      "status": "fail",
+      "error": "ChannelManager.__init__() missing 2 required positional arguments: 'bot' and 'database'"
+    },
+    "ux_integration": {
+      "status": "fail",
+      "error": "MultilingualMenuSystem.__init__() missing 1 required positional argument: 'bot'"
+    }
+  }
+}

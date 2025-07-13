@@ -1,0 +1,222 @@
+{
+  "timestamp": "2025-07-13T08:11:54.498607",
+  "total_systems": 51,
+  "healthy_systems": 48,
+  "health_percentage": 94.11764705882352,
+  "issues_found": [
+    "admin_bot_test_system.py: File not found",
+    "user_management.py: File not found",
+    "system_health_monitor.py: File not found"
+  ],
+  "fixes_applied": [
+    "Created admin_bot_test_system.py",
+    "Created user_management.py",
+    "Created system_health_monitor.py"
+  ],
+  "validation_results": {
+    "core_main_bot.py": {
+      "status": "healthy",
+      "size": 24485
+    },
+    "core_handlers.py": {
+      "status": "healthy",
+      "size": 315018
+    },
+    "core_states.py": {
+      "status": "healthy",
+      "size": 2509
+    },
+    "core_languages.py": {
+      "status": "healthy",
+      "size": 70028
+    },
+    "core_database.py": {
+      "status": "healthy",
+      "size": 75043
+    },
+    "core_deployment_server.py": {
+      "status": "healthy",
+      "size": 4099
+    },
+    "payment_automatic_payment_confirmation.py": {
+      "status": "healthy",
+      "size": 19882
+    },
+    "payment_clean_stars_payment_system.py": {
+      "status": "healthy",
+      "size": 19409
+    },
+    "payment_enhanced_ton_payment_monitoring.py": {
+      "status": "healthy",
+      "size": 17515
+    },
+    "payment_continuous_payment_scanner.py": {
+      "status": "healthy",
+      "size": 18734
+    },
+    "payment_payment_memo_tracker.py": {
+      "status": "healthy",
+      "size": 5615
+    },
+    "payment_wallet_manager.py": {
+      "status": "healthy",
+      "size": 29920
+    },
+    "pricing_frequency_pricing.py": {
+      "status": "healthy",
+      "size": 12234
+    },
+    "pricing_dynamic_pricing.py": {
+      "status": "healthy",
+      "size": 6870
+    },
+    "pricing_price_management_system.py": {
+      "status": "healthy",
+      "size": 36229
+    },
+    "pricing_smart_pricing_display.py": {
+      "status": "healthy",
+      "size": 10090
+    },
+    "channel_channel_manager.py": {
+      "status": "healthy",
+      "size": 31662
+    },
+    "channel_enhanced_channel_detection.py": {
+      "status": "healthy",
+      "size": 17422
+    },
+    "channel_advanced_channel_management.py": {
+      "status": "healthy",
+      "size": 21286
+    },
+    "channel_channel_incentives.py": {
+      "status": "healthy",
+      "size": 18911
+    },
+    "content_enhanced_campaign_publisher.py": {
+      "status": "healthy",
+      "size": 27187
+    },
+    "content_content_integrity_system.py": {
+      "status": "healthy",
+      "size": 15335
+    },
+    "content_content_moderation.py": {
+      "status": "healthy",
+      "size": 20871
+    },
+    "content_content_storage_system.py": {
+      "status": "healthy",
+      "size": 6878
+    },
+    "admin_admin_system.py": {
+      "status": "healthy",
+      "size": 113400
+    },
+    "admin_admin_bot_test_system.py": {
+      "status": "missing",
+      "issue": "File not found"
+    },
+    "admin_campaign_management.py": {
+      "status": "healthy",
+      "size": 23963
+    },
+    "admin_user_management.py": {
+      "status": "missing",
+      "issue": "File not found"
+    },
+    "ux_multilingual_menu_system.py": {
+      "status": "healthy",
+      "size": 12935
+    },
+    "ux_animated_transitions.py": {
+      "status": "healthy",
+      "size": 21167
+    },
+    "ux_step_title_system.py": {
+      "status": "healthy",
+      "size": 16289
+    },
+    "ux_contextual_help_system.py": {
+      "status": "healthy",
+      "size": 26150
+    },
+    "ux_gamification.py": {
+      "status": "healthy",
+      "size": 29261
+    },
+    "ux_viral_referral_game.py": {
+      "status": "healthy",
+      "size": 20091
+    },
+    "monitoring_system_health_monitor.py": {
+      "status": "missing",
+      "issue": "File not found"
+    },
+    "monitoring_global_sequence_system.py": {
+      "status": "healthy",
+      "size": 21711
+    },
+    "monitoring_end_to_end_tracking_system.py": {
+      "status": "healthy",
+      "size": 24521
+    },
+    "monitoring_post_identity_system.py": {
+      "status": "healthy",
+      "size": 21475
+    },
+    "monitoring_logger.py": {
+      "status": "healthy",
+      "size": 8940
+    },
+    "security_anti_fraud.py": {
+      "status": "healthy",
+      "size": 28098
+    },
+    "security_payment_amount_validator.py": {
+      "status": "healthy",
+      "size": 19344
+    },
+    "security_confirmation_system.py": {
+      "status": "healthy",
+      "size": 15968
+    },
+    "security_atomic_rewards.py": {
+      "status": "healthy",
+      "size": 21171
+    },
+    "db_users": {
+      "status": "healthy",
+      "records": 26
+    },
+    "db_ads": {
+      "status": "healthy",
+      "records": 105
+    },
+    "db_campaigns": {
+      "status": "healthy",
+      "records": 15
+    },
+    "db_channels": {
+      "status": "healthy",
+      "records": 4
+    },
+    "db_orders": {
+      "status": "healthy",
+      "records": 2
+    },
+    "db_payments": {
+      "status": "healthy",
+      "records": 33
+    },
+    "db_subscriptions": {
+      "status": "healthy",
+      "records": 47
+    },
+    "database_validation": {
+      "status": "healthy",
+      "tables_validated": 7
+    }
+  }
+}
