@@ -229,12 +229,19 @@ async def init_bot():
         logger.info("Initializing Enhanced Telegram Stars payment system...")
         try:
             from enhanced_telegram_stars_payment import get_enhanced_stars_payment
+            from enhanced_stars_payment_system import get_enhanced_stars_system
+            from enhanced_stars_handlers import setup_enhanced_stars_handlers
             
             # Initialize enhanced Stars payment system
             enhanced_stars_payment = get_enhanced_stars_payment(bot, db)
+            enhanced_stars_system = get_enhanced_stars_system(bot, db)
+            
+            # Setup handlers
+            setup_enhanced_stars_handlers(dp)
             
             # Store globally for access
             globals()['enhanced_stars_payment'] = enhanced_stars_payment
+            globals()['enhanced_stars_system'] = enhanced_stars_system
             
             logger.info("✅ Enhanced Telegram Stars payment system initialized")
             logger.info("   💫 Full API compliance with Telegram Bot API 7.0")
@@ -249,9 +256,13 @@ async def init_bot():
             
             # Fallback to basic Stars system
             logger.info("Initializing fallback Telegram Stars system...")
-            os.environ['DISABLE_STARS_FLASK'] = '1'  # Disable Flask server in stars_handler
-            # Stars handler initialization removed during cleanup
-            logger.info("Fallback Telegram Stars system initialized successfully")
+            try:
+                from clean_stars_payment_system import CleanStarsPayment
+                clean_stars = CleanStarsPayment(bot, db)
+                globals()['clean_stars_payment'] = clean_stars
+                logger.info("✅ Fallback Stars system initialized")
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback Stars system error: {fallback_error}")
         
         # Initialize end-to-end tracking system
         logger.info("Initializing end-to-end tracking system...")
@@ -418,9 +429,10 @@ async def init_bot():
         # Initialize UI control systems
         logger.info("Initializing UI control systems...")
         try:
-            from ui_control_system import UIControlSystem
-            ui_control_system = UIControlSystem()
-            logger.info("UI control systems initialized")
+            from ui_control_system import get_ui_control_system
+            ui_control_system = get_ui_control_system()
+            globals()['ui_control_system'] = ui_control_system
+            logger.info("✅ UI control systems initialized")
         except Exception as e:
             logger.warning(f"UI control system not available: {e}")
             logger.info("UI control systems skipped")

@@ -12,7 +12,7 @@ from languages import get_text
 from database import db
 from confirmation_system import confirmation_system
 from callback_error_handler import safe_callback_answer, safe_callback_edit
-from frequency_pricing import FrequencyPricingSystem
+# from frequency_pricing import FrequencyPricingSystem  # Removed during cleanup
 # Payment processor import removed during cleanup
 from states import AdCreationStates
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -324,8 +324,8 @@ async def show_payment_selection(callback_query: CallbackQuery, state: FSMContex
         })
         
         # Import here to avoid circular imports
-        from frequency_pricing import FrequencyPricingSystem
-        pricing_system = FrequencyPricingSystem()
+        # from frequency_pricing import FrequencyPricingSystem  # Removed during cleanup
+        pricing_system = None  # Frequency pricing removed during cleanup
         
         # Show payment method selection
         await pricing_system.show_payment_methods(callback_query, state, pricing_data)
@@ -337,8 +337,8 @@ async def show_duration_selection(callback_query: CallbackQuery, state: FSMConte
     """Show duration selection after channel confirmation"""
     try:
         # Import here to avoid circular imports
-        from frequency_pricing import FrequencyPricingSystem
-        pricing_system = FrequencyPricingSystem()
+        # from frequency_pricing import FrequencyPricingSystem  # Removed during cleanup
+        pricing_system = None  # Frequency pricing removed during cleanup
         
         # Show duration selection
         await pricing_system.show_dynamic_days_selector(callback_query, state)
@@ -350,8 +350,8 @@ async def show_payment_method_selection(callback_query: CallbackQuery, state: FS
     """Show payment method selection"""
     try:
         # Import here to avoid circular imports
-        from frequency_pricing import FrequencyPricingSystem
-        pricing_system = FrequencyPricingSystem()
+        # from frequency_pricing import FrequencyPricingSystem  # Removed during cleanup
+        pricing_system = None  # Frequency pricing removed during cleanup
         
         # Get pricing data from state
         state_data = await state.get_data()

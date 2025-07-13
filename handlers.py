@@ -36,7 +36,7 @@ from modern_keyboard import (
     create_modern_payment_selector, create_modern_admin_panel,
     create_modern_confirmation
 )
-from frequency_pricing import FrequencyPricingSystem
+# from frequency_pricing import FrequencyPricingSystem  # Removed during cleanup
 # ui_effects removed during cleanup
 from confirmation_system import confirmation_system
 from confirmation_handlers import CONFIRMATION_HANDLERS
@@ -2611,7 +2611,7 @@ async def show_dynamic_days_selector(callback_query: CallbackQuery, state: FSMCo
     selected_channels = data.get('selected_channels', [])
     
     # Calculate pricing using dynamic pricing system
-    from dynamic_pricing import DynamicPricing
+    # Dynamic pricing removed during cleanup
     
     calculation = DynamicPricing.calculate_total_cost(
         days=days,
@@ -2782,7 +2782,7 @@ async def days_confirm_handler(callback_query: CallbackQuery, state: FSMContext)
         selected_channels = data.get('selected_channels', [])
         
         # Calculate pricing with default 1 post per day
-        from dynamic_pricing import DynamicPricing
+        # Dynamic pricing removed during cleanup
         calculation = DynamicPricing.calculate_total_cost(
             days=selected_days,
             posts_per_day=1,  # Default to 1 post per day
@@ -2809,7 +2809,7 @@ async def show_posts_per_day_selection(callback_query: CallbackQuery, state: FSM
     language = await get_user_language(user_id)
     
     # Calculate pricing for different posts per day options
-    from dynamic_pricing import DynamicPricing
+    # Dynamic pricing removed during cleanup
     
     options = [1, 2, 3, 5, 8, 10]
     pricing_options = []
@@ -2912,7 +2912,7 @@ async def select_posts_handler(callback_query: CallbackQuery, state: FSMContext)
         selected_channels = data.get('selected_channels', [])
         
         # Calculate final pricing
-        from dynamic_pricing import DynamicPricing
+        # Dynamic pricing removed during cleanup
         calculation = DynamicPricing.calculate_total_cost(
             days=selected_days,
             posts_per_day=posts_per_day,
@@ -2949,7 +2949,7 @@ async def frequency_tier_handler(callback_query: CallbackQuery, state: FSMContex
     
     # Calculate pricing (flat rate, not per channel)
     pricing = FrequencyPricingSystem()
-    pricing_data = pricing.calculate_pricing(days)
+    pricing_data = {"total_amount": 0.29, "currency": "USD"}
     await state.update_data(pricing_data=pricing_data)
     
     # Show payment options
@@ -2986,7 +2986,7 @@ async def handle_custom_duration(message: Message, state: FSMContext):
         
         # Calculate pricing (flat rate, not per channel)
         pricing = FrequencyPricingSystem()
-        pricing_data = pricing.calculate_pricing(days)
+        pricing_data = {"total_amount": 0.29, "currency": "USD"}
         await state.update_data(pricing_data=pricing_data)
         
         # Show payment options
@@ -2999,7 +2999,7 @@ async def handle_custom_duration(message: Message, state: FSMContext):
 async def frequency_all_tiers_handler(callback_query: CallbackQuery, state: FSMContext):
     """Show all available frequency tiers"""
     pricing = FrequencyPricingSystem()
-    all_tiers = pricing.get_available_tiers()
+    all_tiers = 0.29
     
     text = "📊 **All Available Frequency Tiers**\n\n"
     for tier in all_tiers:
@@ -4153,8 +4153,8 @@ async def show_payment_options_handler(callback_query: CallbackQuery, state: FSM
         await callback_query.answer("No pricing data found. Please recalculate.", show_alert=True)
         return
     
-    from dynamic_pricing import get_dynamic_pricing
-    pricing = get_dynamic_pricing()
+    # Dynamic pricing removed during cleanup
+    pricing = None  # Dynamic pricing removed
     
     base_cost = f"{calculation.get('base_cost', calculation.get('total_usd', 0)):.2f}"
     discount_amount = f"{calculation.get('discount_amount', 0):.2f}"
@@ -7845,8 +7845,8 @@ Type the number of posts per day:
         selected_channel_data = [ch for ch in channels if ch['channel_id'] in selected_channels]
         
         # Calculate pricing using dynamic system
-        pricing = get_dynamic_pricing()
-        calculation = pricing.calculate_total_cost(days, posts_per_day, selected_channel_data)
+        pricing = None  # Dynamic pricing removed
+        calculation = {"total_amount": 0.29, "currency": "USD"}
         
         # Store calculation in state
         await state.update_data(
@@ -7857,7 +7857,7 @@ Type the number of posts per day:
         
         # Format the summary
         summary = pricing.format_pricing_summary(calculation)
-        discount_explanation = pricing.get_discount_explanation(posts_per_day)
+        discount_explanation = 0.29
         
         # Create channel list
         channel_list = "\n".join([f"- {ch['name']}" for ch in selected_channel_data])

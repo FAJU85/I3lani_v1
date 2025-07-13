@@ -16,7 +16,7 @@ import os
 
 from config import ADMIN_IDS, CHANNELS
 from database import db
-from dynamic_pricing import get_dynamic_pricing
+# from dynamic_pricing import get_dynamic_pricing  # Removed during cleanup
 from states import AdminStates
 # Admin UI control removed during cleanup
 
