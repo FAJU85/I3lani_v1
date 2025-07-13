@@ -2157,11 +2157,15 @@ async def refresh_enhanced_channel_selection_ui(callback_query: CallbackQuery, s
             # Create enhanced button text with proper formatting
             from fix_ui_issues import create_channel_button_text
             
-            # Get channel details
+            # Get channel details with proper fallbacks
             channel_name = channel.get('name', channel.get('channel_name', channel['channel_id']))
             subscriber_count = channel.get('subscribers', channel.get('active_subscribers', 0))
             
-            button_text = create_channel_button_text(channel_name, subscriber_count, is_selected)
+            # Ensure subscriber count is a number
+            if not isinstance(subscriber_count, (int, float)):
+                subscriber_count = 0
+            
+            button_text = create_channel_button_text(channel_name, int(subscriber_count), is_selected)
             
             keyboard_rows.append([InlineKeyboardButton(
                 text=button_text,
@@ -2398,30 +2402,53 @@ async def ad_content_handler(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("toggle_channel_"))
 async def toggle_channel_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Handle channel toggle"""
-    user_id = callback_query.from_user.id
-    language = await get_user_language(user_id)
-    
-    channel_id = callback_query.data.replace("toggle_channel_", "")
-    
-    # Get current data
-    data = await state.get_data()
-    selected_channels = data.get('selected_channels', [])
-    
-    # Toggle channel
-    if channel_id in selected_channels:
-        selected_channels.remove(channel_id)
-    else:
-        selected_channels.append(channel_id)
-    
-    # Update state
-    await state.update_data(selected_channels=selected_channels)
-    
-    # Update keyboard
-    await callback_query.message.edit_reply_markup(
-        reply_markup=await create_channel_selection_keyboard(language, selected_channels)
-    )
-    await callback_query.answer()
+    """Handle channel toggle with enhanced UI"""
+    try:
+        user_id = callback_query.from_user.id
+        language = await get_user_language(user_id)
+        
+        channel_id = callback_query.data.replace("toggle_channel_", "")
+        
+        # Get current data
+        data = await state.get_data()
+        selected_channels = data.get('selected_channels', [])
+        
+        # Toggle channel
+        if channel_id in selected_channels:
+            selected_channels.remove(channel_id)
+            action = "deselected"
+        else:
+            selected_channels.append(channel_id)
+            action = "selected"
+        
+        # Update state
+        await state.update_data(selected_channels=selected_channels)
+        
+        # Refresh the entire channel selection interface
+        await show_channel_selection_for_enhanced_flow(callback_query, state)
+        
+        # Show feedback message
+        channel_name = channel_id  # Fallback to ID if name not available
+        try:
+            channels = await db.get_channels()
+            for ch in channels:
+                if str(ch.get('channel_id')) == str(channel_id):
+                    channel_name = ch.get('name', channel_id)
+                    break
+        except:
+            pass
+        
+        feedback_messages = {
+            'en': f"Channel {channel_name} {action}",
+            'ar': f"تم {'اختيار' if action == 'selected' else 'إلغاء اختيار'} القناة {channel_name}",
+            'ru': f"Канал {channel_name} {'выбран' if action == 'selected' else 'отменен'}"
+        }
+        
+        await callback_query.answer(feedback_messages.get(language, feedback_messages['en']))
+        
+    except Exception as e:
+        logger.error(f"Error in toggle_channel_handler: {e}")
+        await callback_query.answer("Error toggling channel. Please try again.", show_alert=True)
 
 
 @router.callback_query(F.data == "continue_to_duration")
