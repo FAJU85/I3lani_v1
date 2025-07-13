@@ -20,7 +20,7 @@ class ReferralSystem:
     
     def __init__(self):
         self.signup_bonus = Decimal('0.00010000')  # 0.00010000 TON
-        self.commission_rate = Decimal('0.20')  # 20% commission
+        self.commission_rate = Decimal('0.05')  # 5% commission
         self.min_withdrawal = Decimal('0.001')  # Minimum withdrawal amount
         
     async def initialize_database(self):

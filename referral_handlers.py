@@ -58,7 +58,7 @@ async def refer_command(message: Message, state: FSMContext):
 • Access to premium advertising platform
 
 🏆 <b>What you earn:</b>
-• 20% of everything they earn — forever!
+• 5% of everything they earn — forever!
 • Passive income with no limits
 
 📊 <b>Your Statistics:</b>
@@ -69,7 +69,7 @@ async def refer_command(message: Message, state: FSMContext):
 💡 <b>How it works:</b>
 1. Share your link with friends
 2. They join and get bonus TON
-3. You earn 20% of their spending
+3. You earn 5% of their spending
 4. Withdraw anytime to your TON wallet
 
 📌 <b>Commands:</b>
@@ -297,7 +297,7 @@ async def referral_stats_callback(callback_query: CallbackQuery, state: FSMConte
 • Total referrals: {referral_data.get('referral_count', 0)}
 • Total earnings: {referral_data.get('total_earnings', 0)} TON
 • Available balance: {referral_data.get('available_balance', 0)} TON
-• Commission rate: 20%
+• Commission rate: 5%
 
 🌍 <b>System Overview:</b>
 • Total users: {analytics.get('total_users', 0)}

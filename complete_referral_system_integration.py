@@ -37,7 +37,7 @@ def integrate_referral_with_main_bot():
                 
                 logger.info("✅ Referral system initialized")
                 logger.info("   💰 Signup bonus: 0.00010000 TON")
-                logger.info("   🏆 Commission rate: 20%")
+                logger.info("   🏆 Commission rate: 5%")
                 logger.info("   🔗 Referral links: ref_<user_id>")
                 logger.info("   💳 Withdrawal system: Ready")
                 logger.info("   📊 Commands: /refer, /balance, /withdraw")
