@@ -42,6 +42,15 @@ class AdCreationStates(StatesGroup):
     waiting_wallet_address = State()
 
 
+class CreateAd(StatesGroup):
+    """Simplified ad creation states"""
+    content_upload = State()
+    channel_selection = State()
+    duration_selection = State()
+    payment_method = State()
+    payment_confirmation = State()
+
+
 class WalletStates(StatesGroup):
     """States for TON wallet address management"""
     # TON payment wallet collection

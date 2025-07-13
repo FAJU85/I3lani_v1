@@ -22,7 +22,7 @@ from logger import log_success, log_error, log_info, StepNames
 
 logger = logging.getLogger(__name__)
 
-from states import AdCreationStates, UserStates, WalletStates
+from states import AdCreationStates, UserStates, WalletStates, CreateAd
 from languages import get_text, get_currency_info, LANGUAGES
 from database import db, ensure_user_exists, get_user_language
 from automatic_language_system import get_user_language_auto
@@ -1550,7 +1550,7 @@ async def proceed_to_duration_callback(callback_query: CallbackQuery, state: FSM
     await state.set_state(CreateAd.duration_selection)
     
     # Show duration selection
-    await show_duration_selection(callback_query.message, state)
+    await show_duration_selection_simple(callback_query.message, state)
     
     await callback_query.answer()
     logger.info(f"✅ User {user_id} proceeding to duration selection with {len(selected_channels)} channels selected")
@@ -1574,6 +1574,98 @@ async def refresh_channels_callback(callback_query: CallbackQuery, state: FSMCon
         await callback_query.answer("🔄 Channels refreshed")
     
     logger.info(f"✅ Channels refreshed for user {user_id}")
+
+
+async def show_duration_selection_simple(message: Message, state: FSMContext):
+    """Show simplified duration selection"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Duration options (in days)
+    duration_options = [1, 3, 7, 14, 30]
+    
+    # Create keyboard
+    keyboard_rows = []
+    for days in duration_options:
+        if language == 'ar':
+            if days == 1:
+                button_text = f"📅 يوم واحد - ${days * 2:.2f}"
+            else:
+                button_text = f"📅 {days} أيام - ${days * 2:.2f}"
+        elif language == 'ru':
+            if days == 1:
+                button_text = f"📅 1 день - ${days * 2:.2f}"
+            elif days < 5:
+                button_text = f"📅 {days} дня - ${days * 2:.2f}"
+            else:
+                button_text = f"📅 {days} дней - ${days * 2:.2f}"
+        else:
+            if days == 1:
+                button_text = f"📅 1 day - ${days * 2:.2f}"
+            else:
+                button_text = f"📅 {days} days - ${days * 2:.2f}"
+        
+        keyboard_rows.append([InlineKeyboardButton(
+            text=button_text,
+            callback_data=f"select_duration_{days}"
+        )])
+    
+    # Add back button
+    if language == 'ar':
+        keyboard_rows.append([InlineKeyboardButton(text="🔙 رجوع", callback_data="back_to_channels")])
+    elif language == 'ru':
+        keyboard_rows.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_channels")])
+    else:
+        keyboard_rows.append([InlineKeyboardButton(text="🔙 Back", callback_data="back_to_channels")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    # Create message content
+    if language == 'ar':
+        content = """⏰ **اختر مدة الإعلان**
+
+💰 **التسعير:** $2.00 لكل يوم لكل قناة
+⚡ **التنشيط:** فوري بعد الدفع
+📊 **الوصول:** جميع المشتركين
+
+اختر المدة المناسبة لحملتك:"""
+    elif language == 'ru':
+        content = """⏰ **Выберите длительность рекламы**
+
+💰 **Цены:** $2.00 за день за канал
+⚡ **Активация:** Сразу после оплаты
+📊 **Охват:** Все подписчики
+
+Выберите подходящую длительность:"""
+    else:
+        content = """⏰ **Select Ad Duration**
+
+💰 **Pricing:** $2.00 per day per channel
+⚡ **Activation:** Immediate after payment
+📊 **Reach:** All subscribers
+
+Choose your campaign duration:"""
+    
+    # Send message
+    await message.edit_text(content, reply_markup=keyboard, parse_mode='Markdown')
+    logger.info(f"✅ Duration selection shown to user {user_id}")
+
+
+# Back to channels callback handler
+@router.callback_query(F.data == "back_to_channels")
+async def back_to_channels_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle back to channels button"""
+    user_id = callback_query.from_user.id
+    
+    # Set state back to channel selection
+    await state.set_state(CreateAd.channel_selection)
+    
+    # Show channel selection again
+    await show_simple_channel_selection(callback_query.message, state)
+    
+    await callback_query.answer()
+    logger.info(f"✅ User {user_id} returned to channel selection")
+
 
 async def show_channel_selection_for_message(message: Message, state: FSMContext):
     """Show channel selection for message-based flow"""
