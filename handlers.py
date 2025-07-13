@@ -1599,13 +1599,76 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     # Import and use dynamic pricing
     from quantitative_pricing_system import calculate_quantitative_price, get_posting_schedule
     
-    # Get pricing display content
-    content = format_dynamic_pricing_display(
-        current_days, 
-        channels_count, 
-        current_posts_per_day, 
-        language
-    )
+    # Get pricing display content using quantitative pricing
+    pricing_result = calculate_quantitative_price(current_days, channels_count, current_posts_per_day)
+    posting_schedule = get_posting_schedule(current_posts_per_day)
+    
+    # Format the display content
+    if language == 'ar':
+        content = f"""<b>⏱️ اختيار مدة الحملة</b>
+
+📊 <b>تفاصيل الحملة:</b>
+• المدة: {current_days} يوم
+• المنشورات يومياً: {current_posts_per_day}
+• إجمالي المنشورات: {pricing_result['total_posts']}
+
+💰 <b>الأسعار:</b>
+• السعر الأساسي: ${pricing_result['base_price']:.2f}
+• الخصم: {pricing_result['discount_percentage']:.1f}%
+• السعر النهائي: <b>${pricing_result['final_price']:.2f}</b>
+
+💎 <b>الدفع:</b>
+• TON: {pricing_result['ton_price']:.2f}
+• Telegram Stars: {pricing_result['stars_price']}
+
+⏰ <b>مواعيد النشر:</b>
+{', '.join(posting_schedule)}
+
+📈 <b>القنوات المختارة:</b> {channels_count}"""
+    
+    elif language == 'ru':
+        content = f"""<b>⏱️ Выбор длительности кампании</b>
+
+📊 <b>Детали кампании:</b>
+• Длительность: {current_days} дней
+• Постов в день: {current_posts_per_day}
+• Всего постов: {pricing_result['total_posts']}
+
+💰 <b>Цены:</b>
+• Базовая цена: ${pricing_result['base_price']:.2f}
+• Скидка: {pricing_result['discount_percentage']:.1f}%
+• Итоговая цена: <b>${pricing_result['final_price']:.2f}</b>
+
+💎 <b>Оплата:</b>
+• TON: {pricing_result['ton_price']:.2f}
+• Telegram Stars: {pricing_result['stars_price']}
+
+⏰ <b>Расписание публикации:</b>
+{', '.join(posting_schedule)}
+
+📈 <b>Выбранные каналы:</b> {channels_count}"""
+    
+    else:  # English
+        content = f"""<b>⏱️ Campaign Duration Selection</b>
+
+📊 <b>Campaign Details:</b>
+• Duration: {current_days} days
+• Posts per day: {current_posts_per_day}
+• Total posts: {pricing_result['total_posts']}
+
+💰 <b>Pricing:</b>
+• Base price: ${pricing_result['base_price']:.2f}
+• Discount: {pricing_result['discount_percentage']:.1f}%
+• Final price: <b>${pricing_result['final_price']:.2f}</b>
+
+💎 <b>Payment:</b>
+• TON: {pricing_result['ton_price']:.2f}
+• Telegram Stars: {pricing_result['stars_price']}
+
+⏰ <b>Posting Schedule:</b>
+{', '.join(posting_schedule)}
+
+📈 <b>Selected Channels:</b> {channels_count}"""
     
     # Create interactive keyboard
     keyboard_rows = []
