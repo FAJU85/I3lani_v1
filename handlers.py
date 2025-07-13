@@ -151,7 +151,7 @@ async def create_neural_main_menu_text(language: str, user_id: int) -> str:
     return get_text(language, 'main_menu')
 
 async def create_regular_main_menu_keyboard(language: str, user_id: int) -> InlineKeyboardMarkup:
-    """Create standard main menu keyboard for regular users"""
+    """Create standard main menu keyboard for regular users with multilingual support"""
     keyboard_rows = []
     
     # Check if user can use free trial
@@ -171,12 +171,13 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
             )
         ])
     
-    # Primary Actions Row
-    create_ad_text = {
-        'en': '📢 Create Advertisement',
-        'ar': '📢 إنشاء إعلان',
-        'ru': '📢 Создать рекламу'
-    }
+    # Use multilingual text from languages.py
+    create_ad_text = get_text(language, 'create_ad')
+    my_ads_text = get_text(language, 'my_ads')
+    pricing_text = get_text(language, 'pricing')
+    share_earn_text = get_text(language, 'share_earn')
+    settings_text = get_text(language, 'settings')
+    help_text = get_text(language, 'help')
     
     # Viral Referral Game Button
     viral_game_text = {
@@ -187,7 +188,7 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
     
     keyboard_rows.append([
         InlineKeyboardButton(
-            text=create_ad_text.get(language, create_ad_text['en']), 
+            text=create_ad_text, 
             callback_data="create_ad"
         )
     ])
@@ -199,28 +200,9 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
         )
     ])
     
-    my_ads_text = {
-        'en': '📊 My Campaigns',
-        'ar': '📊 حملاتي الإعلانية',
-        'ru': '📊 Мои кампании'
-    }
-    
-    partner_program_text = {
-        'en': '🎯 Share & Earn',
-        'ar': '🎯 شارك واربح',
-        'ru': '🎯 Поделись и заработай'
-    }
-    
-    # Pricing button
-    pricing_text = {
-        'en': '💰 Pricing',
-        'ar': '💰 الأسعار',
-        'ru': '💰 Цены'
-    }
-    
     keyboard_rows.append([
         InlineKeyboardButton(
-            text=my_ads_text.get(language, my_ads_text['en']), 
+            text=my_ads_text, 
             callback_data="my_ads"
         ),
         InlineKeyboardButton(
