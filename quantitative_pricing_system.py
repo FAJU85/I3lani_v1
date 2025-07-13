@@ -84,7 +84,7 @@ class QuantitativePricingCalculator:
         
         # Convert to different currencies
         ton_price = final_price * self.config.usd_to_ton
-        stars_price = int(final_price * self.config.usd_to_stars)
+        stars_price = round(final_price * self.config.usd_to_stars)
         
         return {
             'days': days,

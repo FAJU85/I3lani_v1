@@ -1600,8 +1600,9 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     from quantitative_pricing_system import calculate_quantitative_price, get_posting_schedule
     
     # Get pricing display content using quantitative pricing
-    pricing_result = calculate_quantitative_price(current_days, channels_count, current_posts_per_day)
-    posting_schedule = get_posting_schedule(current_posts_per_day)
+    pricing_result = calculate_quantitative_price(current_days, channels_count)
+    actual_posts_per_day = pricing_result['posts_per_day']
+    posting_schedule = get_posting_schedule(actual_posts_per_day)
     
     # Format the display content
     if language == 'ar':
@@ -1609,7 +1610,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
 
 📊 <b>تفاصيل الحملة:</b>
 • المدة: {current_days} يوم
-• المنشورات يومياً: {current_posts_per_day}
+• المنشورات يومياً: {actual_posts_per_day}
 • إجمالي المنشورات: {pricing_result['total_posts']}
 
 💰 <b>الأسعار:</b>
@@ -1631,7 +1632,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
 
 📊 <b>Детали кампании:</b>
 • Длительность: {current_days} дней
-• Постов в день: {current_posts_per_day}
+• Постов в день: {actual_posts_per_day}
 • Всего постов: {pricing_result['total_posts']}
 
 💰 <b>Цены:</b>
@@ -1653,7 +1654,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
 
 📊 <b>Campaign Details:</b>
 • Duration: {current_days} days
-• Posts per day: {current_posts_per_day}
+• Posts per day: {actual_posts_per_day}
 • Total posts: {pricing_result['total_posts']}
 
 💰 <b>Pricing:</b>
