@@ -520,7 +520,7 @@ Contact: @I3lani_support
         await db.create_referral(referrer_id, user_id)
 
 
-async def show_main_menu(message_or_query, language: str):
+async def show_main_menu(message_or_query, language: str, **kwargs):
     """Show appropriate main menu based on user type (regular vs partner)"""
     # Get user_id from message or callback query
     if isinstance(message_or_query, Message):

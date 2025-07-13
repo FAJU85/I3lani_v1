@@ -47,7 +47,8 @@ class AutoLanguageIntegration:
                     # Get user language if available
                     if user_id:
                         language = await get_user_language_auto(user_id)
-                        kwargs['auto_language'] = language
+                        # Don't pass auto_language to avoid parameter conflicts
+                        # kwargs['auto_language'] = language
                     
                     return await original_func(*args, **kwargs)
                 
