@@ -465,6 +465,27 @@ async def init_bot():
             logger.error(f"❌ Automatic language system initialization error: {e}")
             logger.info("Automatic language system skipped")
         
+        # Initialize referral system
+        logger.info("Initializing referral system...")
+        try:
+            from referral_integration import integrate_referral_system_with_bot
+            
+            # Initialize referral system
+            referral_success = await integrate_referral_system_with_bot()
+            
+            if referral_success:
+                logger.info("✅ Referral system initialized")
+                logger.info("   💰 Signup bonus: 0.00010000 TON")
+                logger.info("   🏆 Commission rate: 20%")
+                logger.info("   🔗 Referral links: ref_<user_id>")
+                logger.info("   💳 Withdrawal system: Ready")
+            else:
+                logger.warning("⚠️ Referral system initialization failed")
+                
+        except Exception as e:
+            logger.error(f"❌ Referral system initialization error: {e}")
+            logger.info("Referral system skipped")
+        
         # Initialize content integrity system
         logger.info("Initializing content integrity system...")
         from content_integrity_system import ContentIntegritySystem

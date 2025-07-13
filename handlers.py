@@ -379,7 +379,20 @@ def create_payment_method_keyboard(language: str) -> InlineKeyboardMarkup:
 async def start_command(message: Message, state: FSMContext):
     """Start command handler with comprehensive anti-fraud protection and step logging"""
     user_id = message.from_user.id if message.from_user else 0
-    username = message.from_user.username if message.from_user else None
+    username = message.from_user.username
+    # Handle referral code from start parameter
+    start_param = None
+    if message.text and len(message.text.split()) > 1:
+        start_param = message.text.split()[1]
+    
+    # Process referral registration
+    if start_param and start_param.startswith('ref_'):
+        try:
+            from referral_integration import process_referral_start_command
+            await process_referral_start_command(user_id, start_param)
+            logger.info(f"✅ Processed referral code {start_param} for user {user_id}")
+        except Exception as e:
+            logger.error(f"Error processing referral start: {e}")
     
     # Log start command step
     log_info(StepNames.START_COMMAND, user_id, "User started bot", {

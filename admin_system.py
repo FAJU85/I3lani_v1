@@ -886,7 +886,7 @@ async def admin_edit_price_callback(callback_query: CallbackQuery, state: FSMCon
         return
     
     from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
     packages = await db.get_packages(active_only=False)
     
     if not packages:
@@ -923,7 +923,7 @@ async def admin_remove_price_callback(callback_query: CallbackQuery, state: FSMC
         return
     
     from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
     packages = await db.get_packages(active_only=False)
     
     if not packages:
@@ -960,7 +960,7 @@ async def admin_price_stats_callback(callback_query: CallbackQuery, state: FSMCo
         return
     
     from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
     packages = await db.get_packages(active_only=False)
     
     text = "<b>Price Statistics</b>\n\n"
@@ -1707,7 +1707,7 @@ async def handle_create_subscription_message(message: Message, state: FSMContext
         
         # Also save to database for persistence
         from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
         await db.create_package(package_id, package_name, price_usd, duration_days, posts_per_day, channels_included)
         
         success_text = f"""
@@ -1931,7 +1931,7 @@ async def handle_create_price_message(message: Message, state: FSMContext):
         
         # Create package in database
         from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
         success = await db.create_package(
             package_id.strip(),
             name.strip(),
@@ -1984,7 +1984,7 @@ async def admin_remove_package_confirm(callback_query: CallbackQuery, state: FSM
     
     try:
         from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
         packages = await db.get_packages(active_only=False)
         package = next((p for p in packages if p['package_id'] == package_id), None)
         
@@ -2031,7 +2031,7 @@ async def admin_edit_package_handler(callback_query: CallbackQuery, state: FSMCo
     
     try:
         from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
         packages = await db.get_packages(active_only=False)
         package = next((p for p in packages if p['package_id'] == package_id), None)
         
@@ -2105,7 +2105,7 @@ async def handle_edit_package_message(message: Message, state: FSMContext):
         
         # Update package in database
         from database import db
-from automatic_language_system import get_user_language_auto
+    from automatic_language_system import get_user_language_auto
         async with db.get_connection() as conn:
             await conn.execute("""
                 UPDATE packages 
