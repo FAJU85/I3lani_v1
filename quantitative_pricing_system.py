@@ -72,7 +72,9 @@ class QuantitativePricingCalculator:
         discount_percentage = self.calculate_discount_percentage(days)
         
         # Calculate base price
-        base_price = days * posts_per_day * channels * self.config.base_price_per_post
+        # Base price is per post per day, total posts = days * posts_per_day * channels
+        total_posts = days * posts_per_day * channels
+        base_price = total_posts * self.config.base_price_per_post
         
         # Apply discount
         discount_amount = base_price * (discount_percentage / 100)

@@ -1743,7 +1743,7 @@ async def show_duration_selection_simple(message: Message, state: FSMContext):
     
     # Send message
     await message.edit_text(content, reply_markup=keyboard, parse_mode='Markdown')
-    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days, {current_posts_per_day} posts/day")
+    logger.info(f"✅ Dynamic duration selection shown to user {user_id} - {current_days} days, {posts_per_day} posts/day")
 
 
 # Back to channels callback handler
