@@ -894,8 +894,8 @@ async def upload_content_handler(message: Message, state: FSMContext):
     # Skip contact info step - go directly to channel selection
     await state.set_state(AdCreationStates.select_channels)
     
-    # Show channel selection directly using message-based flow
-    await show_channel_selection_for_message(message, state)
+    # Show channel selection directly using simplified flow
+    await show_simple_channel_selection(message, state)
 
 
 # Category selection handler removed - going directly to content upload
@@ -1339,6 +1339,92 @@ Thank you for using I3lani Bot!
         logger.error(f"Free package publishing error: {e}")
         await callback_query.answer("Error creating free ad. Please try again.", show_alert=True)
 
+
+async def show_simple_channel_selection(message: Message, state: FSMContext):
+    """Show simplified channel selection for message-based flow"""
+    user_id = message.from_user.id
+    language = await get_user_language(user_id)
+    
+    # Get active channels from database
+    channels = await db.get_active_channels()
+    
+    if not channels:
+        no_channels_text = {
+            'en': "❌ No channels available. Please contact admin.",
+            'ar': "❌ لا توجد قنوات متاحة. يرجى الاتصال بالمسؤول.",
+            'ru': "❌ Нет доступных каналов. Пожалуйста, свяжитесь с администратором."
+        }
+        
+        await message.answer(no_channels_text.get(language, no_channels_text['en']))
+        return
+    
+    # Get selected channels from state
+    data = await state.get_data()
+    selected_channels = data.get('selected_channels', [])
+    
+    # Create channel selection text
+    if language == 'ar':
+        channel_content = f"""📺 **اختر القنوات لإعلانك**
+
+📊 **المحدد:** {len(selected_channels)}/{len(channels)} قناة
+
+💡 انقر على القنوات للاختيار/إلغاء الاختيار:"""
+    elif language == 'ru':
+        channel_content = f"""📺 **Выберите каналы для рекламы**
+
+📊 **Выбрано:** {len(selected_channels)}/{len(channels)} каналов
+
+💡 Нажмите на каналы для выбора/отмены:"""
+    else:
+        channel_content = f"""📺 **Select Channels for Your Ad**
+
+📊 **Selected:** {len(selected_channels)}/{len(channels)} channels
+
+💡 Click channels to select/deselect:"""
+    
+    # Create keyboard with channel buttons
+    keyboard_rows = []
+    for channel in channels:
+        is_selected = channel['channel_id'] in selected_channels
+        channel_name = channel.get('title', channel.get('username', 'Unknown'))
+        subscribers = channel.get('subscriber_count', 0)
+        
+        # Create button text with selection indicator
+        if is_selected:
+            button_text = f"✅ {channel_name} ({subscribers} subs)"
+        else:
+            button_text = f"⚪ {channel_name} ({subscribers} subs)"
+        
+        keyboard_rows.append([InlineKeyboardButton(
+            text=button_text,
+            callback_data=f"toggle_channel_{channel['channel_id']}"
+        )])
+    
+    # Add control buttons
+    if language == 'ar':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="✅ متابعة", callback_data="proceed_to_duration"),
+            InlineKeyboardButton(text="🔄 تحديث", callback_data="refresh_channels")
+        ])
+    elif language == 'ru':
+        keyboard_rows.append([
+            InlineKeyboardButton(text="✅ Продолжить", callback_data="proceed_to_duration"),
+            InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh_channels")
+        ])
+    else:
+        keyboard_rows.append([
+            InlineKeyboardButton(text="✅ Continue", callback_data="proceed_to_duration"),
+            InlineKeyboardButton(text="🔄 Refresh", callback_data="refresh_channels")
+        ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    
+    try:
+        await message.answer(channel_content, reply_markup=keyboard, parse_mode='Markdown')
+        logger.info(f"✅ Channel selection shown to user {user_id}")
+    except Exception as e:
+        logger.error(f"Error showing channel selection: {e}")
+        await message.answer("Error showing channels. Please try again.")
 
 async def show_channel_selection_for_message(message: Message, state: FSMContext):
     """Show channel selection for message-based flow"""
