@@ -2,7 +2,7 @@
 
 ## Overview
 
-I3lani is a Telegram advertising bot that provides premium advertising services through an auction-based marketplace. The bot has been transformed from a fixed-pricing model to a sophisticated auction system featuring CPC/CPM bidding, daily auctions, and revenue sharing. It handles advertisement creation, payment processing (Telegram Stars and TON cryptocurrency), multi-language support, and comprehensive admin management with auction oversight capabilities.
+I3lani is a Telegram advertising bot that provides premium advertising services across multiple channels. The bot handles advertisement creation, payment processing (Telegram Stars and TON cryptocurrency), multi-language support, and comprehensive admin management. It features a sophisticated referral system, dynamic pricing, intelligent flow validation, and comprehensive admin testing functionality with multimedia support (text+image+video).
 
 ## AI Agent Profile
 
@@ -36,11 +36,8 @@ The application follows a modular architecture with clear separation of concerns
 
 - **Bot Layer**: Aiogram-based handlers for user interactions
 - **Database Layer**: SQLite database with async operations
-- **Auction System**: CPC/CPM bidding with daily auctions and performance tracking
 - **Payment Processing**: Dual payment system supporting Telegram Stars and TON cryptocurrency
-- **Admin System**: Comprehensive admin panel for bot management and auction oversight
-- **Scheduler System**: Automated daily auctions and ad posting
-- **Revenue Sharing**: 68% to channel owners, 32% to platform
+- **Admin System**: Comprehensive admin panel for bot management
 - **Debug System**: Real-time monitoring and troubleshooting
 - **Referral System**: Affiliate tracking and rewards
 
@@ -54,14 +51,9 @@ The application follows a modular architecture with clear separation of concerns
 
 ### Database Schema
 - **Users**: User profiles, preferences, referral tracking
-- **Auction Channels**: Channel management with quality scores and engagement metrics
-- **Auction Ads**: Advertisement submissions with bidding information
-- **Daily Auctions**: Auction results and winning ads per channel
-- **Auction Bids**: Bid records with quality scores and final rankings
-- **Ad Performance**: Impression and click tracking for CPC/CPM campaigns
-- **User Balances**: Channel owner earnings and withdrawal tracking
-- **Withdrawal Requests**: Payout requests and processing status
-- **Trackable Links**: CPC ad click tracking and analytics
+- **Channels**: Channel management with pricing and subscriber counts
+- **Packages**: Subscription packages with duration and pricing
+- **Orders**: Advertisement orders with payment tracking
 - **Campaigns**: Individual advertising campaigns (one post per campaign)
 - **Post Identity**: Unique post tracking with metadata and content verification
 - **Admin Settings**: Bot configuration and admin preferences
@@ -69,19 +61,12 @@ The application follows a modular architecture with clear separation of concerns
 ### Payment System
 - **Telegram Stars**: Native Telegram payment with webhook processing
 - **TON Cryptocurrency**: Blockchain-based payments with memo system
-- **Auction Bidding**: CPC (minimum $0.10) and CPM (minimum $1.00) bid types
-- **Daily Budgets**: Advertiser spending limits and budget management
-- **Revenue Sharing**: Automatic distribution of 68% to channel owners
-- **Withdrawal System**: $50 minimum withdrawal threshold
+- **Dynamic Pricing**: Multi-currency support with automatic conversion
 - **Referral Discounts**: Friend discounts and reward system
 
 ### Admin Panel
 - **Channel Management**: Add/edit/remove advertising channels
-- **Auction Management**: Review and approve/reject auction advertisements
-- **System Statistics**: Comprehensive auction performance metrics
-- **Withdrawal Processing**: Process channel owner payout requests
-- **Test Auctions**: Run test auctions for development and debugging
-- **Quality Scoring**: Manage channel quality scores and engagement metrics
+- **Package Management**: Create and configure subscription packages
 - **User Analytics**: Track user behavior and payment history
 - **Settings Management**: Global bot configuration
 - **Broadcasting**: Admin message broadcasting system
@@ -91,13 +76,10 @@ The application follows a modular architecture with clear separation of concerns
 ## Data Flow
 
 1. **User Onboarding**: Language selection → Main menu → Feature access
-2. **Advertiser Flow**: Content upload → Category selection → Bid type (CPC/CPM) → Bid amount → Daily budget → Target audience → Keywords → Admin review
-3. **Channel Owner Flow**: Channel registration → Category selection → Admin approval → Auction participation
-4. **Daily Auction Process**: Collect approved ads → Match by category → Calculate quality scores → Determine winning bids → Schedule ad posting
-5. **Ad Publishing**: Post winning ads → Track impressions/clicks → Calculate revenue → Distribute earnings
-6. **Payment Processing**: Payment method selection → Transaction verification → Order activation
-7. **Withdrawal Processing**: Earnings accumulation → Withdrawal requests → Admin processing → Payout
-8. **Referral Processing**: Link generation → Friend registration → Reward distribution
+2. **Ad Creation**: Content upload → Channel selection → Duration selection → Payment
+3. **Payment Processing**: Payment method selection → Transaction verification → Order activation
+4. **Admin Approval**: Content review → Approval/rejection → Publishing schedule
+5. **Referral Processing**: Link generation → Friend registration → Reward distribution
 
 ## External Dependencies
 
@@ -157,8 +139,6 @@ The application follows a modular architecture with clear separation of concerns
    - More complex setup but highly scalable
 
 ## Changelog
-
-- July 14, 2025. **MAJOR ARCHITECTURAL TRANSFORMATION - Auction-Based Advertising System Successfully Implemented** - Successfully transformed I3lani from fixed-pricing model to sophisticated auction-based advertising platform following comprehensive new specifications. AUCTION ARCHITECTURE: Created auction_advertising_system.py with complete CPC/CPM bidding system, daily auctions, revenue sharing (68% channel owners, 32% platform), performance tracking, and withdrawal management. BIDDING SYSTEM: Implemented minimum bid thresholds ($0.10 CPC, $1.00 CPM), quality scoring algorithm, daily budget management, and automated auction scheduling. HANDLER INTEGRATION: Developed auction_handlers.py with /createauction command for advertisers, /registerchannel for channel owners, /mystats for performance tracking, and /earnings for revenue monitoring. ADMIN SYSTEM: Created auction_admin_handlers.py with /auctionadmin command providing ad review/approval, system statistics, withdrawal processing, test auctions, and comprehensive auction oversight. SCHEDULER SYSTEM: Built auction_scheduler.py with daily midnight auctions, automatic ad posting, performance tracking, and revenue distribution. DATABASE SCHEMA: Enhanced database with auction_channels, auction_ads, daily_auctions, auction_bids, ad_performance, user_balances, withdrawal_requests, and trackable_links tables. TECHNICAL FEATURES: Automated quality scoring, trackable CPC links, impression/click tracking, revenue calculation, channel owner earnings, withdrawal processing, and comprehensive analytics. PRODUCTION STATUS: Complete auction system operational with advertiser interface, channel owner registration, daily auction automation, performance tracking, and admin oversight providing enterprise-grade auction-based advertising marketplace as specified in user requirements.
 
 - July 14, 2025. **MAJOR ENHANCEMENT - Tribute.tg Integration Framework Successfully Implemented** - Successfully analyzed Tribute.tg API documentation and implemented comprehensive integration framework for physical product orders and subscription management. INTEGRATION ARCHITECTURE: Created tribute_integration_plan.py with complete TributeIntegration class supporting orders API, subscription management, webhook processing, and cross-platform analytics. WEBHOOK SYSTEM: Developed tribute_webhook_handler.py with secure HMAC-SHA256 signature verification, real-time order processing, subscription event handling, and Flask integration for production deployment. ADMIN PANEL: Enhanced admin_system.py with Tribute integration dashboard, cross-platform analytics, setup guide, and comprehensive management interface. TECHNICAL FEATURES: Automatic ad campaign creation for product orders, subscription-based premium features, real-time webhook processing, revenue sharing system, and comprehensive database integration. DOCUMENTATION: Created TRIBUTE_INTEGRATION_GUIDE.md with complete setup instructions, API configuration, webhook setup, security implementation, and deployment checklist. PRODUCTION READY: Framework provides foundation for physical product advertising automation, subscription premium features, cross-platform revenue streams, and enhanced user engagement through Tribute.tg integration.
 
