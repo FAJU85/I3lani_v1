@@ -304,6 +304,26 @@ async def init_bot():
         from tribute_admin_handlers import setup_tribute_admin_handlers
         setup_tribute_admin_handlers(dp)
         logger.info("✅ Tribute.tg integration handlers registered")
+        
+        # Initialize I3lani v3 system
+        logger.info("Initializing I3lani v3 auction-based system...")
+        from v3_integration_main import initialize_i3lani_v3
+        from v3_admin_commands import setup_v3_admin_handlers
+        
+        try:
+            v3_integration = await initialize_i3lani_v3(bot, dp)
+            setup_v3_admin_handlers(dp, bot)
+            logger.info("✅ I3lani v3 system initialized successfully")
+            logger.info("   🎯 Auction system: Active (9:00 AM daily)")
+            logger.info("   💰 Payment methods: TON + Telegram Stars")
+            logger.info("   👥 User roles: Advertiser, Channel Owner, Affiliate")
+            logger.info("   💸 Revenue sharing: 68% to channel owners, 32% platform")
+            logger.info("   🎁 Affiliate commission: 5% on referral activity")
+            logger.info("   💎 Minimum withdrawal: $50 USD")
+            logger.info("   📋 Admin command: /adminv3")
+        except Exception as e:
+            logger.error(f"❌ I3lani v3 initialization error: {e}")
+            logger.info("   ⚠️ V3 system disabled, continuing with legacy system")
         logger.info("   💰 Complete CRUD operations for pricing tiers")
         logger.info("   🎁 Promotional offers management")
         logger.info("   📦 Bundle packages creation")
