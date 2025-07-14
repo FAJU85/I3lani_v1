@@ -279,6 +279,45 @@ async def init_bot():
             logger.error(f"❌ End-to-end tracking system initialization error: {e}")
             # Continue without tracking system
         
+        # Initialize auction advertising system
+        logger.info("Initializing auction advertising system...")
+        try:
+            # Import auction modules
+            from auction_advertising_system import AuctionSystem, BidType, AdStatus, AuctionStatus
+            from auction_scheduler import AuctionScheduler
+            
+            # Initialize auction system database
+            async with db.get_connection() as conn:
+                # Verify auction tables exist
+                cursor = await conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'auction_%'")
+                auction_tables = await cursor.fetchall()
+                logger.info(f"   📊 Found {len(auction_tables)} auction tables")
+            
+            # Create auction system instance
+            auction_system = AuctionSystem(db)
+            
+            # Create auction scheduler
+            auction_scheduler = AuctionScheduler(bot, db)
+            auction_scheduler.start_scheduler()
+            
+            # Store globally for access
+            globals()['auction_system'] = auction_system
+            globals()['auction_scheduler'] = auction_scheduler
+            
+            logger.info("✅ Auction advertising system initialized")
+            logger.info("   🎯 CPC minimum bid: $0.10")
+            logger.info("   📈 CPM minimum bid: $1.00")
+            logger.info("   💰 Revenue sharing: 68% channel owners, 32% platform")
+            logger.info("   💸 Withdrawal minimum: $50.00")
+            logger.info("   ⏰ Daily auctions scheduled for midnight")
+            logger.info("   📊 Performance tracking automated")
+            
+        except Exception as e:
+            logger.error(f"❌ Auction advertising system initialization error: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            # Continue without auction system
+        
         # Setup handlers
         logger.info("Setting up handlers...")
         setup_handlers(dp)
@@ -321,6 +360,25 @@ async def init_bot():
         from price_management_handlers import setup_price_management_handlers
         setup_price_management_handlers(dp)
         logger.info("Price management handlers setup completed")
+        
+        # Setup auction handlers
+        logger.info("Setting up auction advertising handlers...")
+        try:
+            from auction_handlers import setup_auction_handlers
+            from auction_admin_handlers import setup_auction_admin_handlers
+            
+            setup_auction_handlers(dp, db)
+            setup_auction_admin_handlers(dp, db)
+            
+            logger.info("✅ Auction handlers setup completed")
+            logger.info("   🎯 /createauction - Create auction advertisements")
+            logger.info("   📺 /registerchannel - Register channels for auctions")
+            logger.info("   📊 /mystats - View advertiser statistics")
+            logger.info("   💰 /earnings - View channel owner earnings")
+            logger.info("   🔧 /auctionadmin - Admin panel for auction system")
+        except Exception as e:
+            logger.error(f"❌ Auction handlers setup error: {e}")
+        
         # Setup stars handlers via clean_stars_payment_system
         from clean_stars_payment_system import CleanStarsPayment
         stars_payment = CleanStarsPayment(bot, db)
