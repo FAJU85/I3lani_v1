@@ -283,6 +283,36 @@ async def init_bot():
         logger.info("Setting up handlers...")
         setup_handlers(dp)
         
+        # Initialize post-based pricing system
+        logger.info("Initializing post-based pricing system...")
+        try:
+            from post_based_pricing_system import get_post_pricing_system
+            from user_post_manager import get_user_post_manager
+            from post_based_handlers import setup_post_based_handlers
+            
+            # Initialize post pricing system
+            post_pricing_system = get_post_pricing_system()
+            logger.info("✅ Post-based pricing system initialized")
+            logger.info("   📦 5 post packages available (Starter to Enterprise)")
+            logger.info("   🔧 Add-ons: Auto-schedule, Analytics, Channel boosts")
+            logger.info("   💰 Pricing from $1.45 to $39.99")
+            
+            # Initialize user post manager
+            user_post_manager = get_user_post_manager()
+            await user_post_manager.initialize_database()
+            logger.info("✅ User post manager initialized")
+            logger.info("   📊 Post credit tracking with 90-day expiration")
+            logger.info("   📅 Auto-scheduling day management")
+            logger.info("   🔧 Add-on usage tracking")
+            
+            # Setup post-based handlers
+            setup_post_based_handlers(dp)
+            logger.info("✅ Post-based handlers registered")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize post-based pricing system: {e}")
+            logger.info("Continuing with legacy day-based pricing...")
+        
         # Setup campaign handlers
         logger.info("Setting up campaign handlers...")
         from campaign_handlers import setup_campaign_handlers
@@ -597,6 +627,27 @@ async def main():
         import traceback
         traceback.print_exc()
         raise
+
+def setup_post_based_system():
+    """Setup post-based pricing system (for testing purposes)"""
+    try:
+        from post_based_pricing_system import get_post_pricing_system
+        from user_post_manager import get_user_post_manager
+        
+        # Initialize post pricing system
+        post_pricing_system = get_post_pricing_system()
+        
+        # Initialize user post manager
+        user_post_manager = get_user_post_manager()
+        
+        return {
+            'post_pricing_system': post_pricing_system,
+            'user_post_manager': user_post_manager
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to setup post-based system: {e}")
+        return None
 
 if __name__ == "__main__":
     # Configure logging for standalone bot

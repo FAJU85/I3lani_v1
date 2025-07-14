@@ -567,6 +567,42 @@ async def continue_payment_with_wallet(message_or_callback, state: FSMContext, w
         # Message
         await message_or_callback.reply(payment_text, reply_markup=keyboard, parse_mode='Markdown')
     
+    # Track payment for automatic confirmation
+    from automatic_payment_confirmation import track_payment_for_user
+    
+    # Check if this is a post package purchase
+    is_post_package = data.get('post_package_purchase', False)
+    
+    if is_post_package:
+        # Track post package purchase
+        calculation = data.get('total_calculation', {})
+        package_info = calculation.get('package', {})
+        
+        ad_data = {
+            'type': 'post_package',
+            'package_name': package_info.get('name', 'Post Package'),
+            'posts_total': package_info.get('posts', 0),
+            'auto_schedule_days': data.get('auto_schedule_days', 0),
+            'selected_addons': data.get('selected_addons', []),
+            'total_usd': calculation.get('total_usd', 0)
+        }
+        
+        logger.info(f"📦 Tracking post package purchase: {ad_data}")
+    else:
+        # Regular campaign payment
+        ad_data = {
+            'duration_days': data.get('duration_days', 7),
+            'posts_per_day': data.get('posts_per_day', 1),
+            'selected_channels': data.get('selected_channels', []),
+            'total_reach': data.get('total_reach', 0),
+            'ad_content': data.get('ad_content', '')
+        }
+        
+        logger.info(f"📢 Tracking campaign payment: {ad_data}")
+    
+    # Track payment for automatic confirmation
+    await track_payment_for_user(user_id, memo, amount_ton, ad_data)
+    
     # Start payment monitoring using enhanced TON payment monitoring
     import asyncio
     from enhanced_ton_payment_monitoring import monitor_ton_payment_enhanced

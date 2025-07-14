@@ -65,6 +65,139 @@ class CleanStarsPayment:
             timestamp = int(time.time())
             return f"STARS-FALLBACK-{timestamp}"
     
+    async def create_post_package_invoice(self, user_id: int, campaign_data: Dict, 
+                                         pricing_data: Dict, language: str = 'en') -> Dict:
+        """Create Telegram Stars invoice for post package purchase"""
+        
+        try:
+            # Get user's active sequence
+            manager = get_global_sequence_manager()
+            sequence_id = manager.get_user_active_sequence(user_id)
+            
+            if not sequence_id:
+                # Start new sequence for post package purchase
+                sequence_id = start_user_global_sequence(user_id, "post_package_purchase")
+            
+            # Generate payment ID
+            payment_id = self.generate_payment_id(user_id)
+            
+            # Calculate Stars amount
+            stars_amount = int(pricing_data.get('cost_stars', 0))
+            
+            if stars_amount <= 0:
+                return {
+                    'success': False,
+                    'error': 'Invalid Stars amount'
+                }
+            
+            # Create invoice description
+            package_name = campaign_data.get('package_name', 'Post Package')
+            posts_count = campaign_data.get('posts_total', 0)
+            
+            if language == 'ar':
+                description = f"حزمة {package_name} - {posts_count} منشور"
+                title = f"حزمة المنشورات - {package_name}"
+            elif language == 'ru':
+                description = f"Пакет {package_name} - {posts_count} постов"
+                title = f"Пакет постов - {package_name}"
+            else:
+                description = f"{package_name} Package - {posts_count} posts"
+                title = f"Post Package - {package_name}"
+            
+            # Create price label
+            price_label = LabeledPrice(
+                label=title,
+                amount=stars_amount
+            )
+            
+            # Store payment data
+            payment_data = {
+                'payment_id': payment_id,
+                'user_id': user_id,
+                'sequence_id': sequence_id,
+                'amount_stars': stars_amount,
+                'amount_usd': pricing_data.get('total_usd', 0),
+                'package_name': package_name,
+                'posts_total': posts_count,
+                'auto_schedule_days': campaign_data.get('auto_schedule_days', 0),
+                'selected_addons': campaign_data.get('selected_addons', []),
+                'timestamp': datetime.now().isoformat(),
+                'type': 'post_package'
+            }
+            
+            self.pending_payments[payment_id] = payment_data
+            
+            # Log payment creation step
+            log_sequence_step(sequence_id, "Payment_Step_2_CreatePostPackageInvoice", "clean_stars_payment", {
+                "payment_id": payment_id,
+                "stars_amount": stars_amount,
+                "package_name": package_name,
+                "posts_total": posts_count
+            })
+            
+            # Create invoice
+            invoice_link = await self.bot.create_invoice_link(
+                title=title,
+                description=description,
+                payload=payment_id,
+                provider_token=self.provider_token,
+                currency=self.currency,
+                prices=[price_label]
+            )
+            
+            # Create invoice message
+            if language == 'ar':
+                invoice_message = f"""💎 **فاتورة دفع حزمة المنشورات**
+
+📦 **الحزمة:** {package_name}
+📊 **المنشورات:** {posts_count}
+⭐ **السعر:** {stars_amount} نجمة
+
+💳 **معرف الدفع:** `{payment_id}`
+
+اضغط على الزر أدناه لإتمام الدفع بنجوم تيليغرام:"""
+            elif language == 'ru':
+                invoice_message = f"""💎 **Счет на пакет постов**
+
+📦 **Пакет:** {package_name}
+📊 **Постов:** {posts_count}
+⭐ **Цена:** {stars_amount} звезд
+
+💳 **ID платежа:** `{payment_id}`
+
+Нажмите кнопку ниже для оплаты звездами Telegram:"""
+            else:
+                invoice_message = f"""💎 **Post Package Invoice**
+
+📦 **Package:** {package_name}
+📊 **Posts:** {posts_count}
+⭐ **Price:** {stars_amount} Stars
+
+💳 **Payment ID:** `{payment_id}`
+
+Click the button below to pay with Telegram Stars:"""
+            
+            # Create keyboard
+            pay_button_text = "⭐ دفع بالنجوم" if language == 'ar' else "⭐ Оплатить звездами" if language == 'ru' else "⭐ Pay with Stars"
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=pay_button_text, url=invoice_link)]
+            ])
+            
+            return {
+                'success': True,
+                'invoice_link': invoice_link,
+                'invoice_message': invoice_message,
+                'invoice_keyboard': keyboard,
+                'payment_id': payment_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create post package invoice: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
     async def create_payment_invoice(self, user_id: int, campaign_data: Dict, 
                                    pricing_data: Dict, language: str = 'en') -> Dict:
         """Create Telegram Stars invoice with global sequence integration"""
@@ -194,7 +327,7 @@ class CleanStarsPayment:
             return False
     
     async def handle_successful_payment(self, message: Message) -> Dict:
-        """Handle successful Stars payment and create campaign"""
+        """Handle successful Stars payment and create campaign or process post package"""
         try:
             successful_payment = message.successful_payment
             payload_data = json.loads(successful_payment.invoice_payload)
@@ -209,6 +342,70 @@ class CleanStarsPayment:
             payment_data = self.pending_payments.get(payment_id)
             if not payment_data:
                 raise Exception(f"Payment data not found for {payment_id}")
+            
+            # Check if this is a post package purchase
+            if payment_data.get('type') == 'post_package':
+                return await self.handle_post_package_payment(message, payment_id, payment_data)
+            else:
+                # Handle regular campaign payment
+                return await self.handle_campaign_payment(message, payment_id, payment_data)
+            
+        except Exception as e:
+            logger.error(f"❌ Error processing Stars payment: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def handle_post_package_payment(self, message: Message, payment_id: str, payment_data: Dict) -> Dict:
+        """Handle successful post package purchase"""
+        try:
+            successful_payment = message.successful_payment
+            user_id = message.from_user.id
+            
+            # Extract package data
+            package_data = {
+                'package_name': payment_data.get('package_name'),
+                'posts_total': payment_data.get('posts_total'),
+                'auto_schedule_days': payment_data.get('auto_schedule_days', 0),
+                'selected_addons': payment_data.get('selected_addons', [])
+            }
+            
+            # Send confirmation using automatic payment confirmation system
+            from automatic_payment_confirmation import AutomaticPaymentConfirmation
+            confirmation_system = AutomaticPaymentConfirmation()
+            
+            confirmation_sent = await confirmation_system.send_post_package_confirmation(
+                user_id=user_id,
+                memo=payment_id,
+                amount=successful_payment.total_amount,
+                package_data=package_data
+            )
+            
+            # Mark payment as completed
+            if payment_id in self.pending_payments:
+                self.pending_payments[payment_id]['status'] = 'completed'
+                self.pending_payments[payment_id]['completed_at'] = datetime.now().isoformat()
+            
+            return {
+                'success': True,
+                'payment_id': payment_id,
+                'type': 'post_package',
+                'confirmation_sent': confirmation_sent
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error processing post package payment: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def handle_campaign_payment(self, message: Message, payment_id: str, payment_data: Dict) -> Dict:
+        """Handle successful campaign payment"""
+        try:
+            successful_payment = message.successful_payment
+            user_id = message.from_user.id
             
             # Extract campaign and pricing data
             campaign_data = payment_data['campaign_data']
@@ -238,7 +435,7 @@ class CleanStarsPayment:
             }
             
         except Exception as e:
-            logger.error(f"❌ Error processing Stars payment: {e}")
+            logger.error(f"❌ Error processing campaign payment: {e}")
             return {
                 'success': False,
                 'error': str(e)

@@ -136,6 +136,298 @@ class AutomaticPaymentConfirmation:
             logger.error(f"❌ Error finding user by memo: {e}")
             return None
     
+    async def send_post_package_confirmation(self, user_id: int, memo: str, amount: float, package_data: dict):
+        """Send automatic confirmation for post package purchase"""
+        try:
+            from main_bot import bot_instance
+            
+            if not bot_instance:
+                logger.error("❌ Bot instance not available")
+                return False
+            
+            # Get user language
+            user_language = await get_user_language_auto(user_id)
+            
+            # Extract package information
+            package_name = package_data.get('package_name', 'Post Package')
+            posts_total = package_data.get('posts_total', 0)
+            auto_schedule_days = package_data.get('auto_schedule_days', 0)
+            selected_addons = package_data.get('selected_addons', [])
+            
+            # Create confirmation message
+            if user_language == 'ar':
+                confirmation_message = f"""✅ **تم شراء حزمة المنشورات بنجاح!**
+
+💰 **المبلغ المدفوع:** {amount} نجمة
+🆔 **معرف المعاملة:** {memo}
+📅 **التاريخ:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **تفاصيل الحزمة:**
+• اسم الحزمة: {package_name}
+• عدد المنشورات: {posts_total}
+• ينتهي في: 90 يوم"""
+                
+                if auto_schedule_days > 0:
+                    confirmation_message += f"\n• أيام الجدولة التلقائية: {auto_schedule_days}"
+                
+                if selected_addons:
+                    confirmation_message += f"\n• الإضافات: {len(selected_addons)} إضافة"
+                
+                confirmation_message += "\n\n🎉 أصبحت حزمة المنشورات جاهزة للاستخدام!"
+                
+            elif user_language == 'ru':
+                confirmation_message = f"""✅ **Пакет постов успешно куплен!**
+
+💰 **Оплачено:** {amount} звезд
+🆔 **ID транзакции:** {memo}
+📅 **Дата:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **Детали пакета:**
+• Название пакета: {package_name}
+• Количество постов: {posts_total}
+• Истекает через: 90 дней"""
+                
+                if auto_schedule_days > 0:
+                    confirmation_message += f"\n• Дни автопланирования: {auto_schedule_days}"
+                
+                if selected_addons:
+                    confirmation_message += f"\n• Дополнения: {len(selected_addons)} дополнений"
+                
+                confirmation_message += "\n\n🎉 Пакет постов готов к использованию!"
+                
+            else:  # English
+                confirmation_message = f"""✅ **Post Package Purchase Confirmed!**
+
+💰 **Amount Paid:** {amount} Stars
+🆔 **Transaction ID:** {memo}
+📅 **Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **Package Details:**
+• Package Name: {package_name}
+• Posts Count: {posts_total}
+• Expires in: 90 days"""
+                
+                if auto_schedule_days > 0:
+                    confirmation_message += f"\n• Auto-schedule days: {auto_schedule_days}"
+                
+                if selected_addons:
+                    confirmation_message += f"\n• Add-ons: {len(selected_addons)} add-ons"
+                
+                confirmation_message += "\n\n🎉 Your post package is ready to use!"
+            
+            # Create navigation keyboard
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            
+            if user_language == 'ar':
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 القائمة الرئيسية", callback_data="back_to_main")],
+                    [InlineKeyboardButton(text="📊 حملاتي", callback_data="my_ads")],
+                    [InlineKeyboardButton(text="📝 إنشاء إعلان", callback_data="create_ad")]
+                ])
+            elif user_language == 'ru':
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                    [InlineKeyboardButton(text="📊 Мои кампании", callback_data="my_ads")],
+                    [InlineKeyboardButton(text="📝 Создать рекламу", callback_data="create_ad")]
+                ])
+            else:
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+                    [InlineKeyboardButton(text="📊 My Campaigns", callback_data="my_ads")],
+                    [InlineKeyboardButton(text="📝 Create Ad", callback_data="create_ad")]
+                ])
+            
+            # Process the post package purchase
+            await self.process_post_package_purchase(user_id, memo, amount, package_data)
+            
+            # Mark as confirmed
+            await self.mark_payment_confirmed(memo)
+            
+            # Send confirmation message
+            await bot_instance.send_message(
+                chat_id=user_id,
+                text=confirmation_message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+            logger.info(f"✅ Post package confirmation sent to user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error sending post package confirmation: {e}")
+            return False
+    
+    async def process_post_package_purchase(self, user_id: int, memo: str, amount: float, package_data: dict):
+        """Process post package purchase and add credits to user account"""
+        try:
+            from user_post_manager import get_user_post_manager
+            
+            post_manager = get_user_post_manager()
+            
+            # Add post credits
+            package_name = package_data.get('package_name', 'Post Package')
+            posts_total = package_data.get('posts_total', 0)
+            
+            if posts_total > 0:
+                credit_id = await post_manager.add_post_credits(
+                    user_id=user_id,
+                    package_name=package_name,
+                    posts_count=posts_total,
+                    purchase_id=memo
+                )
+                logger.info(f"✅ Added {posts_total} post credits to user {user_id} (credit_id: {credit_id})")
+            
+            # Add auto-schedule days if purchased
+            auto_schedule_days = package_data.get('auto_schedule_days', 0)
+            if auto_schedule_days > 0:
+                schedule_id = await post_manager.add_auto_schedule_days(
+                    user_id=user_id,
+                    days=auto_schedule_days,
+                    price_paid=auto_schedule_days * 0.25  # $0.25 per day
+                )
+                logger.info(f"✅ Added {auto_schedule_days} auto-schedule days to user {user_id} (schedule_id: {schedule_id})")
+            
+            # Add any selected add-ons
+            selected_addons = package_data.get('selected_addons', [])
+            for addon_key in selected_addons:
+                addon_id = await post_manager.add_addon_purchase(
+                    user_id=user_id,
+                    addon_key=addon_key,
+                    addon_name=addon_key.replace('_', ' ').title(),
+                    price_paid=0.50,  # Approximate add-on price
+                    uses=1
+                )
+                logger.info(f"✅ Added addon {addon_key} to user {user_id} (addon_id: {addon_id})")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error processing post package purchase: {e}")
+            return False
+    
+    async def send_ton_post_package_confirmation(self, user_id: int, memo: str, amount: float, package_data: dict):
+        """Send automatic confirmation for TON post package purchase"""
+        try:
+            from main_bot import bot_instance
+            
+            if not bot_instance:
+                logger.error("❌ Bot instance not available")
+                return False
+            
+            # Get user language
+            user_language = await get_user_language_auto(user_id)
+            
+            # Extract package information
+            package_name = package_data.get('package_name', 'Post Package')
+            posts_total = package_data.get('posts_total', 0)
+            auto_schedule_days = package_data.get('auto_schedule_days', 0)
+            selected_addons = package_data.get('selected_addons', [])
+            
+            # Create confirmation message
+            if user_language == 'ar':
+                confirmation_message = f"""✅ **تم شراء حزمة المنشورات بعملة TON بنجاح!**
+
+💰 **المبلغ المدفوع:** {amount:.3f} TON
+🆔 **معرف المعاملة:** {memo}
+📅 **التاريخ:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **تفاصيل الحزمة:**
+• اسم الحزمة: {package_name}
+• عدد المنشورات: {posts_total}
+• ينتهي في: 90 يوم"""
+                
+                if auto_schedule_days > 0:
+                    confirmation_message += f"\n• أيام الجدولة التلقائية: {auto_schedule_days}"
+                
+                if selected_addons:
+                    confirmation_message += f"\n• الإضافات: {len(selected_addons)} إضافة"
+                
+                confirmation_message += "\n\n🎉 أصبحت حزمة المنشورات جاهزة للاستخدام!"
+                
+            elif user_language == 'ru':
+                confirmation_message = f"""✅ **Пакет постов куплен за TON!**
+
+💰 **Оплачено:** {amount:.3f} TON
+🆔 **ID транзакции:** {memo}
+📅 **Дата:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **Детали пакета:**
+• Название пакета: {package_name}
+• Количество постов: {posts_total}
+• Истекает через: 90 дней"""
+                
+                if auto_schedule_days > 0:
+                    confirmation_message += f"\n• Дни автопланирования: {auto_schedule_days}"
+                
+                if selected_addons:
+                    confirmation_message += f"\n• Дополнения: {len(selected_addons)} дополнений"
+                
+                confirmation_message += "\n\n🎉 Пакет постов готов к использованию!"
+                
+            else:  # English
+                confirmation_message = f"""✅ **Post Package Purchase Confirmed with TON!**
+
+💰 **Amount Paid:** {amount:.3f} TON
+🆔 **Transaction ID:** {memo}
+📅 **Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **Package Details:**
+• Package Name: {package_name}
+• Posts Count: {posts_total}
+• Expires in: 90 days"""
+                
+                if auto_schedule_days > 0:
+                    confirmation_message += f"\n• Auto-schedule days: {auto_schedule_days}"
+                
+                if selected_addons:
+                    confirmation_message += f"\n• Add-ons: {len(selected_addons)} add-ons"
+                
+                confirmation_message += "\n\n🎉 Your post package is ready to use!"
+            
+            # Create navigation keyboard
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            
+            if user_language == 'ar':
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 القائمة الرئيسية", callback_data="back_to_main")],
+                    [InlineKeyboardButton(text="📊 حملاتي", callback_data="my_ads")],
+                    [InlineKeyboardButton(text="📝 إنشاء إعلان", callback_data="create_ad")]
+                ])
+            elif user_language == 'ru':
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                    [InlineKeyboardButton(text="📊 Мои кампании", callback_data="my_ads")],
+                    [InlineKeyboardButton(text="📝 Создать рекламу", callback_data="create_ad")]
+                ])
+            else:
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🏠 Main Menu", callback_data="back_to_main")],
+                    [InlineKeyboardButton(text="📊 My Campaigns", callback_data="my_ads")],
+                    [InlineKeyboardButton(text="📝 Create Ad", callback_data="create_ad")]
+                ])
+            
+            # Process the post package purchase
+            await self.process_post_package_purchase(user_id, memo, amount, package_data)
+            
+            # Mark as confirmed
+            await self.mark_payment_confirmed(memo)
+            
+            # Send confirmation message
+            await bot_instance.send_message(
+                chat_id=user_id,
+                text=confirmation_message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            
+            logger.info(f"✅ TON post package confirmation sent to user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error sending TON post package confirmation: {e}")
+            return False
+    
     async def send_automatic_confirmation(self, user_id: int, memo: str, amount: float, ad_data: dict):
         """Send automatic confirmation to user"""
         try:
@@ -466,20 +758,45 @@ async def process_detected_payment(memo: str, amount: float):
     if user_data:
         logger.info(f"🎯 Found user {user_data['user_id']} for memo {memo}")
         
-        # Send automatic confirmation
-        success = await automatic_confirmation.send_automatic_confirmation(
-            user_data['user_id'],
-            memo,
-            amount,
-            user_data['ad_data']
-        )
-        
-        if success:
-            logger.info(f"✅ Automatic confirmation sent for memo {memo}")
+        # Check if this is a post package purchase
+        ad_data = user_data.get('ad_data', {})
+        if ad_data.get('type') == 'post_package':
+            # This is a post package purchase via TON
+            package_data = {
+                'package_name': ad_data.get('package_name', 'Post Package'),
+                'posts_total': ad_data.get('posts_total', 0),
+                'auto_schedule_days': ad_data.get('auto_schedule_days', 0),
+                'selected_addons': ad_data.get('selected_addons', [])
+            }
+            
+            success = await automatic_confirmation.send_ton_post_package_confirmation(
+                user_data['user_id'],
+                memo,
+                amount,
+                package_data
+            )
+            
+            if success:
+                logger.info(f"✅ TON post package confirmation sent for memo {memo}")
+            else:
+                logger.error(f"❌ Failed to send TON post package confirmation for memo {memo}")
+                
+            return success
         else:
-            logger.error(f"❌ Failed to send confirmation for memo {memo}")
-        
-        return success
+            # Regular campaign payment
+            success = await automatic_confirmation.send_automatic_confirmation(
+                user_data['user_id'],
+                memo,
+                amount,
+                user_data['ad_data']
+            )
+            
+            if success:
+                logger.info(f"✅ Automatic confirmation sent for memo {memo}")
+            else:
+                logger.error(f"❌ Failed to send confirmation for memo {memo}")
+            
+            return success
     else:
         logger.warning(f"⚠️ No user found for memo {memo}")
         return False
