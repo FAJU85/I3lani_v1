@@ -130,10 +130,6 @@ class AdminSystem:
                 InlineKeyboardButton(text="🏅 Achievement Analytics", callback_data="admin_achievements")
             ],
             [
-                InlineKeyboardButton(text="🎯 Tribute Integration", callback_data="admin_tribute"),
-                InlineKeyboardButton(text="📊 Cross-Platform Analytics", callback_data="admin_tribute_analytics")
-            ],
-            [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="🧪 Test Bot Workflow", callback_data="admin_test_workflow")
             ],

@@ -72,8 +72,8 @@ def run_bot():
     global bot_started, bot_instance
     try:
         logger.info("Starting bot in background...")
-        # Import and run the V3 main bot
-        from main_bot_v3 import main as start_bot
+        # Import and run the main bot
+        from main_bot import main as start_bot
         # Set bot_started to True when bot initialization begins
         bot_started = True
         logger.info("Bot initialization started, setting bot_started=True")
