@@ -187,8 +187,8 @@ class V3BotCommands:
         await state.update_data(category=category)
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💰 CPC (Cost Per Click)", callback_data="bid_CPC")],
-            [InlineKeyboardButton(text="👁️ CPM (Cost Per 1000 Impressions)", callback_data="bid_CPM")]
+            [InlineKeyboardButton(text="💰 CPC (Cost Per Click) - Min $0.10", callback_data="bid_CPC")],
+            [InlineKeyboardButton(text="👁️ CPM (Cost Per 1000 Views) - Min $1.00", callback_data="bid_CPM")]
         ])
         
         await callback_query.message.edit_text(
@@ -218,11 +218,22 @@ class V3BotCommands:
         """Process bid amount"""
         try:
             bid_amount = Decimal(message.text)
-            if bid_amount <= 0:
-                await message.answer("❌ Bid amount must be greater than 0")
-                return
-            
             data = await state.get_data()
+            bid_type = data.get('bid_type')
+            
+            # Enforce minimum bids per checklist requirements
+            minimum_bids = {'CPC': Decimal('0.10'), 'CPM': Decimal('1.00')}
+            minimum = minimum_bids.get(bid_type, Decimal('0.01'))
+            
+            if bid_amount < minimum:
+                await message.answer(
+                    f"❌ Minimum {bid_type} bid is ${minimum}\n\n"
+                    f"💰 Minimum Requirements:\n"
+                    f"• CPC (Cost Per Click): $0.10\n"
+                    f"• CPM (Cost Per 1000 Views): $1.00\n\n"
+                    f"Please enter a higher amount:"
+                )
+                return
             
             # Create ad
             ad_id = await i3lani_v3.create_ad(

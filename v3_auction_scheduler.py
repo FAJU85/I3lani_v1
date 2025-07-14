@@ -119,9 +119,20 @@ class V3AuctionScheduler:
             content = placement['content']
             bid_type = placement['bid_type']
             
-            # Create trackable link for CPC ads
+            # Create trackable link for CPC ads with Bitly integration
             if bid_type == 'CPC':
-                trackable_link = f"https://t.me/{(await self.bot.get_me()).username}?start=click_{placement['placement_id']}"
+                from v3_missing_features_implementation import BitlyIntegration
+                bitly = BitlyIntegration()
+                
+                base_link = f"https://t.me/{(await self.bot.get_me()).username}?start=click_{placement['placement_id']}"
+                
+                # Create shortened trackable link
+                link_result = await bitly.create_short_link(
+                    long_url=base_link,
+                    title=f"I3lani Ad {placement['ad_id']}"
+                )
+                
+                trackable_link = link_result['short_url']
                 content += f"\n\n👆 Click here: {trackable_link}"
             
             # Post ad
