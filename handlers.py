@@ -219,14 +219,6 @@ async def create_regular_main_menu_keyboard(language: str, user_id: int) -> Inli
         )
     ])
     
-    # Add AdSense channel browsing button
-    keyboard_rows.append([
-        InlineKeyboardButton(
-            text=get_text(language, 'browse_channels'), 
-            callback_data='browse_channels'
-        )
-    ])
-    
     keyboard_rows.append([
         InlineKeyboardButton(
             text=settings_text, 
@@ -7881,29 +7873,6 @@ Thank you for using I3lani Bot!
     except Exception as e:
         logger.error(f"Successful payment handler error: {e}")
         await message.answer("Payment processed successfully! Your ad will be published shortly.")
-
-
-@router.callback_query(F.data == 'browse_channels')
-async def browse_channels_callback(callback_query: CallbackQuery, state: FSMContext):
-    """Handle browse channels callback from main menu"""
-    try:
-        # Import and call the AdSense browse channels handler
-        from adsense_handlers import browse_channels_command
-        
-        # Create a mock message object from callback for compatibility
-        mock_message = callback_query.message
-        mock_message.from_user = callback_query.from_user
-        
-        await browse_channels_command(mock_message, state)
-        await callback_query.answer()
-        
-    except Exception as e:
-        logger.error(f"Error in browse channels callback: {e}")
-        await callback_query.answer("Error loading channels. Please try again.")
-        await callback_query.message.edit_text("Error loading channels. Please try /start to restart.")
-
-# Alias for validation tests
-browse_channels_handler = browse_channels_callback
 
 
 def setup_handlers(dp):
