@@ -2486,15 +2486,11 @@ async def show_help_handler(callback_query: CallbackQuery):
 
 @router.callback_query(F.data == "create_ad")
 async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
-    """Start enhanced ad creation process with modern UI and enhanced error handling"""
+    """Redirect to post-based system for ad creation"""
     user_id = callback_query.from_user.id
     language = await get_user_language(user_id)
     
-    # Enhanced logging for Arabic main menu debugging
-    logger.info(f"📢 create_ad callback received from user {user_id} (language: {language})")
-    
-    # Log the ad creation step
-    log_info(StepNames.CREATE_AD_START, user_id, "User clicked create ad button")
+    logger.info(f"📢 create_ad callback received from user {user_id} (language: {language}) - redirecting to post-based system")
     
     # Track ad creation start with end-to-end tracking system
     try:
@@ -2506,10 +2502,14 @@ async def create_ad_handler(callback_query: CallbackQuery, state: FSMContext):
         # Use safe callback handler to prevent timeout errors
         await safe_callback_answer(callback_query, "")
         
-        # Start with photo upload state
-        await state.set_state(AdCreationStates.upload_photos)
+        # Redirect to post-based system
+        from post_based_handlers import create_ad_post_based
+        await create_ad_post_based(callback_query, state)
         
-        # Use crypto-focused ad creation message
+    except Exception as e:
+        logger.error(f"Error redirecting to post-based system: {e}")
+        # Fallback to old system if post-based fails
+        await state.set_state(AdCreationStates.upload_photos)
         content = get_text(language, 'send_ad_content')
         
         # Add step title to the create ad content
