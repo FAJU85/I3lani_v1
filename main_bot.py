@@ -298,6 +298,12 @@ async def init_bot():
         from pricing_admin_handlers import setup_pricing_admin_handlers
         setup_pricing_admin_handlers(dp)
         logger.info("✅ Advanced pricing management system initialized")
+        
+        # Register Tribute admin handlers
+        logger.info("Setting up Tribute.tg integration handlers...")
+        from tribute_admin_handlers import setup_tribute_admin_handlers
+        setup_tribute_admin_handlers(dp)
+        logger.info("✅ Tribute.tg integration handlers registered")
         logger.info("   💰 Complete CRUD operations for pricing tiers")
         logger.info("   🎁 Promotional offers management")
         logger.info("   📦 Bundle packages creation")
