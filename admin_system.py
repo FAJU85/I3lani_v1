@@ -134,6 +134,10 @@ class AdminSystem:
                 InlineKeyboardButton(text="📊 Cross-Platform Analytics", callback_data="admin_tribute_analytics")
             ],
             [
+                InlineKeyboardButton(text="🎯 Auction System", callback_data="admin_auction_menu"),
+                InlineKeyboardButton(text="📈 Revenue Analytics", callback_data="admin_auction_revenue")
+            ],
+            [
                 InlineKeyboardButton(text="🤖 Bot Control", callback_data="admin_bot_control"),
                 InlineKeyboardButton(text="🧪 Test Bot Workflow", callback_data="admin_test_workflow")
             ],

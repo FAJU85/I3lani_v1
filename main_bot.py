@@ -304,6 +304,33 @@ async def init_bot():
         from tribute_admin_handlers import setup_tribute_admin_handlers
         setup_tribute_admin_handlers(dp)
         logger.info("✅ Tribute.tg integration handlers registered")
+        
+        # Initialize auction advertising system
+        logger.info("Initializing auction advertising system...")
+        from auction_bot_handlers import setup_auction_handlers, initialize_auction_handlers
+        from auction_admin_system import setup_auction_admin_handlers, initialize_auction_admin
+        
+        # Setup auction handlers
+        setup_auction_handlers(dp, bot, db)
+        await initialize_auction_handlers()
+        
+        # Setup auction admin handlers
+        setup_auction_admin_handlers(dp, bot, db)
+        await initialize_auction_admin()
+        
+        logger.info("✅ Auction advertising system initialized")
+        logger.info("   🎯 CPC/CPM bidding system active")
+        logger.info("   📺 Channel categorization enabled")
+        logger.info("   💰 68%/32% revenue sharing model")
+        logger.info("   🔄 Daily auction scheduler ready")
+        
+        # Initialize auction scheduler
+        logger.info("Starting auction scheduler...")
+        from auction_scheduler import initialize_auction_scheduler
+        await initialize_auction_scheduler(bot, db)
+        logger.info("✅ Auction scheduler started")
+        logger.info("   📅 Daily auctions at 9:00 AM")
+        logger.info("   📤 Automated ad posting every 30 minutes")
         logger.info("   💰 Complete CRUD operations for pricing tiers")
         logger.info("   🎁 Promotional offers management")
         logger.info("   📦 Bundle packages creation")
