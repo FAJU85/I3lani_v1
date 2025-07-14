@@ -217,6 +217,20 @@ LANGUAGES = {
         'error': 'Error occurred',
         'success': 'Success!',
         'processing': 'Processing...',
+        
+        # AdSense system
+        'no_channels_available': 'No channels available for advertising at the moment.',
+        'available_channels_header': '📺 **Available Channels for Advertising**\n\nChoose a channel to place your bid:',
+        'filter_by_category': '🔍 Filter by Category',
+        'channel_not_found': 'Channel not found or no longer available.',
+        'session_expired': 'Session expired. Please start over.',
+        'invalid_amount': 'Please enter a valid amount.',
+        'error_occurred': 'An error occurred. Please try again.',
+        'browse_channels': '🎯 Browse Channels',
+        'place_bid': '💰 Place Bid',
+        'my_bids': '📊 My Bids',
+        'ad_performance': '📈 Ad Performance',
+        'auction_results': '🏆 Auction Results',
         'no_channels': '❌ **No channels available**\n\nThe bot needs to be added as an administrator to channels before they can be used for advertising.\n\nPlease contact support to add channels.',
         'support_message': '📞 Need help? Contact /support for assistance!',
         'error_updating_language': 'Error updating language. Please try again.',
@@ -641,6 +655,20 @@ Questions? Use /support to get help!""",
         'auto_currency_calc': '✅ حساب العملة التلقائي (USD, TON, Stars)',
         'click_adjust_days': '🔄 انقر +/- لضبط الأيام أو اختر من الخيارات السريعة',
         'continue_with_days': 'متابعة مع {days} أيام',
+        
+        # AdSense system
+        'no_channels_available': 'لا توجد قنوات متاحة للإعلان في الوقت الحالي.',
+        'available_channels_header': '📺 **القنوات المتاحة للإعلان**\n\nاختر قناة لتقديم عرضك:',
+        'filter_by_category': '🔍 تصفية حسب الفئة',
+        'channel_not_found': 'القناة غير موجودة أو لم تعد متاحة.',
+        'session_expired': 'انتهت صلاحية الجلسة. يرجى البدء من جديد.',
+        'invalid_amount': 'يرجى إدخال مبلغ صحيح.',
+        'error_occurred': 'حدث خطأ. يرجى المحاولة مرة أخرى.',
+        'browse_channels': '🎯 تصفح القنوات',
+        'place_bid': '💰 تقديم عرض',
+        'my_bids': '📊 عروضي',
+        'ad_performance': '📈 أداء الإعلان',
+        'auction_results': '🏆 نتائج المزاد',
     },
     
     'ru': {
@@ -961,6 +989,20 @@ Questions? Use /support to get help!""",
         'auto_currency_calc': '✅ Автоматический расчет валюты (USD, TON, Stars)',
         'click_adjust_days': '🔄 Нажмите +/- для изменения дней или выберите из быстрых опций',
         'continue_with_days': 'Продолжить с {days} дней',
+        
+        # AdSense system
+        'no_channels_available': 'В настоящее время нет доступных каналов для рекламы.',
+        'available_channels_header': '📺 **Доступные каналы для рекламы**\n\nВыберите канал для размещения ставки:',
+        'filter_by_category': '🔍 Фильтр по категории',
+        'channel_not_found': 'Канал не найден или больше не доступен.',
+        'session_expired': 'Сессия истекла. Пожалуйста, начните заново.',
+        'invalid_amount': 'Пожалуйста, введите правильную сумму.',
+        'error_occurred': 'Произошла ошибка. Пожалуйста, попробуйте еще раз.',
+        'browse_channels': '🎯 Просмотр каналов',
+        'place_bid': '💰 Сделать ставку',
+        'my_bids': '📊 Мои ставки',
+        'ad_performance': '📈 Эффективность рекламы',
+        'auction_results': '🏆 Результаты аукциона',
     }
 }
 

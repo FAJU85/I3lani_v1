@@ -304,6 +304,25 @@ async def init_bot():
         from tribute_admin_handlers import setup_tribute_admin_handlers
         setup_tribute_admin_handlers(dp)
         logger.info("✅ Tribute.tg integration handlers registered")
+        
+        # Initialize AdSense system
+        logger.info("Initializing AdSense system...")
+        from adsense_system_architecture import adsense_system
+        await adsense_system.initialize_database()
+        
+        # Note: AdSense database tables are created via initialize_adsense_db.py
+        
+        logger.info("✅ AdSense system initialized")
+        logger.info("   🎯 Auction-based ad placements")
+        logger.info("   💰 Revenue sharing (68% channel owners, 32% platform)")
+        logger.info("   📊 CPC/CPM bidding system")
+        logger.info("   🏆 Real-time auction processing")
+        
+        # Register AdSense handlers
+        logger.info("Setting up AdSense handlers...")
+        from adsense_handlers import setup_adsense_handlers
+        setup_adsense_handlers(dp)
+        logger.info("✅ AdSense handlers registered")
         logger.info("   💰 Complete CRUD operations for pricing tiers")
         logger.info("   🎁 Promotional offers management")
         logger.info("   📦 Bundle packages creation")
