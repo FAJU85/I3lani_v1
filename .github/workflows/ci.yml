@@ -1,0 +1,425 @@
+# Ready-to-run Self-Healing AI Agent + GitHub Actions
+
+This repository contains a minimal, **ready-to-run** example that implements an automated pipeline:
+
+1. GitHub Actions builds the project (Docker) and runs tests.
+2. If tests fail, Actions opens a GitHub Issue labelled `auto-fix` with the failure logs.
+3. A local (or hosted) Python AI agent polls for new `auto-fix` issues, clones the repo, runs an isolated sandbox test, asks OpenAI to propose a fix, applies the fix on a branch, opens a PR, and retries.
+
+**Important security notes (read first):**
+- Never commit secrets. Use GitHub Secrets for `OPENAI_API_KEY` and `GITHUB_TOKEN`.
+- The agent runs arbitrary code from the repo — run it in a secure environment.
+- This is a minimal example intended for demos. Harden before using in production.
+
+-----
+
+## Files in this single-file view
+
+Below are the files you should create in your repo. Copy each block into the named file.
+
+-----
+
+### 1) `.github/workflows/ci.yml`
+
+```yaml
+name: CI - Build, Test & Auto-Issue
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Build Docker image
+        run: |
+          docker build -t ai-project:ci .
+
+      - name: Run tests inside Docker
+        id: run_tests
+        continue-on-error: true
+        run: |
+          docker run --rm ai-project:ci /bin/bash -lc "pytest -q" > test_output.txt || true
+          echo "::set-output name=exitcode::$(test $? -eq 0 && echo 0 || echo 1)"
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test_output.txt
+
+      - name: Create issue on failure (auto-fix request)
+        if: steps.run_tests.outputs.exitcode == '1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Tests failed. Creating issue for auto-fix agent..."
+          BODY=$(printf "Automated auto-fix request\n\nRef: %s\n\n--- TEST OUTPUT ---\n\n%s" "${{ github.sha }}" "$(sed -n '1,1200p' test_output.txt)")
+          gh issue create --title "[auto-fix] Tests failing on ${GITHUB_REF##*/} - ${{ github.sha }}" --body "$BODY" --label auto-fix || \
+          python3 - << 'PY'
+import os, requests
+repo = os.environ['GITHUB_REPOSITORY']
+token = os.environ['GITHUB_TOKEN']
+url = f'https://api.github.com/repos/{repo}/issues'
+body = os.environ.get('BODY', 'auto-fix needed')
+resp = requests.post(url, json={'title':'[auto-fix] Tests failing','body':body,'labels':['auto-fix']}, headers={'Authorization':f'token {token}'})
+print(resp.status_code)
+PY
+```
+
+Notes:
+- This workflow builds your Docker image and runs `pytest`. Adjust test command to your project.
+- On failure it creates a GitHub issue labelled `auto-fix`. We attach the first ~1200 lines of test output to the issue body.
+
+-----
+
+### 2) `Dockerfile` (example)
+
+```dockerfile
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD ["pytest", "-q"]
+```
+
+Adjust as needed for your stack.
+
+-----
+
+### 3) `requirements.txt`
+
+```
+openai>=1.0.0
+PyGithub>=1.55
+GitPython>=3.1
+requests>=2.28
+python-dotenv>=1.0
+```
+
+(Install with `pip install -r requirements.txt` for the AI agent environment.)
+
+-----
+
+### 4) `ai_agent.py` (the main agent)
+
+```python
+"""
+Minimal self-healing AI agent.
+
+How it works (polling mode):
+- Poll GitHub issues searching for label `auto-fix` and state `open`.
+- For each new issue, clone the repo, checkout the failing commit (if present in body), run tests locally in Docker.
+- If tests reproduce, build a prompt containing filenames, failing test, and the stack trace and ask OpenAI for a patch.
+- Apply patch on a new branch, run tests in sandbox, push branch, open PR.
+- If PR passes CI (or tests locally), optionally auto-merge. Limit retries to 3.
+
+Before running, export these env vars:
+- GITHUB_TOKEN (personal access token with repo permissions)
+- OPENAI_API_KEY
+- GITHUB_USER (your GitHub username)
+
+Run: python ai_agent.py
+"""
+
+import os
+import time
+import textwrap
+import subprocess
+import tempfile
+import shutil
+from pathlib import Path
+from github import Github
+import openai
+import git
+import requests
+
+# Configuration
+POLL_INTERVAL = int(os.environ.get('POLL_INTERVAL', '20'))
+MAX_RETRIES = int(os.environ.get('MAX_RETRIES', '3'))
+REPO_FULL = os.environ.get('REPO_FULL')  # optional owner/repo override
+
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+GITHUB_USER = os.environ.get('GITHUB_USER')
+
+if not GITHUB_TOKEN or not OPENAI_API_KEY:
+    raise SystemExit('Please set GITHUB_TOKEN and OPENAI_API_KEY in environment')
+
+openai.api_key = OPENAI_API_KEY
+gh = Github(GITHUB_TOKEN)
+
+# Helper: simple shell runner
+
+def sh(cmd, cwd=None, timeout=300):
+    print(f"$ {cmd}")
+    res = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    print(res.stdout)
+    if res.stderr:
+        print(res.stderr)
+    return res
+
+# Create a compact prompt for the AI
+
+def build_prompt(repo_name, failing_files, short_log):
+    prompt = textwrap.dedent(f"""
+    You are a senior Python developer. A test suite is failing. Repository: {repo_name}
+
+    Failing files:
+    {', '.join(failing_files) if failing_files else 'N/A'}
+
+    Here is the failing test output / stack trace (truncated):
+    {short_log}
+
+    Provide a patch (in unified diff format) that fixes the failing tests. If the fix requires adding or changing tests, include those changes. Keep patches minimal and only edit the files required. If you cannot produce a correct patch, explain what manual changes are needed.
+
+    Output MUST be a unified diff (git apply compatible). No extra commentary.
+    """)
+    return prompt
+
+# Ask OpenAI for a patch
+
+def ask_openai_for_patch(prompt):
+    print('-> Asking OpenAI for a patch...')
+    completion = openai.ChatCompletion.create(
+        model="gpt-4o-mini", # replace with your preferred model
+        messages=[{"role":"user","content":prompt}],
+        temperature=0.0,
+        max_tokens=1800
+    )
+    text = completion['choices'][0]['message']['content']
+    return text
+
+# Core flow per issue
+
+def handle_issue(issue, repo_owner, repo_name):
+    title = issue.title
+    body = issue.body or ''
+    issue_number = issue.number
+    print(f'Handling issue #{issue_number}: {title}')
+
+    # Prevent double-processing: add a comment and a marker label
+    existing = [l.name for l in issue.labels]
+    if 'processing-auto-fix' in existing:
+        print('Already processing')
+        return
+    issue.add_to_labels('processing-auto-fix')
+    issue.create_comment('AI agent accepted this issue and will attempt an automated fix. Attempts will be limited to %d retries.' % MAX_RETRIES)
+
+    # clone repo
+    tmp = tempfile.mkdtemp(prefix='ai-agent-')
+    try:
+        clone_url = f'https://{GITHUB_TOKEN}:x-oauth-basic@github.com/{repo_owner}/{repo_name}.git'
+        repo = git.Repo.clone_from(clone_url, tmp)
+        print('Cloned repo to', tmp)
+
+        # Optionally try to checkout the failing sha referenced in issue body
+        import re
+        m = re.search(r'\b[0-9a-f]{7,40}\b', body)
+        if m:
+            sha = m.group(0)
+            try:
+                repo.git.checkout(sha)
+                print('Checked out', sha)
+            except Exception:
+                print('Could not checkout referenced sha, staying on default branch')
+
+        # Run docker build & tests in sandbox
+        r = sh('docker build -t ai-agent-sandbox .', cwd=tmp)
+        if r.returncode != 0:
+            issue.create_comment('Sandbox docker build failed — cannot reproduce CI environment. Escalating to humans.')
+            issue.add_to_labels('needs-human')
+            return
+
+        # Run pytest and capture
+        r = sh('docker run --rm ai-agent-sandbox /bin/bash -lc "pytest -q"', cwd=tmp)
+        out = (r.stdout or '') + (r.stderr or '')
+
+        if 'FAILED' not in out and r.returncode == 0:
+            issue.create_comment('Tests are not failing on the sandbox environment. Marking as `cannot-reproduce`.')
+            issue.add_to_labels('cannot-reproduce')
+            return
+
+        short_log = '\n'.join(out.splitlines()[-200:])
+
+        # Determine a couple of likely modified files: very naive approach — ask git to run pytest -q -k to identify failures
+        # For demo: we'll include repository files and the test output
+        failing_files = []
+        # Minimal heuristic: look for "File \"path\", line N" in the stack
+        import re
+        for line in out.splitlines():
+            m = re.search(r'File "(.+?)", line \d+', line)
+            if m:
+                p = m.group(1)
+                if p not in failing_files:
+                    failing_files.append(p)
+        if not failing_files:
+            # fallback: include project .py files
+            for p in Path(tmp).rglob('*.py'):
+                if 'venv' in str(p):
+                    continue
+                failing_files.append(str(p.relative_to(tmp)))
+                if len(failing_files) >= 6:
+                    break
+
+        prompt = build_prompt(f'{repo_owner}/{repo_name}', failing_files, short_log)
+        patch = ask_openai_for_patch(prompt)
+
+        if not patch or 'diff --git' not in patch:
+            issue.create_comment('AI could not produce a patch automatically. Explanation:\n\n' + (patch or 'no response'))
+            issue.add_to_labels('needs-human')
+            return
+
+        # Apply patch
+        patch_file = Path(tmp) / 'ai_patch.diff'
+        patch_file.write_text(patch)
+        r = sh(f'git apply --check {patch_file}', cwd=tmp)
+        if r.returncode != 0:
+            # try loose apply using git apply
+            issue.create_comment('Proposed patch failed git apply check. Escalating to humans.')
+            issue.add_to_labels('needs-human')
+            return
+
+        # create branch
+        branch_name = f'auto-fix/{issue_number}/{int(time.time())}'
+        repo.git.checkout('-b', branch_name)
+        r = sh(f'git apply {patch_file} && git add -A && git commit -m "AI: attempted fix for issue #{issue_number}"', cwd=tmp)
+        if r.returncode != 0:
+            issue.create_comment('Failed to commit patch. Escalating to humans.')
+            issue.add_to_labels('needs-human')
+            return
+
+        # push branch
+        repo.git.push('origin', branch_name)
+        # create PR via PyGithub
+        gh_repo = gh.get_repo(f'{repo_owner}/{repo_name}')
+        pr = gh_repo.create_pull(title=f'[auto-fix] #{issue_number} - AI suggested fix', body=f'Automatic fix generated by AI for issue #{issue_number}.', head=f'{GITHUB_USER}:{branch_name}' if GITHUB_USER else branch_name, base='main')
+        issue.create_comment(f'Opened PR #{pr.number} with AI fix: {pr.html_url}')
+
+        # Optionally wait and re-check CI results — for demo we do a simple retry loop
+        attempts = 0
+        while attempts < MAX_RETRIES:
+            attempts += 1
+            issue.create_comment(f'Waiting for CI on PR #{pr.number} (attempt {attempts}/{MAX_RETRIES})...')
+            time.sleep(20)
+            pr = gh_repo.get_pull(pr.number)
+            if pr.mergeable_state == 'clean':
+                issue.create_comment('PR looks mergeable. Merging...')
+                pr.merge(commit_message=f'Auto-merged AI fix for issue #{issue_number}')
+                issue.create_comment('Auto-merged PR and closed issue. If anything goes wrong, label back to needs-human.')
+                issue.edit(state='closed')
+                return
+            # otherwise re-run tests locally in the branch
+            repo.git.fetch()
+            repo.git.checkout(branch_name)
+            r = sh('docker build -t ai-agent-sandbox .', cwd=tmp)
+            r = sh('docker run --rm ai-agent-sandbox /bin/bash -lc "pytest -q"', cwd=tmp)
+            out2 = (r.stdout or '') + (r.stderr or '')
+            if 'FAILED' not in out2 and r.returncode == 0:
+                issue.create_comment('Local sandbox tests now pass. Attempting to merge PR...')
+                try:
+                    pr.merge(commit_message=f'Auto-merged AI fix for issue #{issue_number}')
+                    issue.create_comment('Merged.')
+                    issue.edit(state='closed')
+                    return
+                except Exception as e:
+                    issue.create_comment('Could not merge programmatically: ' + str(e))
+                    issue.add_to_labels('needs-human')
+                    return
+            else:
+                issue.create_comment('Patch did not fix tests in sandbox. Will retry.' )
+                # loop will continue; in a real system we could ask OpenAI again with updated context
+
+        # exhausted retries
+        issue.create_comment('Exceeded max AI retries. Escalating to human maintainers.')
+        issue.add_to_labels('needs-human')
+
+    finally:
+        try:
+            shutil.rmtree(tmp)
+        except Exception:
+            pass
+
+
+# Polling loop
+
+def poll_and_process(full_repo=None):
+    if full_repo:
+        repo_owner, repo_name = full_repo.split('/')
+    else:
+        # infer from environment repo
+        repo_env = os.environ.get('GITHUB_REPOSITORY')
+        if not repo_env:
+            raise SystemExit('Set REPO_FULL or run inside GitHub Actions runner with GITHUB_REPOSITORY')
+        repo_owner, repo_name = repo_env.split('/')
+
+    gh_repo = gh.get_repo(f'{repo_owner}/{repo_name}')
+
+    print('Starting poll loop for', f'{repo_owner}/{repo_name}')
+    while True:
+        open_issues = gh_repo.get_issues(state='open', labels=['auto-fix'])
+        for issue in open_issues:
+            # skip ones that have been commented by the agent already
+            labels = [l.name for l in issue.labels]
+            if 'processing-auto-fix' in labels or 'needs-human' in labels or 'cannot-reproduce' in labels:
+                continue
+            handle_issue(issue, repo_owner, repo_name)
+        time.sleep(POLL_INTERVAL)
+
+
+if __name__ == '__main__':
+    poll_and_process(REPO_FULL)
+```
+
+Notes and limitations:
+- The `ask_openai_for_patch` uses `ChatCompletion.create` — adapt the model name to what you have access to.
+- The patch approach expects a unified diff. LLMs can produce them, but may need prompt engineering.
+- This script uses `gh` token to push branches via HTTPS embedding token in clone URL — this is simple but for production you may prefer a deploy key or SSH.
+
+-----
+
+### 5) Quick local run instructions
+
+1. Create a repo and add the above files.
+2. In the repository's Settings → Secrets, add `OPENAI_API_KEY` (and ensure `GITHUB_TOKEN` is present for Actions).
+3. Locally (or on a VM) create a folder outside the repo for the agent and copy `ai_agent.py` and `requirements.txt` there.
+4. `pip install -r requirements.txt`.
+5. Export environment variables:
+   - `export GITHUB_TOKEN=ghp_xxx`
+   - `export OPENAI_API_KEY=sk_xxx`
+   - `export GITHUB_USER=yourusername`
+   - Optionally: `export REPO_FULL=owner/repo` to point the agent to a repo.
+6. Run `python ai_agent.py`.
+
+-----
+
+### 6) How to improve / productionize
+
+- Run the agent as a secured service with limited permissions.
+- Replace polling with GitHub webhooks for instant notification.
+- Improve prompt engineering: provide file contexts, tests, and diffs.
+- Use a separate environment / container runtime for executing user code.
+- Save a structured incident DB (Postgres) containing attempts and diffs.
+- Add rate limits and strict retries to avoid loops.
+
+-----
+
+If you want, I can also:
+- Generate a nicer flowchart image of the pipeline.
+- Convert the agent to webhook-driven server (FastAPI) + ngrok example for local development.
+- Add sample unit tests and a deliberately-failing test to demo the full loop.
+
+Tell me which you want next and I’ll create it.
