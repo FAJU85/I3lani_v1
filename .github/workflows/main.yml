@@ -1,0 +1,26 @@
+            - name: AI CI Healer
+  # You may pin to the exact commit or the version.
+  # uses: mariorazo97/ai-ci-healer@7ed0b0027d7c5dafba8014991d62c7742b6fc6ef
+  uses: mariorazo97/ai-ci-healer@v1.0.0
+  with:
+    # GitHub Token to post comments (use secrets.GITHUB_TOKEN)
+    github-token: 
+    # AI Brain to use: "groq" (fastest), "gemini" (smartest), or "ollama" (private)
+    llm-provider: # optional, default is groq
+    # Specific model to use (e.g., "llama-3.1-70b-versatile" or "gemini-1.5-flash")
+    model: # optional, default is 
+    # Groq API Key (Required if provider is groq)
+    groq-api-key: # optional
+    # Gemini API Key (Required if provider is gemini)
+    gemini-api-key: # optional
+    # Ollama Endpoint for self-hosted execution (e.g., http://localhost:11434)
+    ollama-endpoint: # optional
+    # Teach the AI your coding standards (e.g., "Always use TypeScript strict mode")
+    custom-context: # optional, default is 
+    # How much log history to read (Increase for complex errors)
+    max-log-lines: # optional, default is 500
+    # Minimum confidence % required to post a comment
+    confidence-threshold: # optional, default is 50
+    # Post the fix as a comment on the PR? (true/false)
+    enable-comments: # optional, default is true
+          
